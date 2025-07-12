@@ -1,0 +1,60 @@
+name: 🚀 Deploy to server on push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Upload & Run Remote Commands
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Install deps & build
+        run: |
+          npm ci
+          npm run build
+
+      - name: 🗂 Ensure dist/public exists and copy public assets
+        run: |
+          mkdir -p dist/public
+          if [ -d "src/public" ]; then
+            cp -r src/public/* dist/public/
+          else
+            echo "No public folder found, skipping static asset copy"
+          fi
+
+      - name: 📦 Copy package.json to build output
+        run: cp package.json dist/
+
+      - name: 📤 Upload build to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 2022
+          source: "dist/**"
+          target: "shop/backend"
+          strip_components: 1
+          overwrite: true
+
+      - name: 🧠 Run post-deploy commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 2022
+          script: |
+            cd shop/backend
+            npm install --omit=dev
+            pm2 describe shop > /dev/null \
+              && pm2 restart shop \
+              || pm2 start index.js --name shop
+            pm2 save
+            npm run migrate

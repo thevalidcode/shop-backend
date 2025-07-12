@@ -1,0 +1,205 @@
+import { registry } from "../components/registry";
+import { z } from "zod";
+import {
+  AuthenticateUserResponseSchema,
+  AuthenticateUserSchema,
+  CreateUserInputSchema,
+  UserUpdateRequestSchema,
+  UserPublicSchema,
+} from "../../schemas/user.schema";
+
+import {
+  UpdateSuccess,
+  InvalidData,
+  UsersListResponse,
+} from "../responses/user.response";
+
+import {
+  BadRequest,
+  Forbidden,
+  ServerError,
+  SuccessResponse,
+} from "../responses/common.response";
+
+// Authenticate user
+registry.registerPath({
+  method: "post",
+  path: "/user/me",
+  summary: "Authenticate user",
+  tags: ["Users"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: AuthenticateUserSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Authenticated user session object",
+      content: {
+        "application/json": {
+          schema: AuthenticateUserResponseSchema,
+        },
+      },
+    },
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// Get all users (admin)
+registry.registerPath({
+  method: "get",
+  path: "/user",
+  summary: "Get all users",
+  tags: ["Users"],
+  security: [{ CookieAuth: [] }],
+  responses: {
+    200: UsersListResponse,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// Get single user by UID
+registry.registerPath({
+  method: "get",
+  path: "/user/{uid}",
+  summary: "Get user by UID",
+  tags: ["Users"],
+  security: [{ CookieAuth: [] }],
+  parameters: [
+    {
+      name: "uid",
+      in: "path",
+      required: true,
+      schema: { type: "string" },
+    },
+  ],
+  responses: {
+    200: {
+      description: "Public-facing user profile",
+      content: {
+        "application/json": {
+          schema: UserPublicSchema,
+        },
+      },
+    },
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// Create user
+registry.registerPath({
+  method: "post",
+  path: "/user",
+  summary: "Create a new user",
+  tags: ["Users"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: CreateUserInputSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    204: {
+      description: "User created successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.string(),
+            token: z.string().jwt(),
+            user: z.object({
+              id: z.coerce.number().describe("User id"),
+              email: z.string().email().describe("User email"),
+              username: z.string().describe("User username"),
+            }),
+          }),
+        },
+      },
+    },
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// Update user
+registry.registerPath({
+  method: "patch",
+  path: "/user",
+  summary: "Update user info",
+  tags: ["Users"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: UserUpdateRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: UpdateSuccess,
+    400: InvalidData,
+    500: ServerError,
+  },
+});
+
+// Delete single user
+registry.registerPath({
+  method: "delete",
+  path: "/user",
+  summary: "Delete a single user",
+  tags: ["Users"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            uid: z.string(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// Delete multiple users
+registry.registerPath({
+  method: "delete",
+  path: "/user/multiple",
+  summary: "Delete multiple users",
+  tags: ["Users"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            uids: z.array(z.string()),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
