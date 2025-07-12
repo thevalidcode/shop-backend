@@ -52,8 +52,7 @@ jobs:
           port: 2022
           script: |
             cd shop/backend
-            rm -rf node_modules package-lock.json
-            npm ci --omit=dev
+            npm i --omit=dev
             pm2 describe shop > /dev/null \
               && pm2 restart shop \
               || pm2 start index.js --name shop
