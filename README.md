@@ -99,7 +99,7 @@ The API exposes various endpoints covering different aspects of the Shop platfor
 - **`/order`**: Place, retrieve, and manage customer orders.
 - **`/version`**: Get the current API version.
 - **`/admin`**: Admin login and logout.
-- **`/api/auth/store`**: Google OAuth authentication.
+- **`/api/auth/shop`**: Google OAuth authentication.
 
 ### Authentication
 

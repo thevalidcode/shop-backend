@@ -119,7 +119,7 @@ app.use("/version", cors(dynamicCors), csrfProtection, versionRouter);
 
 // Internal Routes
 app.use("/admin", adminRoutes);
-app.use("/api/auth/store", oauthRoutes);
+app.use("/api/auth/shop", oauthRoutes);
 
 app.use(swaggerRouter);
 

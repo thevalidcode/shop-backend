@@ -31,7 +31,7 @@ const openApiDocument = generator.generateDocument({
       description: "Public testing server (use this to test endpoints)",
     },
     {
-      url: "https://auth.validpanel.com/api/auth/store",
+      url: "https://auth.validpanel.com/api/auth/shop",
       description: "Public server (use this for auth endpoints)",
     },
     {
