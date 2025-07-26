@@ -1,0 +1,17 @@
+model Admin {
+  id        Int      @id @default(autoincrement())
+  uid       String   @unique
+  email     String
+  image     String?
+  password  String
+  username  String
+  apiKey    String   @unique @map("api_key")
+  role      String   @default("admin")
+  status    String   @default("active")
+  shopId    Int      @map("shop_id")
+  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  timestamp DateTime @default(now())
+  lastSeen  DateTime @default(now()) @map("last_seen")
+
+  @@map("admins")
+}

@@ -1,0 +1,11 @@
+model DesignStyle {
+  id      Int    @map("id")
+  uid     String @id
+  shopId  Int    @map("shop_id")
+  shop    Shop   @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  title   String
+  hex     String
+  schema  Json
+
+  @@map("design_styles")
+}

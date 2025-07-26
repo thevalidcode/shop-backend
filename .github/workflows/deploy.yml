@@ -19,28 +19,15 @@ jobs:
           npm ci
           npm run build
 
-      - name: 🗂 Ensure dist/public exists and copy public assets
-        run: |
-          mkdir -p dist/public
-          if [ -d "src/public" ]; then
-            cp -r src/public/* dist/public/
-          else
-            echo "No public folder found, skipping static asset copy"
-          fi
-
-      - name: 📦 Copy package.json to build output
-        run: cp package.json dist/
-
-      - name: 📤 Upload build to server
+      - name: 📤 Upload project (excluding src/)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 2022
-          source: "dist/**"
+          source: "app,public,scripts,prisma,package.json"
           target: "shop/backend"
-          strip_components: 1
           overwrite: true
 
       - name: 🧠 Run post-deploy commands
@@ -55,6 +42,6 @@ jobs:
             npm i --omit=dev
             pm2 describe shop > /dev/null \
               && pm2 restart shop \
-              || pm2 start index.js --name shop
+              || pm2 start app/index.js --name shop
             pm2 save
             npm run migrate

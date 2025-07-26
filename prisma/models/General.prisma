@@ -1,0 +1,12 @@
+model General {
+  id                    Int    @map("id")
+  uid                   String @id
+  shopId                Int    @map("shop_id")
+  shop                  Shop   @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  title                 String @default("Shop")
+  logoUrl               String? @map("logo_url")
+  faviconUrl            String? @map("favicon_url")
+  defaultClientCurrency String? @map("default_client_currency")
+
+  @@map("general")
+}

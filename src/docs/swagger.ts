@@ -27,7 +27,7 @@ const openApiDocument = generator.generateDocument({
   },
   servers: [
     {
-      url: "https://validpanel.com:7030",
+      url: "https://validpanel.com:7030/api/v1",
       description: "Public testing server (use this to test endpoints)",
     },
     {

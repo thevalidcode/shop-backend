@@ -10,16 +10,16 @@ import path from "path";
 import csurf from "csurf";
 
 // Routes
-import userRouter from "./routes/user";
-import oauthRoutes from "./routes/oauth";
-import storeRoutes from "./routes/shop";
-import blogRoutes from "./routes/blog";
-import faqRoutes from "./routes/faq";
-import productRoutes from "./routes/product";
-import adminRoutes from "./routes/admin";
-import categoryRoutes from "./routes/category";
-import orderRoutes from "./routes/order";
-import versionRouter from "./routes/version";
+import userRouter from "./routes/user.routes";
+import oauthRoutes from "./routes/oauth.routes";
+import storeRoutes from "./routes/shop.routes";
+import blogRoutes from "./routes/blog.routes";
+import faqRoutes from "./routes/faq.routes";
+import productRoutes from "./routes/product.routes";
+import adminRoutes from "./routes/admin.routes";
+import categoryRoutes from "./routes/category.routes";
+import orderRoutes from "./routes/order.routes";
+import versionRouter from "./routes/version.routes";
 import { getDocs } from "./crud";
 import swaggerRouter from "./docs/swagger";
 
@@ -85,7 +85,10 @@ const csrfProtection = csurf({
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
-app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
+app.use(
+  "/assets",
+  express.static(path.join(__dirname, "..", "public", "assets"))
+);
 
 // --- Session ---
 const pgSess = pgSession(session);
@@ -108,14 +111,14 @@ app.use(
 );
 
 // --- Public Routes ---
-app.use("/user", cors(dynamicCors), csrfProtection, userRouter);
-app.use("/shop", cors(dynamicCors), csrfProtection, storeRoutes);
-app.use("/blog", cors(dynamicCors), csrfProtection, blogRoutes);
-app.use("/faq", cors(dynamicCors), csrfProtection, faqRoutes);
-app.use("/product", cors(dynamicCors), csrfProtection, productRoutes);
-app.use("/category", cors(dynamicCors), csrfProtection, categoryRoutes);
-app.use("/order", cors(dynamicCors), csrfProtection, orderRoutes);
-app.use("/version", cors(dynamicCors), csrfProtection, versionRouter);
+app.use("/api/v1/user", cors(dynamicCors), csrfProtection, userRouter);
+app.use("/api/v1/shop", cors(dynamicCors), csrfProtection, storeRoutes);
+app.use("/api/v1/blog", cors(dynamicCors), csrfProtection, blogRoutes);
+app.use("/api/v1/faq", cors(dynamicCors), csrfProtection, faqRoutes);
+app.use("/api/v1/product", cors(dynamicCors), csrfProtection, productRoutes);
+app.use("/api/v1/category", cors(dynamicCors), csrfProtection, categoryRoutes);
+app.use("/api/v1/order", cors(dynamicCors), csrfProtection, orderRoutes);
+app.use("/api/v1/version", cors(dynamicCors), csrfProtection, versionRouter);
 
 // Internal Routes
 app.use("/admin", adminRoutes);
