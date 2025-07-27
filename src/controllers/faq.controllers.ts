@@ -8,13 +8,9 @@ import {
 } from "../schemas/faq.schema";
 import { ShopIdSchema } from "../schemas/common.schema";
 import { AuthSchema } from "../schemas/user.schema";
-import {
-  getDocs,
-  addShopDoc,
-  updateShopDoc,
-  deleteShopDoc,
-  deleteShopDocs,
-} from "../crud";
+import { v4 as uuidv4 } from "uuid";
+import { prisma } from "../config/db";
+import { getNextShopModelId } from "../utils/nextId";
 
 export const getFAQs = async (req: Request, res: Response): Promise<void> => {
   const parsed = ShopIdSchema.safeParse(req.query);
@@ -22,11 +18,15 @@ export const getFAQs = async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+
   const { shop_id } = parsed.data;
+
   try {
-    const faqs = await getDocs("faqs", shop_id);
-    const sorted = faqs.sort((a: any, b: any) => a.position - b.position);
-    res.status(200).json(sorted);
+    const faqs = await prisma.faq.findMany({
+      where: { shopId: shop_id },
+      orderBy: { position: "asc" },
+    });
+    res.status(200).json(faqs);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -41,17 +41,22 @@ export const getFAQByID = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { faq_id } = parsed.data;
 
   const queryParsed = ShopIdSchema.safeParse(req.query);
   if (!queryParsed.success) {
     res.status(400).json({ error: queryParsed.error.flatten() });
     return;
   }
+
+  const { faq_id } = parsed.data;
   const { shop_id } = queryParsed.data;
+
   try {
-    const faq = await getDocs("faqs", shop_id, {
-      find: { field: "id", operator: "===", value: faq_id },
+    const faq = await prisma.faq.findFirst({
+      where: {
+        id: faq_id,
+        shopId: shop_id,
+      },
     });
     res.status(200).json({ faq });
   } catch (err: any) {
@@ -61,11 +66,12 @@ export const getFAQByID = async (
 
 export const addFAQ = async (req: Request, res: Response): Promise<void> => {
   const parsed = createFAQSchema.safeParse(req.body);
-  const authParsed = AuthSchema.safeParse(req.auth);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+
+  const authParsed = AuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
     res.status(400).json({ error: authParsed.error.flatten() });
     return;
@@ -76,18 +82,30 @@ export const addFAQ = async (req: Request, res: Response): Promise<void> => {
     res.status(403).json({ error: "Unauthorised User." });
     return;
   }
+
   try {
-    const faqs = await getDocs("faqs", shop_id);
-    const newId =
-      faqs.reduce((max: number, f: any) => Math.max(max, f.id), 0) + 1;
-    const faqData = {
-      question: parsed.data.question,
-      answer: parsed.data.answer,
-      status: "Active",
-      position: newId,
-    };
-    await addShopDoc("faqs", faqData, shop_id);
-    res.status(200).json({ success: "FAQ added successfully.", faq: faqData });
+    const lastFaq = await prisma.faq.findFirst({
+      where: { shopId: shop_id },
+      orderBy: { position: "desc" },
+      select: { position: true },
+    });
+
+    const newPosition = lastFaq ? lastFaq.position + 1 : 1;
+    const newId = await getNextShopModelId("faq", shop_id);
+    const newFaq = await prisma.faq.create({
+      data: {
+        shopId: shop_id,
+        id: newId,
+        slug: parsed.data.question.toLowerCase().replace(/\s+/g, "-"),
+        question: parsed.data.question,
+        answer: parsed.data.answer,
+        status: "active",
+        position: newPosition,
+        uid: uuidv4(),
+      },
+    });
+
+    res.status(200).json({ success: "FAQ added successfully.", faq: newFaq });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -95,11 +113,12 @@ export const addFAQ = async (req: Request, res: Response): Promise<void> => {
 
 export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
   const parsed = updateFAQSchema.safeParse(req.body);
-  const authParsed = AuthSchema.safeParse(req.auth);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+
+  const authParsed = AuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
     res.status(400).json({ error: authParsed.error.flatten() });
     return;
@@ -107,16 +126,33 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
 
   const { uid } = parsed.data;
   const { shop_id, role } = authParsed.data;
+
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
     return;
   }
 
   try {
-    await updateShopDoc("faqs", uid, parsed.data, shop_id);
-    const faq = await getDocs("faqs", shop_id, {
-      find: { field: "uid", operator: "===", value: uid },
+    await prisma.faq.updateMany({
+      where: {
+        uid,
+        shopId: shop_id,
+      },
+      data: {
+        question: parsed.data.question,
+        answer: parsed.data.answer,
+        status: parsed.data.status,
+        position: parsed.data.position,
+      },
     });
+
+    const faq = await prisma.faq.findFirst({
+      where: {
+        uid,
+        shopId: shop_id,
+      },
+    });
+
     res.status(200).json({ success: "FAQ updated successfully.", faq });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -125,11 +161,12 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
 
 export const deleteFAQ = async (req: Request, res: Response): Promise<void> => {
   const parsed = deleteFAQSchema.safeParse(req.body);
-  const authParsed = AuthSchema.safeParse(req.auth);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+
+  const authParsed = AuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
     res.status(400).json({ error: authParsed.error.flatten() });
     return;
@@ -137,15 +174,20 @@ export const deleteFAQ = async (req: Request, res: Response): Promise<void> => {
 
   const { uid } = parsed.data;
   const { shop_id, role } = authParsed.data;
+
   if (role === "user") {
-    {
-      res.status(403).json({ error: "Unauthorised User." });
-      return;
-    }
+    res.status(403).json({ error: "Unauthorised User." });
+    return;
   }
 
   try {
-    await deleteShopDoc("faqs", uid, shop_id);
+    await prisma.faq.deleteMany({
+      where: {
+        uid,
+        shopId: shop_id,
+      },
+    });
+
     res.status(200).json({ success: "FAQ deleted successfully." });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -157,11 +199,12 @@ export const deleteMultipleFAQs = async (
   res: Response
 ): Promise<void> => {
   const parsed = deleteMultipleFAQsSchema.safeParse(req.body);
-  const authParsed = AuthSchema.safeParse(req.auth);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+
+  const authParsed = AuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
     res.status(400).json({ error: authParsed.error.flatten() });
     return;
@@ -169,13 +212,20 @@ export const deleteMultipleFAQs = async (
 
   const { uids } = parsed.data;
   const { shop_id, role } = authParsed.data;
+
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
     return;
   }
 
   try {
-    await deleteShopDocs("faqs", uids, shop_id);
+    await prisma.faq.deleteMany({
+      where: {
+        uid: { in: uids },
+        shopId: shop_id,
+      },
+    });
+
     res.status(200).json({ success: "FAQs deleted successfully." });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

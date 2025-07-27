@@ -26,6 +26,8 @@ export const FAQSchema = z
 
 export const updateFAQSchema = createFAQSchema.extend({
   uid: z.string(),
+  status: z.string(),
+  position: z.number(),
 });
 
 export const deleteFAQSchema = z.object({

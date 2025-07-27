@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { getDocs } from "../crud";
 import { env } from "../config/env";
 import { z } from "zod";
+import { prisma } from "../config/db";
 
 // Zod schema for verifying JWT payload
 const tokenPayloadSchema = z.object({
@@ -26,7 +26,6 @@ declare module "express" {
   }
 }
 
-// Cookie-based middleware to authenticate JWT token
 export const authenticate = async (
   req: Request,
   res: Response,
@@ -44,18 +43,30 @@ export const authenticate = async (
     const parsed = tokenPayloadSchema.safeParse(decoded);
 
     if (!parsed.success) {
-      res.status(401).json({ error: "Invalid token payload" });
+      res.status(401).json({ error: parsed.error.flatten() });
       return;
     }
 
     const { email, shop_id, api_key, role } = parsed.data;
 
-    const user = await getDocs("users", shop_id, { find: { email } });
-    const admin = await getDocs("admins", shop_id, { find: { email } });
+    const [user, admin] = await Promise.all([
+      prisma.user.findFirst({
+        where: {
+          shopId: shop_id,
+          email,
+        },
+      }),
+      prisma.admin.findFirst({
+        where: {
+          shopId: shop_id,
+          email,
+        },
+      }),
+    ]);
 
     const account = admin || user;
 
-    if (!account || account.api_key !== api_key) {
+    if (!account || account.apiKey !== api_key) {
       res.status(401).json({ error: "Key mismatch or user not found" });
       return;
     }

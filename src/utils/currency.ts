@@ -1,19 +1,23 @@
 import axios from "axios";
-import { addShopDoc, getDocs, updateShopDoc } from "../crud";
+import { prisma } from "../config/db";
 import { env } from "../config/env";
+import { v4 as uuidv4 } from "uuid";
 
 const rateKey = env.RATE_KEY;
+
 async function getCurrentRates() {
   try {
     const response = await axios.get(
       `http://apilayer.net/api/live?access_key=${rateKey}`
     );
-    let data = response.data;
-    const quotes: any = {};
+    const data = response.data;
+
+    const quotes: Record<string, number> = {};
     for (const [currencyCode, rate] of Object.entries(data.quotes)) {
       const formattedCurrencyCode = currencyCode.substring(3);
-      quotes[formattedCurrencyCode] = rate;
+      quotes[formattedCurrencyCode] = rate as number;
     }
+
     quotes["USD"] = 1;
     return quotes;
   } catch (error) {
@@ -23,22 +27,30 @@ async function getCurrentRates() {
 
 const saveRates = async () => {
   const rates = await getCurrentRates();
-  if (rates) {
-    try {
-      const existingRates = await getDocs("currencies", 1);
-      if (existingRates.length) {
-        await updateShopDoc(
-          "currencies",
-          existingRates[0].uid,
-          { quotes: rates, timestamp: new Date() },
-          1
-        );
-      } else {
-        await addShopDoc("currencies", { quotes: rates }, 1);
-      }
-    } catch (error: any) {
-      console.error("Error saving exchange rates:", error.message || error);
+  if (!rates) return;
+
+  try {
+    const existing = await prisma.currency.findFirst();
+
+    if (existing) {
+      await prisma.currency.update({
+        where: { uid: existing.uid },
+        data: {
+          quotes: rates,
+          timestamp: new Date(),
+        },
+      });
+    } else {
+      await prisma.currency.create({
+        data: {
+          uid: uuidv4(),
+          quotes: rates,
+          timestamp: new Date(),
+        },
+      });
     }
+  } catch (error: any) {
+    console.error("Error saving exchange rates:", error.message || error);
   }
 };
 

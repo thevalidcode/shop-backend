@@ -3,7 +3,7 @@ import bodyParser from "body-parser";
 import cors, { CorsOptions, CorsRequest } from "cors";
 import session from "express-session";
 import pgSession from "connect-pg-simple";
-import { pool } from "./config/db";
+import { pool, prisma } from "./config/db";
 import { env } from "./config/env";
 import cookieParser from "cookie-parser";
 import path from "path";
@@ -20,7 +20,6 @@ import adminRoutes from "./routes/admin.routes";
 import categoryRoutes from "./routes/category.routes";
 import orderRoutes from "./routes/order.routes";
 import versionRouter from "./routes/version.routes";
-import { getDocs } from "./crud";
 import swaggerRouter from "./docs/swagger";
 
 const app = express();
@@ -29,8 +28,8 @@ const app = express();
 let allowedOrigins: string[] = [];
 
 async function updateAllowedOrigins(): Promise<void> {
-  const shops = await getDocs("shops", null, {
-    filter: { field: "ssl", operator: "===", value: true },
+  const shops = await prisma.shop.findMany({
+    where: { ssl: true },
   });
 
   const domains = shops.map((shop: any) => shop.uid);

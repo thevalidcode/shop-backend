@@ -4,10 +4,11 @@ import bcrypt from "bcrypt";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import { verifyGoogleIdToken } from "../helpers/googleverify";
-import { getDocs, addShopDoc } from "../crud";
+import { prisma } from "../config/db";
 import { v4 as uuidv4 } from "uuid";
 import { env } from "../config/env";
 import { Request, Response } from "express";
+import { getNextShopModelId } from "../utils/nextId";
 
 const router = express.Router();
 
@@ -15,9 +16,7 @@ const isValidShopDomain = async (url: string): Promise<boolean> => {
   const match = url.match(/^https?:\/\/([^/]+)/i);
   if (!match) return false;
   const domain = match[1];
-  const shop = await getDocs("shops", null, {
-    find: { field: "uid", operator: "===", value: domain },
-  });
+  const shop = await prisma.shop.findUnique({ where: { uid: domain } });
   return !!shop;
 };
 
@@ -93,25 +92,36 @@ router.get(
       const { id_token } = tokenRes.data;
       const googleUser = await verifyGoogleIdToken(id_token);
 
-      const users = await getDocs("users", shop_id);
-      let user = users.find((u: any) => u.email === googleUser.email);
+      let user = await prisma.user.findFirst({
+        where: {
+          email: googleUser.email,
+          shopId: shop_id,
+        },
+      });
 
       if (!user) {
-        user = {
-          email: googleUser.email,
-          username: googleUser.name.replace(/\s/g, "").toLowerCase(),
-          image: googleUser.picture,
-          password: await bcrypt.hash(Date.now().toString(), 10),
-          api_key: uuidv4(),
-          timestamp: new Date(),
-          uid: uuidv4(),
-          role: "user",
-        };
-        await addShopDoc("users", user, shop_id);
+        const timestamp = new Date();
+        const uid = uuidv4();
+        const newId = await getNextShopModelId("user", shop_id);
+
+        user = await prisma.user.create({
+          data: {
+            id: newId,
+            email: googleUser.email,
+            username: googleUser.name.replace(/\s/g, "").toLowerCase(),
+            image: googleUser.picture,
+            password: await bcrypt.hash(Date.now().toString(), 10),
+            apiKey: uuidv4(),
+            timestamp,
+            uid,
+            role: "user",
+            shopId: shop_id,
+          },
+        });
       }
 
       const token = jwt.sign(
-        { email: user.email, shop_id, api_key: user.api_key },
+        { email: user.email, shop_id, api_key: user.apiKey },
         env.JWT_SECRET,
         { expiresIn: "7d" }
       );

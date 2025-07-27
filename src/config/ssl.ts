@@ -1,6 +1,6 @@
 import fs from "fs";
 import tls, { SecureContext } from "tls";
-import { getDocs } from "../crud";
+import { prisma } from "../config/db";
 import { env as processENV } from "./env";
 
 const env = processENV.NODE_ENV;
@@ -15,16 +15,17 @@ type SSLOptions = {
 const sslOptions: SSLOptions = {};
 
 async function loadCertificates(): Promise<void> {
-  const domains = await getDocs("shops", null, {
-    filter: { field: "ssl", operator: "===", value: true },
+  const domains = await prisma.shop.findMany({
+    where: { ssl: true },
+    select: { uid: true },
   });
 
   domains
     .filter(
-      (domain: any) =>
+      (domain) =>
         domain.uid !== "localhost:5173" && domain.uid !== "localhost:3000"
     )
-    .forEach((domain: any) => {
+    .forEach((domain) => {
       if (env === "production") {
         sslOptions[domain.uid] = {
           cert: fs.readFileSync(
@@ -49,13 +50,11 @@ async function SNICallback(
   let ctx = sslOptions[domain];
 
   if (!ctx) {
-    const result = await getDocs("shops", null, {
-      find: { field: "uid", operator: "===", value: domain },
+    const shop = await prisma.shop.findUnique({
+      where: { uid: domain },
     });
 
-    const newDomain = Array.isArray(result) ? result[0] : result;
-
-    if (newDomain?.ssl) {
+    if (shop?.ssl) {
       ctx = {
         cert: fs.readFileSync(`/etc/letsencrypt/live/${domain}/fullchain.pem`),
         key: fs.readFileSync(`/etc/letsencrypt/live/${domain}/privkey.pem`),

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getDocs } from "../crud";
+import { prisma } from "../config/db";
 import type { Request, Response } from "express";
 
 const storeIdQuerySchema = z.object({ domain: z.string().min(1) });
@@ -17,14 +17,20 @@ export const getShopData = async (
   const { domain } = parsed.data;
 
   try {
-    const shops = await getDocs("shops");
-    const shop = shops.find((p: any) => p.uid === domain);
+    const shop = await prisma.shop.findUnique({
+      where: { uid: domain },
+      select: {
+        shopId: true,
+        plan: true,
+        timestamp: true,
+      },
+    });
     if (!shop) {
       res.status(404).json({ error: "Shop not found for the given domain" });
       return;
     }
     res.json({
-      shop_id: shop.shop_id,
+      shop_id: shop.shopId,
       plan: shop.plan,
       timestamp: shop.timestamp,
     });
@@ -45,8 +51,9 @@ export const getShopCSRFToken = async (
   const { domain } = parsed.data;
 
   try {
-    const shops = await getDocs("shops");
-    const shop = shops.find((p: any) => p.uid === domain);
+    const shop = await prisma.shop.findUnique({
+      where: { uid: domain },
+    });
     if (!shop) {
       res.status(404).json({ error: "Shop not found for the given domain" });
       return;
@@ -66,8 +73,10 @@ export const getStyles = async (req: Request, res: Response): Promise<void> => {
   const { shop_id } = parsed.data;
 
   try {
-    const result = await getDocs("design_styles", shop_id);
-    res.json(result[0]);
+    const style = await prisma.designStyle.findFirst({
+      where: { shopId: shop_id },
+    });
+    res.json(style);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -85,8 +94,10 @@ export const getSiteData = async (
   const { shop_id } = parsed.data;
 
   try {
-    const result = await getDocs("general", shop_id);
-    res.json(result[0]);
+    const siteData = await prisma.general.findFirst({
+      where: { shopId: shop_id },
+    });
+    res.json(siteData);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -94,8 +105,10 @@ export const getSiteData = async (
 
 export const getRates = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const result = await getDocs("currencies", 1);
-    res.json(result[0].quotes);
+    const rate = await prisma.currency.findFirst({
+      select: { quotes: true },
+    });
+    res.json(rate?.quotes || {});
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -112,15 +125,26 @@ export const getCurrentUser = async (
   const { uid, shop_id } = req.auth;
 
   try {
-    const result = await getDocs("users", shop_id, {
-      find: { field: "uid", operator: "===", value: uid },
-      removeKeys: ["password", "api_key"],
+    const user = await prisma.user.findFirst({
+      where: {
+        uid,
+        shopId: shop_id,
+      },
+      select: {
+        password: false,
+        apiKey: false,
+        uid: true,
+        username: true,
+        role: true,
+        email: true,
+        timestamp: true,
+      },
     });
-    if (!result) {
+    if (!user) {
       res.status(404).json({ error: "User not found" });
       return;
     }
-    res.json(result);
+    res.json(user);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -142,15 +166,26 @@ export const getCurrentAdmin = async (
   }
 
   try {
-    const result = await getDocs("admins", shop_id, {
-      find: { field: "uid", operator: "===", value: uid },
-      removeKeys: ["password", "api_key"],
+    const admin = await prisma.admin.findFirst({
+      where: {
+        uid,
+        shopId: shop_id,
+      },
+      select: {
+        password: false,
+        apiKey: false,
+        uid: true,
+        username: true,
+        role: true,
+        email: true,
+        timestamp: true,
+      },
     });
-    if (!result) {
+    if (!admin) {
       res.status(404).json({ error: "Admin not found" });
       return;
     }
-    res.json(result);
+    res.json(admin);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

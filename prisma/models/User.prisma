@@ -19,7 +19,7 @@ model User {
   
   ref        Int?
   referredBy User?    @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
-  referrals  User[]   @relation("Referral")  // <-- this is the missing part
+  referrals  User[]   @relation("Referral") 
 
   @@map("users")
 }

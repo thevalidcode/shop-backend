@@ -3,16 +3,11 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { Request, Response } from "express";
-import {
-  addShopDoc,
-  getDocs,
-  updateShopDoc,
-  deleteShopDoc,
-  deleteShopDocs,
-} from "../crud";
 import { sendEmail } from "../emails";
 import { env } from "../config/env";
 import { AuthSchema } from "../schemas/user.schema";
+import { prisma } from "../config/db";
+import { getNextShopModelId } from "../utils/nextId";
 
 const createUserSchema = z.object({
   shop_id: z.coerce.number(),
@@ -26,17 +21,6 @@ const meQuerySchema = z.object({
   email: z.string().email(),
   password: z.string(),
   shop_id: z.coerce.number(),
-});
-
-const deleteUserSchema = z.object({ uid: z.string() });
-const deleteUsersSchema = z.object({ uids: z.array(z.string()) });
-const updateUserSchema = z.object({
-  data: z.object({
-    uid: z.string(),
-    username: z.string().optional(),
-    full_name: z.string().optional(),
-    balance: z.number().optional(),
-  }),
 });
 
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
@@ -53,8 +37,16 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const allUsers = await getDocs("users", shop_id, {
-      removeKeys: ["password"],
+    const allUsers = await prisma.user.findMany({
+      where: { shopId: shop_id },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        username: true,
+        role: true,
+        timestamp: true,
+      },
     });
     res.status(200).json(allUsers);
   } catch (err) {
@@ -71,47 +63,44 @@ export const createUser = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-
   const { shop_id, email, username, ref, password } = parsed.data;
 
   try {
-    const allUsers = await getDocs("users", shop_id);
+    const existing = await prisma.user.findFirst({
+      where: {
+        shopId: shop_id,
+        OR: [{ email }, { username }],
+      },
+    });
+
+    if (existing) {
+      const error =
+        existing.email === email
+          ? "Email already exists"
+          : "Username already exists";
+      res.status(400).send({ error });
+      return;
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    const emailExists = allUsers.some((user: any) => user.email === email);
-    const usernameExists = allUsers.some(
-      (user: any) => user.username === username
-    );
-
-    if (emailExists) {
-      res.status(400).send({ error: "Email already exists" });
-      return;
-    }
-    if (usernameExists) {
-      res.status(400).send({ error: "Username already exists" });
-      return;
-    }
-
+    const newId = await getNextShopModelId("user", shop_id);
     const userData = {
-      ...parsed.data,
-      api_key: uuidv4(),
+      shopId: shop_id,
+      id: newId,
+      email,
+      username,
       password: hashedPassword,
+      uid: uuidv4(),
+      apiKey: uuidv4(),
+      ref: ref ? Number(ref) : undefined,
     };
-
-    if (ref) {
-      await addShopDoc(
-        "referrals",
-        { username, user_id: parseInt(ref as string) },
-        shop_id
-      );
-    }
-
-    const newUser = await addShopDoc("users", userData, shop_id);
+    const newUser = await prisma.user.create({ data: userData });
 
     const token = jwt.sign(
       {
         email,
         shop_id,
-        api_key: newUser.api_key,
+        api_key: newUser.apiKey,
         role: "user",
       },
       env.JWT_SECRET,
@@ -122,7 +111,7 @@ export const createUser = async (
       httpOnly: true,
       secure: env.NODE_ENV === "production",
       sameSite: "none",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     await sendEmail(undefined, "new_user", userData, shop_id);
@@ -146,25 +135,23 @@ export const me = async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-
   const { email, password, shop_id } = parsed.data;
 
   try {
-    const user = await getDocs("users", shop_id, {
-      find: { field: "email", operator: "===", value: email },
-    });
+    const account =
+      (await prisma.user.findFirst({
+        where: { email, shopId: shop_id },
+      })) ||
+      (await prisma.admin.findFirst({
+        where: { email, shopId: shop_id },
+      }));
 
-    const admin = await getDocs("admins", shop_id, {
-      find: { field: "email", operator: "===", value: email },
-    });
-
-    const account = user || admin;
     if (!account) {
       res.status(400).json({ error: "Incorrect login details" });
       return;
     }
 
-    if (user && user.status === "banned") {
+    if ("status" in account && account.status === "banned") {
       res
         .status(403)
         .json({ error: "You’ve been banned from this site. Contact support." });
@@ -177,8 +164,7 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const api_key = account.api_key || uuidv4();
-
+    const api_key = account.apiKey || uuidv4();
     const role = account.role;
 
     const token = jwt.sign({ email, shop_id, api_key, role }, env.JWT_SECRET, {
@@ -189,155 +175,16 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       httpOnly: true,
       secure: env.NODE_ENV === "production",
       sameSite: "none",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    delete account.password;
-
+    const { password: _, apiKey: __, ...safeAccount } = account;
     res.status(200).json({
       success: "Logged in successfully",
       role,
-      user: {
-        id: account.id,
-        email: account.email,
-        username: account.username,
-      },
+      user: safeAccount,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Login failed " + err.message });
-  }
-};
-
-export const getUserByUid = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { uid } = req.params;
-  const parsed = AuthSchema.safeParse(req.auth);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
-  }
-  const { shop_id, role } = parsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Unauthorised User." });
-    return;
-  }
-
-  try {
-    const user = await getDocs("users", shop_id, {
-      find: { uid },
-      removeKeys: ["password"],
-    });
-    res.status(200).send({ user });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch user" });
-  }
-};
-
-export const deleteUser = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  const { uid } = req.body;
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-  const { shop_id, role } = authParsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Access denied, Admins only." });
-    return;
-  }
-  const parsed = deleteUserSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
-  }
-
-  try {
-    await deleteShopDoc("users", uid, shop_id);
-    res.status(200).send({ success: "Deleted Successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete user" });
-  }
-};
-
-export const deleteUsers = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const parsed = deleteUsersSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
-  }
-  const { uids } = parsed.data;
-
-  const authParsed = AuthSchema.safeParse(req.auth);
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-  const { shop_id, role } = authParsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Access denied, Admins only." });
-    return;
-  }
-
-  try {
-    await deleteShopDocs("users", uids, shop_id);
-    res.status(200).send({ success: "Deleted Successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete user" });
-  }
-};
-
-export const updateUser = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-  const { shop_id, role } = authParsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Access denied, Admins only." });
-    return;
-  }
-
-  const parsed = updateUserSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
-  }
-  const { data } = parsed.data;
-
-  const allowedFields = ["username", "full_name"];
-
-  const safeUpdate: any = {};
-  for (const field of allowedFields) {
-    if (Object.prototype.hasOwnProperty.call(data, field)) {
-      safeUpdate[field] = data[field as keyof typeof data];
-    }
-  }
-
-  if (Object.keys(safeUpdate).length === 0) {
-    res.status(400).json({ error: "No valid fields to update" });
-    return;
-  }
-
-  try {
-    await updateShopDoc("users", data.uid, safeUpdate, shop_id);
-    res.status(200).json({ success: "Successfully updated user." });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to update user" });
+    res.status(500).json({ error: "Login failed: " + err.message });
   }
 };

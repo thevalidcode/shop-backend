@@ -9,7 +9,6 @@ export const blogIdSchema = z.object({
 
 export const createBlogSchema = z.object({
   title: z.string().min(1),
-  slug: z.string().min(1),
   content: z.string().min(1),
   description: z.string().optional(),
 });

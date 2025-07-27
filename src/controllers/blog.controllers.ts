@@ -1,11 +1,6 @@
 import { AuthSchema } from "../schemas/user.schema";
-import {
-  getDocs,
-  addShopDoc,
-  updateShopDoc,
-  deleteShopDoc,
-  deleteShopDocs,
-} from "../crud";
+import { prisma } from "../config/db";
+import { v4 as uuid4 } from "uuid";
 import type { Request, Response } from "express";
 import { ShopIdSchema } from "../schemas/common.schema";
 import {
@@ -15,6 +10,7 @@ import {
   deleteBlogSchema,
   deleteMultipleBlogsSchema,
 } from "../schemas/blog.schema";
+import { getNextShopModelId } from "../utils/nextId";
 
 export const getBlogs = async (req: Request, res: Response): Promise<void> => {
   const parsed = ShopIdSchema.safeParse(req.query);
@@ -22,10 +18,14 @@ export const getBlogs = async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+
   const { shop_id } = parsed.data;
 
   try {
-    const blogs = await getDocs("blogs", shop_id);
+    const blogs = await prisma.blog.findMany({
+      where: { shopId: shop_id },
+    });
+
     const sorted = blogs.sort((a: any, b: any) => a.position - b.position);
     res.status(200).json(sorted);
   } catch (error: any) {
@@ -42,19 +42,22 @@ export const getBlogByID = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { blog_id } = parsed.data;
 
+  const { blog_id } = parsed.data;
   const queryParsed = ShopIdSchema.safeParse(req.query);
+
   if (!queryParsed.success) {
     res.status(400).json({ error: queryParsed.error.flatten() });
     return;
   }
+
   const { shop_id } = queryParsed.data;
 
   try {
-    const blog = await getDocs("blogs", shop_id, {
-      find: { field: "id", operator: "===", value: blog_id },
+    const blog = await prisma.blog.findFirst({
+      where: { shopId: shop_id, id: blog_id },
     });
+
     res.status(200).json({ blog });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -75,25 +78,29 @@ export const addBlog = async (req: Request, res: Response): Promise<void> => {
   }
 
   const { role, shop_id } = authParsed.data;
+
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
     return;
   }
 
   try {
-    const blogs = await getDocs("blogs", shop_id);
-    const newId =
-      blogs.reduce((max: number, b: any) => Math.max(max, b.id), 0) + 1;
+    const newId = await getNextShopModelId("blog", shop_id);
 
-    const blogData = {
-      title: parsed.data.title,
-      content: parsed.data.content,
-      description: parsed.data.description || "",
-      status: "Active",
-      position: newId,
-    };
+    const blogData = await prisma.blog.create({
+      data: {
+        id: newId,
+        title: parsed.data.title,
+        slug: parsed.data.title.toLowerCase().replace(/\s+/g, "-"),
+        content: parsed.data.content,
+        description: parsed.data.description || "",
+        status: "Active",
+        position: newId,
+        shopId: shop_id,
+        uid: uuid4(),
+      },
+    });
 
-    await addShopDoc("blogs", blogData, shop_id);
     res.status(200).json({
       success: "Blog added successfully.",
       blog: blogData,
@@ -128,10 +135,15 @@ export const updateBlog = async (
   }
 
   try {
-    await updateShopDoc("blogs", uid, parsed.data, shop_id);
-    const blog = await getDocs("blogs", shop_id, {
-      find: { field: "uid", operator: "===", value: uid },
+    await prisma.blog.update({
+      where: { uid, shopId: shop_id },
+      data: parsed.data,
     });
+
+    const blog = await prisma.blog.findFirst({
+      where: { uid, shopId: shop_id },
+    });
+
     res.status(200).json({ success: "Blog updated successfully.", blog });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -163,7 +175,10 @@ export const deleteBlog = async (
   }
 
   try {
-    await deleteShopDoc("blogs", uid, shop_id);
+    await prisma.blog.delete({
+      where: { shopId: shop_id, uid },
+    });
+
     res.status(200).json({ success: "Blog deleted successfully." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -195,7 +210,13 @@ export const deleteMultipleBlogs = async (
   }
 
   try {
-    await deleteShopDocs("blogs", uids, shop_id);
+    await prisma.blog.deleteMany({
+      where: {
+        shopId: shop_id,
+        uid: { in: uids },
+      },
+    });
+
     res.status(200).json({ success: "Blogs deleted successfully." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

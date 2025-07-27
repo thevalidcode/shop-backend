@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
-import { addShopDoc, getDocs } from "../crud";
+import { prisma } from "../config/db";
 import { getTemplate } from "./templates";
+import { v4 as uuidv4 } from "uuid";
+import { getNextShopModelId } from "../utils/nextId";
 
 const transporter = nodemailer.createTransport({
   sendmail: true,
@@ -16,13 +18,17 @@ function interpolate(template: string, variables: Record<string, any>): string {
 }
 
 async function loadGeneralSettings(shop_id: number) {
-  const general = await getDocs("general", shop_id);
-  return general[0];
+  return prisma.general.findFirst({
+    where: { shopId: shop_id },
+  });
 }
 
 async function loadAdminEmails(shop_id: number): Promise<string[]> {
-  const docs = await getDocs("admin_emails", shop_id);
-  return docs.map((doc: any) => doc.emails);
+  const records = await prisma.adminEmail.findMany({
+    where: { shopId: shop_id },
+    select: { emails: true },
+  });
+  return records.map((r) => r.emails).flat();
 }
 
 async function buildEmailTemplate(
@@ -31,8 +37,11 @@ async function buildEmailTemplate(
   logo_url: string,
   shop_id: number
 ): Promise<{ subject: string; html: string }> {
-  const template = await getDocs("email_templates", shop_id, {
-    find: { type },
+  const template = await prisma.emailTemplate.findFirst({
+    where: {
+      shopId: shop_id,
+      type,
+    },
   });
 
   const variables = { logo: logo_url || "", ...data };
@@ -64,29 +73,30 @@ async function dispatchEmail({
   html: string;
   shop_id: number;
 }): Promise<boolean> {
+  const newId = await getNextShopModelId("emailLog", shop_id);
   try {
     const result = await transporter.sendMail({ from, to, subject, html });
-
-    await addShopDoc(
-      "email_logs",
-      {
+    await prisma.emailLog.create({
+      data: {
+        id: newId,
         sender: from,
         receiver: to,
         subject,
         html,
         status: "success",
         timestamp: new Date(),
-        message_id: result.messageId,
+        messageId: result.messageId,
         response: result.response,
+        shopId: shop_id,
+        uid: uuidv4(),
       },
-      shop_id
-    );
+    });
 
     return true;
   } catch (err: any) {
-    await addShopDoc(
-      "email_logs",
-      {
+    await prisma.emailLog.create({
+      data: {
+        id: newId,
         sender: from,
         receiver: to,
         subject,
@@ -94,9 +104,10 @@ async function dispatchEmail({
         status: "error",
         timestamp: new Date(),
         response: err.message,
+        shopId: shop_id,
+        uid: uuidv4(),
       },
-      shop_id
-    );
+    });
     return false;
   }
 }
@@ -110,15 +121,15 @@ export async function sendEmail(
   try {
     if (type === "new_order" && data.price <= 0) return;
 
-    const [logo, recipients] = await Promise.all([
-      loadGeneralSettings(shop_id).then((g) => g.logo_url),
+    const [general, recipients] = await Promise.all([
+      loadGeneralSettings(shop_id),
       loadAdminEmails(shop_id),
     ]);
 
     const { subject, html } = await buildEmailTemplate(
       type,
       data,
-      logo,
+      general?.logoUrl || "",
       shop_id
     );
 
@@ -140,11 +151,11 @@ export async function sendUserEmail(
   shop_id: number
 ): Promise<void> {
   try {
-    const logo = (await loadGeneralSettings(shop_id)).logo_url;
+    const general = await loadGeneralSettings(shop_id);
     const { subject, html } = await buildEmailTemplate(
       type,
       data,
-      logo,
+      general?.logoUrl || "",
       shop_id
     );
     await dispatchEmail({ from, to, subject, html, shop_id });

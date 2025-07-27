@@ -1,5 +1,5 @@
 import { Server, Socket } from "socket.io";
-import { updateShopDoc } from "../crud";
+import { prisma } from "../config/db";
 
 // Define the structure of user data expected from the client
 interface SocketUserData {
@@ -24,12 +24,13 @@ function setupSocket(io: Server): void {
       socket.userData = data;
 
       try {
-        await updateShopDoc(
-          "users",
-          data.uid,
-          { status: "active", last_seen: new Date() },
-          data.shop_id
-        );
+        await prisma.user.update({
+          where: { uid: data.uid },
+          data: {
+            status: "active",
+            lastSeen: new Date(),
+          },
+        });
       } catch (err) {
         console.error("Error updating user status on initConnection:", err);
       }
@@ -48,15 +49,16 @@ function setupSocket(io: Server): void {
     // Handle user disconnection
     socket.on("disconnect", async () => {
       if (socket.userData) {
-        const { uid, shop_id } = socket.userData;
+        const { uid } = socket.userData;
 
         try {
-          await updateShopDoc(
-            "users",
-            uid,
-            { status: "inactive", last_seen: new Date() },
-            shop_id
-          );
+          await prisma.user.update({
+            where: { uid },
+            data: {
+              status: "inactive",
+              lastSeen: new Date(),
+            },
+          });
         } catch (err) {
           console.error("Error updating user status on disconnect:", err);
         }
