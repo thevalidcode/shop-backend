@@ -31,7 +31,7 @@ registry.registerPath({
   tags: ["Products"],
   parameters: [
     {
-      name: "shop_id",
+      name: "shopId",
       in: "query",
       required: true,
       schema: { type: "number" },
@@ -61,13 +61,13 @@ registry.registerPath({
 // Admin: Get products by provider ID
 registry.registerPath({
   method: "get",
-  path: "/product/{provider_id}",
+  path: "/product/{providerId}",
   summary: "Get products by provider ID",
   tags: ["Products"],
   security: [{ CookieAuth: [] }],
   parameters: [
     {
-      name: "provider_id",
+      name: "providerId",
       in: "path",
       required: true,
       schema: { type: "number" },
@@ -83,18 +83,18 @@ registry.registerPath({
 // Public: Get single service
 registry.registerPath({
   method: "get",
-  path: "/product/{product_id}",
+  path: "/product/{productId}",
   summary: "Get a service by ID (public)",
   tags: ["Products"],
   parameters: [
     {
-      name: "product_id",
+      name: "productId",
       in: "path",
       required: true,
       schema: { type: "number" },
     },
     {
-      name: "shop_id",
+      name: "shopId",
       in: "query",
       required: true,
       schema: { type: "number" },
@@ -110,13 +110,13 @@ registry.registerPath({
 // Admin: Get service by ID
 registry.registerPath({
   method: "get",
-  path: "/product/admin/{product_id}",
+  path: "/product/admin/{productId}",
   summary: "Get a service by ID (admin)",
   tags: ["Products"],
   security: [{ CookieAuth: [] }],
   parameters: [
     {
-      name: "product_id",
+      name: "productId",
       in: "path",
       required: true,
       schema: { type: "number" },

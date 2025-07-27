@@ -6,7 +6,6 @@ import {
   ExchangeRatesResponse,
   CurrentUserResponse,
   CurrentAdminResponse,
-  CSrfTokenResponse,
   NotFound,
 } from "../responses/shop.response";
 import { ServerError, Forbidden } from "../responses/common.response";
@@ -32,29 +31,6 @@ registry.registerPath({
   },
 });
 
-// GET /shop/csrf-token
-registry.registerPath({
-  method: "get",
-  path: "/shop/csrf-token",
-  description:
-    "Retrieve a CSRF token which must be included in all subsequent requests that mutate data (e.g., POST, PATCH, DELETE). The frontend must extract the token from this response and send it in the 'X-CSRF-Token' header for every protected request. This ensures protection against Cross-Site Request Forgery (CSRF) attacks.",
-  summary: "Get the csrf token for a custom domain",
-  tags: ["Shop"],
-  parameters: [
-    {
-      name: "domain",
-      in: "query",
-      required: true,
-      schema: { type: "string" },
-    },
-  ],
-  responses: {
-    200: CSrfTokenResponse,
-    404: NotFound,
-    500: ServerError,
-  },
-});
-
 // GET /shop/styles
 registry.registerPath({
   method: "get",
@@ -63,7 +39,7 @@ registry.registerPath({
   tags: ["Shop"],
   parameters: [
     {
-      name: "shop_id",
+      name: "shopId",
       in: "query",
       required: true,
       schema: { type: "string" },
@@ -83,7 +59,7 @@ registry.registerPath({
   tags: ["Shop"],
   parameters: [
     {
-      name: "shop_id",
+      name: "shopId",
       in: "query",
       required: true,
       schema: { type: "string" },

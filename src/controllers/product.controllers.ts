@@ -52,7 +52,7 @@ export const getProductsForAdmins = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { shop_id, role } = parsed.data;
+  const { shopId, role } = parsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -61,7 +61,7 @@ export const getProductsForAdmins = async (
 
   try {
     const products = await prisma.product.findMany({
-      where: { shopId: shop_id },
+      where: { shopId },
       orderBy: { position: "asc" },
     });
     res.status(200).json(products);
@@ -106,7 +106,7 @@ export const getProductByIDFromAdmin = async (
     return;
   }
   const { productId } = parsed.data;
-  const { shop_id, role } = authParsed.data;
+  const { shopId, role } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -115,7 +115,7 @@ export const getProductByIDFromAdmin = async (
 
   try {
     const product = await prisma.product.findFirst({
-      where: { id: productId, shopId: shop_id },
+      where: { id: productId, shopId },
     });
     res.status(200).json({ product });
   } catch (error: any) {
@@ -138,7 +138,7 @@ export const updateProduct = async (
     return;
   }
   const reqData = parsed.data;
-  const { shop_id, role } = authParsed.data;
+  const { shopId, role } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -152,7 +152,7 @@ export const updateProduct = async (
     });
 
     const product = await prisma.product.findFirst({
-      where: { uid: reqData.uid, shopId: shop_id },
+      where: { uid: reqData.uid, shopId },
     });
 
     res.status(200).json({ success: "Product updated successfully.", product });
@@ -236,21 +236,21 @@ export const addProduct = async (
     res.status(400).json({ error: authParsed.error.flatten() });
     return;
   }
-  const { role, shop_id } = authParsed.data;
+  const { role, shopId } = authParsed.data;
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
     return;
   }
 
   try {
-    const newId = await getNextShopModelId("product", shop_id);
+    const newId = await getNextShopModelId("product", shopId);
     const uid = uuidv4();
 
     const productData = {
       ...parsed.data,
       id: newId,
       uid,
-      shopId: shop_id,
+      shopId,
       status: "active",
       position: newId,
     };

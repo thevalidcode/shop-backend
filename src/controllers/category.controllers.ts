@@ -5,8 +5,8 @@ import type { Request, Response } from "express";
 import { AuthSchema } from "../schemas/user.schema";
 
 const categoryIdSchema = z.object({
-  category_id: z.coerce.number(),
-  shop_id: z.coerce.number(),
+  categoryId: z.coerce.number(),
+  shopId: z.coerce.number(),
 });
 
 const updateCategorySchema = z.object({
@@ -24,16 +24,16 @@ export const getCategories = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = z.object({ shop_id: z.coerce.number() }).safeParse(req.query);
+  const parsed = z.object({ shopId: z.coerce.number() }).safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { shop_id } = parsed.data;
+  const { shopId } = parsed.data;
 
   try {
     const categories = await prisma.category.findMany({
-      where: { shopId: shop_id },
+      where: { shopId },
       orderBy: { position: "asc" },
     });
     res.status(200).json(categories);
@@ -51,11 +51,11 @@ export const getCategoryByID = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { category_id, shop_id } = parsed.data;
+  const { categoryId, shopId } = parsed.data;
 
   try {
     const category = await prisma.category.findFirst({
-      where: { id: category_id, shopId: shop_id },
+      where: { id: categoryId, shopId },
     });
     res.status(200).json({ category });
   } catch (error: any) {
@@ -79,7 +79,7 @@ if (!authParsed.success) {
 }
 
   const { uid } = parsed.data;
-  const { shop_id, role } = authParsed.data;
+  const { shopId, role } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -88,12 +88,12 @@ if (!authParsed.success) {
 
   try {
     await prisma.category.updateMany({
-      where: { uid, shopId: shop_id },
+      where: { uid, shopId },
       data: parsed.data,
     });
 
     const category = await prisma.category.findFirst({
-      where: { uid, shopId: shop_id },
+      where: { uid, shopId },
     });
 
     res
@@ -121,7 +121,7 @@ if (!authParsed.success) {
 
 
   const { uid } = parsed.data;
-  const { shop_id, role } = authParsed.data;
+  const { shopId, role } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -130,7 +130,7 @@ if (!authParsed.success) {
 
   try {
     await prisma.category.deleteMany({
-      where: { uid, shopId: shop_id },
+      where: { uid, shopId },
     });
 
     res.status(200).json({ success: "Category deleted successfully." });
@@ -155,7 +155,7 @@ if (!authParsed.success) {
 }
 
   const { uids } = parsed.data;
-  const { role, shop_id } = authParsed.data;
+  const { role, shopId } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -164,7 +164,7 @@ if (!authParsed.success) {
 
   try {
     await prisma.category.deleteMany({
-      where: { uid: { in: uids }, shopId: shop_id },
+      where: { uid: { in: uids }, shopId },
     });
 
     res.status(200).json({ success: "Categories deleted successfully." });
@@ -195,7 +195,7 @@ if (!authParsed.success) {
 }
 
 
-  const { role, shop_id } = authParsed.data;
+  const { role, shopId } = authParsed.data;
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
     return;
@@ -203,7 +203,7 @@ if (!authParsed.success) {
 
   try {
     const lastCategory = await prisma.category.findFirst({
-      where: { shopId: shop_id },
+      where: { shopId },
       orderBy: { id: "desc" },
     });
 
@@ -213,7 +213,7 @@ if (!authParsed.success) {
       data: {
         id: newId,
         uid: uuidv4(),
-        shopId: shop_id,
+        shopId,
         slug: parsed.data.name.toLowerCase().replace(/\s+/g, "-"),
         name: parsed.data.name,
         description: parsed.data.description || "",

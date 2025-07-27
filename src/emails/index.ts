@@ -17,15 +17,15 @@ function interpolate(template: string, variables: Record<string, any>): string {
   );
 }
 
-async function loadGeneralSettings(shop_id: number) {
+async function loadGeneralSettings(shopId: number) {
   return prisma.general.findFirst({
-    where: { shopId: shop_id },
+    where: { shopId },
   });
 }
 
-async function loadAdminEmails(shop_id: number): Promise<string[]> {
+async function loadAdminEmails(shopId: number): Promise<string[]> {
   const records = await prisma.adminEmail.findMany({
-    where: { shopId: shop_id },
+    where: { shopId },
     select: { emails: true },
   });
   return records.map((r) => r.emails).flat();
@@ -34,17 +34,17 @@ async function loadAdminEmails(shop_id: number): Promise<string[]> {
 async function buildEmailTemplate(
   type: string,
   data: Record<string, any>,
-  logo_url: string,
-  shop_id: number
+  logoUrl: string,
+  shopId: number
 ): Promise<{ subject: string; html: string }> {
   const template = await prisma.emailTemplate.findFirst({
     where: {
-      shopId: shop_id,
+      shopId,
       type,
     },
   });
 
-  const variables = { logo: logo_url || "", ...data };
+  const variables = { logo: logoUrl || "", ...data };
   const htmlFromDb = interpolate(template?.content || "", variables);
   const fallbackHtml = getTemplate(type as any, variables);
 
@@ -65,15 +65,15 @@ async function dispatchEmail({
   to,
   subject,
   html,
-  shop_id,
+  shopId,
 }: {
   from: string;
   to: string;
   subject: string;
   html: string;
-  shop_id: number;
+  shopId: number;
 }): Promise<boolean> {
-  const newId = await getNextShopModelId("emailLog", shop_id);
+  const newId = await getNextShopModelId("emailLog", shopId);
   try {
     const result = await transporter.sendMail({ from, to, subject, html });
     await prisma.emailLog.create({
@@ -87,7 +87,7 @@ async function dispatchEmail({
         timestamp: new Date(),
         messageId: result.messageId,
         response: result.response,
-        shopId: shop_id,
+        shopId,
         uid: uuidv4(),
       },
     });
@@ -104,7 +104,7 @@ async function dispatchEmail({
         status: "error",
         timestamp: new Date(),
         response: err.message,
-        shopId: shop_id,
+        shopId,
         uid: uuidv4(),
       },
     });
@@ -116,26 +116,26 @@ export async function sendEmail(
   from = '"Valid Panel" <contact@validpanel.com>',
   type: string,
   data: Record<string, any>,
-  shop_id: number
+  shopId: number
 ): Promise<void> {
   try {
-    if (type === "new_order" && data.price <= 0) return;
+    if (type === "newOrder" && data.price <= 0) return;
 
     const [general, recipients] = await Promise.all([
-      loadGeneralSettings(shop_id),
-      loadAdminEmails(shop_id),
+      loadGeneralSettings(shopId),
+      loadAdminEmails(shopId),
     ]);
 
     const { subject, html } = await buildEmailTemplate(
       type,
       data,
       general?.logoUrl || "",
-      shop_id
+      shopId
     );
 
     await Promise.all(
       recipients.map((to) =>
-        dispatchEmail({ from, to, subject, html, shop_id })
+        dispatchEmail({ from, to, subject, html, shopId })
       )
     );
   } catch (err: any) {
@@ -148,17 +148,17 @@ export async function sendUserEmail(
   to: string,
   type: string,
   data: Record<string, any>,
-  shop_id: number
+  shopId: number
 ): Promise<void> {
   try {
-    const general = await loadGeneralSettings(shop_id);
+    const general = await loadGeneralSettings(shopId);
     const { subject, html } = await buildEmailTemplate(
       type,
       data,
       general?.logoUrl || "",
-      shop_id
+      shopId
     );
-    await dispatchEmail({ from, to, subject, html, shop_id });
+    await dispatchEmail({ from, to, subject, html, shopId });
   } catch (err: any) {
     console.error({ error: err.message });
   }

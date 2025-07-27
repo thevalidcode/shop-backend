@@ -19,11 +19,11 @@ export const getFAQs = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { shop_id } = parsed.data;
+  const { shopId } = parsed.data;
 
   try {
     const faqs = await prisma.faq.findMany({
-      where: { shopId: shop_id },
+      where: { shopId },
       orderBy: { position: "asc" },
     });
     res.status(200).json(faqs);
@@ -48,14 +48,14 @@ export const getFAQByID = async (
     return;
   }
 
-  const { faq_id } = parsed.data;
-  const { shop_id } = queryParsed.data;
+  const { faqId } = parsed.data;
+  const { shopId } = queryParsed.data;
 
   try {
     const faq = await prisma.faq.findFirst({
       where: {
-        id: faq_id,
-        shopId: shop_id,
+        id: faqId,
+        shopId,
       },
     });
     res.status(200).json({ faq });
@@ -77,7 +77,7 @@ export const addFAQ = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { shop_id, role } = authParsed.data;
+  const { shopId, role } = authParsed.data;
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
     return;
@@ -85,16 +85,16 @@ export const addFAQ = async (req: Request, res: Response): Promise<void> => {
 
   try {
     const lastFaq = await prisma.faq.findFirst({
-      where: { shopId: shop_id },
+      where: { shopId },
       orderBy: { position: "desc" },
       select: { position: true },
     });
 
     const newPosition = lastFaq ? lastFaq.position + 1 : 1;
-    const newId = await getNextShopModelId("faq", shop_id);
+    const newId = await getNextShopModelId("faq", shopId);
     const newFaq = await prisma.faq.create({
       data: {
-        shopId: shop_id,
+        shopId,
         id: newId,
         slug: parsed.data.question.toLowerCase().replace(/\s+/g, "-"),
         question: parsed.data.question,
@@ -125,7 +125,7 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
   }
 
   const { uid } = parsed.data;
-  const { shop_id, role } = authParsed.data;
+  const { shopId, role } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -136,7 +136,7 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
     await prisma.faq.updateMany({
       where: {
         uid,
-        shopId: shop_id,
+        shopId,
       },
       data: {
         question: parsed.data.question,
@@ -149,7 +149,7 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
     const faq = await prisma.faq.findFirst({
       where: {
         uid,
-        shopId: shop_id,
+        shopId,
       },
     });
 
@@ -173,7 +173,7 @@ export const deleteFAQ = async (req: Request, res: Response): Promise<void> => {
   }
 
   const { uid } = parsed.data;
-  const { shop_id, role } = authParsed.data;
+  const { shopId, role } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -184,7 +184,7 @@ export const deleteFAQ = async (req: Request, res: Response): Promise<void> => {
     await prisma.faq.deleteMany({
       where: {
         uid,
-        shopId: shop_id,
+        shopId,
       },
     });
 
@@ -211,7 +211,7 @@ export const deleteMultipleFAQs = async (
   }
 
   const { uids } = parsed.data;
-  const { shop_id, role } = authParsed.data;
+  const { shopId, role } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -222,7 +222,7 @@ export const deleteMultipleFAQs = async (
     await prisma.faq.deleteMany({
       where: {
         uid: { in: uids },
-        shopId: shop_id,
+        shopId,
       },
     });
 

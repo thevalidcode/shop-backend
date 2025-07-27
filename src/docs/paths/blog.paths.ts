@@ -19,7 +19,7 @@ import {
   SuccessResponse,
 } from "../responses/common.response";
 
-// GET /blog?shop_id=123
+// GET /blog?shopId=123
 registry.registerPath({
   method: "get",
   path: "/blog",
@@ -27,7 +27,7 @@ registry.registerPath({
   tags: ["Blogs"],
   parameters: [
     {
-      name: "shop_id",
+      name: "shopId",
       in: "query",
       required: true,
       description: "Shop ID to filter blogs",
@@ -41,21 +41,21 @@ registry.registerPath({
   },
 });
 
-// GET /blog/{blog_id}?shop_id=123
+// GET /blog/{blogId}?shopId=123
 registry.registerPath({
   method: "get",
-  path: "/blog/{blog_id}",
+  path: "/blog/{blogId}",
   summary: "Get blog by ID",
   tags: ["Blogs"],
   parameters: [
     {
-      name: "blog_id",
+      name: "blogId",
       in: "path",
       required: true,
       schema: { type: "number" },
     },
     {
-      name: "shop_id",
+      name: "shopId",
       in: "query",
       required: true,
       schema: { type: "number" },

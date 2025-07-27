@@ -3,7 +3,7 @@ import { prisma } from "../config/db";
 import type { Request, Response } from "express";
 
 const storeIdQuerySchema = z.object({ domain: z.string().min(1) });
-const storeIdSchema = z.object({ shop_id: z.coerce.number() });
+const storeIdSchema = z.object({ shopId: z.coerce.number() });
 
 export const getShopData = async (
   req: Request,
@@ -30,35 +30,10 @@ export const getShopData = async (
       return;
     }
     res.json({
-      shop_id: shop.shopId,
+      shopId: shop.shopId,
       plan: shop.plan,
       timestamp: shop.timestamp,
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-export const getShopCSRFToken = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const parsed = storeIdQuerySchema.safeParse(req.query);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
-  }
-  const { domain } = parsed.data;
-
-  try {
-    const shop = await prisma.shop.findUnique({
-      where: { uid: domain },
-    });
-    if (!shop) {
-      res.status(404).json({ error: "Shop not found for the given domain" });
-      return;
-    }
-    res.json({ csrfToken: req.csrfToken() });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -70,11 +45,11 @@ export const getStyles = async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { shop_id } = parsed.data;
+  const { shopId } = parsed.data;
 
   try {
     const style = await prisma.designStyle.findFirst({
-      where: { shopId: shop_id },
+      where: { shopId },
     });
     res.json(style);
   } catch (err: any) {
@@ -91,11 +66,11 @@ export const getSiteData = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { shop_id } = parsed.data;
+  const { shopId } = parsed.data;
 
   try {
     const siteData = await prisma.general.findFirst({
-      where: { shopId: shop_id },
+      where: { shopId },
     });
     res.json(siteData);
   } catch (err: any) {
@@ -122,13 +97,13 @@ export const getCurrentUser = async (
     res.status(401).json({ error: "Unauthorized: auth info missing" });
     return;
   }
-  const { uid, shop_id } = req.auth;
+  const { uid, shopId } = req.auth;
 
   try {
     const user = await prisma.user.findFirst({
       where: {
         uid,
-        shopId: shop_id,
+        shopId,
       },
       select: {
         password: false,
@@ -158,7 +133,7 @@ export const getCurrentAdmin = async (
     res.status(401).json({ error: "Unauthorized: auth info missing" });
     return;
   }
-  const { shop_id, uid, role } = req.auth;
+  const { shopId, uid, role } = req.auth;
 
   if (role !== "admin") {
     res.status(403).json({ error: "Access denied. Admins only." });
@@ -169,7 +144,7 @@ export const getCurrentAdmin = async (
     const admin = await prisma.admin.findFirst({
       where: {
         uid,
-        shopId: shop_id,
+        shopId,
       },
       select: {
         password: false,

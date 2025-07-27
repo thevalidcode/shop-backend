@@ -2,11 +2,11 @@ import { prisma } from "../config/db";
 
 export const getNextShopModelId = async (
   model: keyof typeof prisma,
-  shop_id: number
+  shopId: number
 ): Promise<number> => {
   try {
     const result = await (prisma[model] as any).findFirst({
-      where: { shop_id },
+      where: { shopId },
       orderBy: { id: "desc" },
       select: { id: true },
     });

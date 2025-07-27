@@ -4,7 +4,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 extendZodWithOpenApi(z);
 
 export const blogIdSchema = z.object({
-  blog_id: z.coerce.number(),
+  blogId: z.coerce.number(),
 });
 
 export const createBlogSchema = z.object({
@@ -41,4 +41,4 @@ export const deleteMultipleBlogsSchema = z.object({
   uids: z.array(z.string()),
 });
 
-export const getBlogsSchema = z.object({ shop_id: z.coerce.number() });
+export const getBlogsSchema = z.object({ shopId: z.coerce.number() });

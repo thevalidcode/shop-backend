@@ -12,11 +12,11 @@ export const CategorySchema = z
     description: z.string(),
     status: z.string(),
     position: z.number(),
-    image_url: z.string().url().nullable(),
-    banner_url: z.string().url().nullable(),
-    icon_url: z.string().url().nullable(),
-    parent_uid: z.string().nullable(),
-    shop_id: z.number(),
+    imageUrl: z.string().url().nullable(),
+    bannerUrl: z.string().url().nullable(),
+    iconUrl: z.string().url().nullable(),
+    parentUid: z.string().nullable(),
+    shopId: z.number(),
   })
   .openapi("Category");
 
@@ -24,11 +24,11 @@ export const CategoryCreateRequestSchema = z.object({
   name: z.string(),
   slug: z.string(),
   description: z.string().optional(),
-  image_url: z.string().url().optional(),
-  banner_url: z.string().url().optional(),
-  icon_url: z.string().url().optional(),
+  imageUrl: z.string().url().optional(),
+  bannerUrl: z.string().url().optional(),
+  iconUrl: z.string().url().optional(),
   position: z.number().optional(),
-  parent_uid: z.string().optional(),
+  parentUid: z.string().optional(),
 });
 
 export const CategoryUpdateRequestSchema = z.object({
@@ -36,10 +36,10 @@ export const CategoryUpdateRequestSchema = z.object({
   name: z.string().optional(),
   slug: z.string().optional(),
   description: z.string().optional(),
-  image_url: z.string().url().optional(),
-  banner_url: z.string().url().optional(),
-  icon_url: z.string().url().optional(),
+  imageUrl: z.string().url().optional(),
+  bannerUrl: z.string().url().optional(),
+  iconUrl: z.string().url().optional(),
   status: z.string().optional(),
   position: z.number().optional(),
-  parent_uid: z.string().optional(),
+  parentUid: z.string().optional(),
 });

@@ -5,7 +5,7 @@ import { authenticate } from "../middleware/authenticate";
 
 // Public routes
 router.get("/", blogs.getBlogs);
-router.get("/:blog_id", blogs.getBlogByID);
+router.get("/:blogId", blogs.getBlogByID);
 
 // Protected routes
 router.post("/", authenticate, blogs.addBlog);

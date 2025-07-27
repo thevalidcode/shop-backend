@@ -1,0 +1,10 @@
+model SessionCode {
+  code      String   @id
+  email     String
+  shopId    Int      @map("shop_id")
+  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+
+  @@map("session_codes")
+}

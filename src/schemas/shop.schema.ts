@@ -5,7 +5,7 @@ extendZodWithOpenApi(z);
 
 export const ShopDataSchema = z
   .object({
-    shop_id: z.number().describe("Unique identifier for the shop"),
+    shopId: z.number().describe("Unique identifier for the shop"),
     plan: z.string().describe("The plan associated with the shop"),
     status: z.enum(["active", "disabled"]).describe("The status of the shop"),
     timestamp: z.string().describe("Timestamp when the shop was created"),
@@ -14,7 +14,7 @@ export const ShopDataSchema = z
 
 export const SiteDataSchema = z
   .object({
-    logo_url: z.string().url().describe("Logo URL for the site"),
+    logoUrl: z.string().url().describe("Logo URL for the site"),
     title: z.string().describe("Site title"),
     description: z.string().describe("Site description"),
   })

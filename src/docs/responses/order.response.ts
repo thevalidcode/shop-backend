@@ -19,9 +19,17 @@ export const OrderListResponse = {
   },
 };
 
-export const OrderSingleResponse = {
-  description:
-    "Single order object (shown schema is for admins). Regular users will receive a restricted version — see `OrderPublic` for the limited fields returned to users.",
+export const OrderSingleResponseForUser = {
+  description: "Single order object for user",
+  content: {
+    "application/json": {
+      schema: OrderPublicSchema,
+    },
+  },
+};
+
+export const OrderSingleResponseForAdmin = {
+  description: "Single order object for admin",
   content: {
     "application/json": {
       schema: OrderSchema,

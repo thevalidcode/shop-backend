@@ -19,11 +19,11 @@ export const getBlogs = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { shop_id } = parsed.data;
+  const { shopId } = parsed.data;
 
   try {
     const blogs = await prisma.blog.findMany({
-      where: { shopId: shop_id },
+      where: { shopId },
     });
 
     const sorted = blogs.sort((a: any, b: any) => a.position - b.position);
@@ -43,7 +43,7 @@ export const getBlogByID = async (
     return;
   }
 
-  const { blog_id } = parsed.data;
+  const { blogId } = parsed.data;
   const queryParsed = ShopIdSchema.safeParse(req.query);
 
   if (!queryParsed.success) {
@@ -51,11 +51,11 @@ export const getBlogByID = async (
     return;
   }
 
-  const { shop_id } = queryParsed.data;
+  const { shopId } = queryParsed.data;
 
   try {
     const blog = await prisma.blog.findFirst({
-      where: { shopId: shop_id, id: blog_id },
+      where: { shopId, id: blogId },
     });
 
     res.status(200).json({ blog });
@@ -77,7 +77,7 @@ export const addBlog = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { role, shop_id } = authParsed.data;
+  const { role, shopId } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -85,7 +85,7 @@ export const addBlog = async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const newId = await getNextShopModelId("blog", shop_id);
+    const newId = await getNextShopModelId("blog", shopId);
 
     const blogData = await prisma.blog.create({
       data: {
@@ -96,7 +96,7 @@ export const addBlog = async (req: Request, res: Response): Promise<void> => {
         description: parsed.data.description || "",
         status: "Active",
         position: newId,
-        shopId: shop_id,
+        shopId,
         uid: uuid4(),
       },
     });
@@ -127,7 +127,7 @@ export const updateBlog = async (
   }
 
   const { uid } = parsed.data;
-  const { shop_id, role } = authParsed.data;
+  const { shopId, role } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -136,12 +136,12 @@ export const updateBlog = async (
 
   try {
     await prisma.blog.update({
-      where: { uid, shopId: shop_id },
+      where: { uid, shopId },
       data: parsed.data,
     });
 
     const blog = await prisma.blog.findFirst({
-      where: { uid, shopId: shop_id },
+      where: { uid, shopId },
     });
 
     res.status(200).json({ success: "Blog updated successfully.", blog });
@@ -167,7 +167,7 @@ export const deleteBlog = async (
   }
 
   const { uid } = parsed.data;
-  const { role, shop_id } = authParsed.data;
+  const { role, shopId } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -176,7 +176,7 @@ export const deleteBlog = async (
 
   try {
     await prisma.blog.delete({
-      where: { shopId: shop_id, uid },
+      where: { shopId, uid },
     });
 
     res.status(200).json({ success: "Blog deleted successfully." });
@@ -202,7 +202,7 @@ export const deleteMultipleBlogs = async (
   }
 
   const { uids } = parsed.data;
-  const { role, shop_id } = authParsed.data;
+  const { role, shopId } = authParsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -212,7 +212,7 @@ export const deleteMultipleBlogs = async (
   try {
     await prisma.blog.deleteMany({
       where: {
-        shopId: shop_id,
+        shopId,
         uid: { in: uids },
       },
     });

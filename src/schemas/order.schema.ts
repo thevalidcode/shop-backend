@@ -19,18 +19,18 @@ export const OrderPublicSchema = z
   .object({
     id: z.coerce.number(),
     uid: z.string(),
-    user_uid: z.string(),
-    product_id: z.coerce.number(),
+    userUid: z.string(),
+    productId: z.coerce.number(),
     price: z.coerce.number(),
     quantity: z.coerce.number(),
     currency: z.string(),
     status: orderStatusEnum,
-    shipping_address: z.string(),
-    billing_address: z.string(),
-    payment_method: z.string(),
-    tracking_number: z.string().nullable(),
-    estimated_delivery: z.string().datetime().nullable(),
-    delivered_at: z.string().datetime().nullable(),
+    shippingAddress: z.string(),
+    billingAddress: z.string(),
+    paymentMethod: z.string(),
+    trackingNumber: z.string().nullable(),
+    estimatedDelivery: z.string().datetime().nullable(),
+    deliveredAt: z.string().datetime().nullable(),
     timestamp: z.string().datetime(),
   })
   .strict()
@@ -39,20 +39,20 @@ export const OrderPublicSchema = z
 export const OrderSchema = OrderPublicSchema.openapi("Order");
 
 export const placeOrderSchema = z.object({
-  user_uid: z.string(),
-  product_id: z.coerce.number(),
+  userUid: z.string(),
+  productId: z.coerce.number(),
   quantity: z.coerce.number(),
-  shipping_address: z.string(),
-  billing_address: z.string(),
-  payment_method: z.string(),
+  shippingAddress: z.string(),
+  billingAddress: z.string(),
+  paymentMethod: z.string(),
 });
 
 export const updateOrderSchema = z.object({
   update: z.object({
     status: orderStatusEnum,
-    tracking_number: z.string().nullable().optional(),
-    estimated_delivery: z.string().datetime().nullable().optional(),
-    delivered_at: z.string().datetime().nullable().optional(),
+    trackingNumber: z.string().nullable().optional(),
+    estimatedDelivery: z.string().datetime().nullable().optional(),
+    deliveredAt: z.string().datetime().nullable().optional(),
   }),
 });
 
@@ -63,12 +63,12 @@ export const getOrdersByStatusSchema = z.object({
 export const bulkCreateSchema = z.object({
   orders: z.array(
     z.object({
-      user_uid: z.string(),
-      product_id: z.coerce.number(),
+      userUid: z.string(),
+      productId: z.coerce.number(),
       quantity: z.coerce.number(),
-      shipping_address: z.string(),
-      billing_address: z.string(),
-      payment_method: z.string(),
+      shippingAddress: z.string(),
+      billingAddress: z.string(),
+      paymentMethod: z.string(),
     })
   ),
 });

@@ -17,7 +17,7 @@ import {
   SuccessResponse,
 } from "../responses/common.response";
 
-// GET /category?shop_id=123
+// GET /category?shopId=123
 registry.registerPath({
   method: "get",
   path: "/category",
@@ -25,7 +25,7 @@ registry.registerPath({
   tags: ["Categories"],
   parameters: [
     {
-      name: "shop_id",
+      name: "shopId",
       in: "query",
       required: true,
       description: "Shop ID to filter categories",
@@ -135,21 +135,21 @@ registry.registerPath({
   },
 });
 
-// GET /category/{category_id}?shop_id=123
+// GET /category/{categoryId}?shopId=123
 registry.registerPath({
   method: "get",
-  path: "/category/{category_id}",
+  path: "/category/{categoryId}",
   summary: "Get category by ID",
   tags: ["Categories"],
   parameters: [
     {
-      name: "category_id",
+      name: "categoryId",
       in: "path",
       required: true,
       schema: { type: "number" },
     },
     {
-      name: "shop_id",
+      name: "shopId",
       in: "query",
       required: true,
       schema: { type: "number" },

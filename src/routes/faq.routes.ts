@@ -5,7 +5,7 @@ import { authenticate } from "../middleware/authenticate";
 const router = express.Router();
 
 router.get("/", faq.getFAQs);
-router.get("/:faq_id", faq.getFAQByID);
+router.get("/:faqId", faq.getFAQByID);
 router.post("/", authenticate, faq.addFAQ);
 router.patch("/", authenticate, faq.updateFAQ);
 router.delete("/", authenticate, faq.deleteFAQ);

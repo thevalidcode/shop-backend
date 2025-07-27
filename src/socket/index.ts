@@ -4,7 +4,7 @@ import { prisma } from "../config/db";
 // Define the structure of user data expected from the client
 interface SocketUserData {
   uid: string;
-  shop_id: number;
+  shopId: number;
 }
 
 // Extend the default Socket type to include userData

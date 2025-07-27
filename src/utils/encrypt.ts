@@ -18,7 +18,7 @@ if (encryptionKey.length !== 32) {
 
 // Define output types for encryption
 interface EncryptedResult {
-  encrypted_key: string;
+  encryptedKey: string;
   iv: string;
 }
 
@@ -36,7 +36,7 @@ function encryptKey(key: string): EncryptedResult {
   encrypted += cipher.final("hex");
 
   return {
-    encrypted_key: encrypted,
+    encryptedKey: encrypted,
     iv: iv.toString("hex"),
   };
 }
@@ -44,18 +44,18 @@ function encryptKey(key: string): EncryptedResult {
 /**
  * Decrypts an encrypted key using AES-256-CBC.
  *
- * @param encrypted_key - The encrypted key in hexadecimal format
+ * @param encryptedKey - The encrypted key in hexadecimal format
  * @param iv - The initialization vector in hexadecimal format
  * @returns The decrypted original plaintext key
  */
-function decryptKey(encrypted_key: string, iv: string): string {
+function decryptKey(encryptedKey: string, iv: string): string {
   const decipher = crypto.createDecipheriv(
     algorithm,
     encryptionKey,
     Buffer.from(iv, "hex")
   );
 
-  let decrypted = decipher.update(encrypted_key, "hex", "utf8");
+  let decrypted = decipher.update(encryptedKey, "hex", "utf8");
   decrypted += decipher.final("utf8");
 
   return decrypted;

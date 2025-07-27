@@ -3,9 +3,10 @@ import {
   OrderCreatedResponse,
   OrderUpdatedResponse,
   OrderListResponse,
-  OrderSingleResponse,
+  OrderSingleResponseForUser,
   OrderCreatedListResponse,
   OrderPublicListResponse,
+  OrderSingleResponseForAdmin,
 } from "../responses/order.response";
 import {
   BadRequest,
@@ -47,23 +48,45 @@ registry.registerPath({
   },
 });
 
-// GET /order/:order_uid
+// GET /order/:orderUid
 registry.registerPath({
   method: "get",
-  path: "/order/{order_uid}",
-  summary: "Get a order for admins or user orders by uid",
+  path: "/order/{orderUid}",
+  summary: "Get a order for user by uid",
   tags: ["Orders"],
   security: [{ CookieAuth: [] }],
   parameters: [
     {
-      name: "order_uid",
+      name: "orderUid",
       in: "path",
       required: true,
       schema: { type: "string" },
     },
   ],
   responses: {
-    200: OrderSingleResponse,
+    200: OrderSingleResponseForUser,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// GET /order/admin/:orderUid
+registry.registerPath({
+  method: "get",
+  path: "/order/admin/{orderUid}",
+  summary: "Get a order for admins by uid",
+  tags: ["Orders"],
+  security: [{ CookieAuth: [] }],
+  parameters: [
+    {
+      name: "orderUid",
+      in: "path",
+      required: true,
+      schema: { type: "string" },
+    },
+  ],
+  responses: {
+    200: OrderSingleResponseForAdmin,
     400: BadRequest,
     500: ServerError,
   },
@@ -93,16 +116,16 @@ registry.registerPath({
   },
 });
 
-// PATCH /order/{order_uid} (Admin)
+// PATCH /order/{orderUid} (Admin)
 registry.registerPath({
   method: "patch",
-  path: "/order/{order_uid}",
+  path: "/order/{orderUid}",
   summary: "Update a order",
   tags: ["Orders"],
   security: [{ CookieAuth: [] }],
   parameters: [
     {
-      name: "order_uid",
+      name: "orderUid",
       in: "path",
       required: true,
       schema: { type: "string" },
@@ -125,7 +148,7 @@ registry.registerPath({
   },
 });
 
-// DELETE /order/:order_uid (Admin)
+// DELETE /order/:orderUid (Admin)
 registry.registerPath({
   method: "delete",
   path: "/order",
@@ -134,7 +157,7 @@ registry.registerPath({
   security: [{ CookieAuth: [] }],
   parameters: [
     {
-      name: "order_uid",
+      name: "orderUid",
       in: "path",
       required: true,
       schema: { type: "string" },

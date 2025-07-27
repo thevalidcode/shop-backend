@@ -1,9 +1,9 @@
 import fs from "fs";
 import path from "path";
 
-const baseFile = path.resolve("src/prisma/base.prisma");
-const inputDir = path.resolve("src/prisma/models");
-const outputFile = path.resolve("src/prisma/schema.prisma");
+const baseFile = path.resolve("prisma/base.prisma");
+const inputDir = path.resolve("prisma/models");
+const outputFile = path.resolve("prisma/schema.prisma");
 
 // Manually define model order (add yours in correct order)
 const manualOrder = ["Shop", "User", "Admin", "Product", "Order"];

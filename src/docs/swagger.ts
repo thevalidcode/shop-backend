@@ -35,7 +35,7 @@ const openApiDocument = generator.generateDocument({
       description: "Public server (use this for auth endpoints)",
     },
     {
-      url: "https://{domain}:7030",
+      url: "https://{domain}:7030/api/v1",
       description: "Custom shop domain (replace `{domain}` with your own)",
       variables: {
         domain: {
@@ -45,7 +45,7 @@ const openApiDocument = generator.generateDocument({
       },
     },
     {
-      url: "http://localhost:7030",
+      url: "http://localhost:7030/api/v1",
       description: "Local development server",
     },
   ],

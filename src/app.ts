@@ -7,11 +7,10 @@ import { pool, prisma } from "./config/db";
 import { env } from "./config/env";
 import cookieParser from "cookie-parser";
 import path from "path";
-import csurf from "csurf";
 
 // Routes
 import userRouter from "./routes/user.routes";
-import oauthRoutes from "./routes/oauth.routes";
+import oauthRoutes from "./routes/auth.routes";
 import storeRoutes from "./routes/shop.routes";
 import blogRoutes from "./routes/blog.routes";
 import faqRoutes from "./routes/faq.routes";
@@ -70,16 +69,6 @@ const dynamicCors = function (
   return callback(new Error("Not allowed by CORS"), { origin: false });
 };
 
-// CSRF protection using cookies
-const csrfProtection = csurf({
-  cookie: {
-    httpOnly: true,
-    sameSite: "none",
-    secure: env.NODE_ENV === "production",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  },
-});
-
 // --- Middleware ---
 app.use(bodyParser.json());
 app.use(cookieParser());
@@ -110,14 +99,14 @@ app.use(
 );
 
 // --- Public Routes ---
-app.use("/api/v1/user", cors(dynamicCors), csrfProtection, userRouter);
-app.use("/api/v1/shop", cors(dynamicCors), csrfProtection, storeRoutes);
-app.use("/api/v1/blog", cors(dynamicCors), csrfProtection, blogRoutes);
-app.use("/api/v1/faq", cors(dynamicCors), csrfProtection, faqRoutes);
-app.use("/api/v1/product", cors(dynamicCors), csrfProtection, productRoutes);
-app.use("/api/v1/category", cors(dynamicCors), csrfProtection, categoryRoutes);
-app.use("/api/v1/order", cors(dynamicCors), csrfProtection, orderRoutes);
-app.use("/api/v1/version", cors(dynamicCors), csrfProtection, versionRouter);
+app.use("/api/v1/user", cors(dynamicCors), userRouter);
+app.use("/api/v1/shop", cors(dynamicCors), storeRoutes);
+app.use("/api/v1/blog", cors(dynamicCors), blogRoutes);
+app.use("/api/v1/faq", cors(dynamicCors), faqRoutes);
+app.use("/api/v1/product", cors(dynamicCors), productRoutes);
+app.use("/api/v1/category", cors(dynamicCors), categoryRoutes);
+app.use("/api/v1/order", cors(dynamicCors), orderRoutes);
+app.use("/api/v1/version", cors(dynamicCors), versionRouter);
 
 // Internal Routes
 app.use("/admin", adminRoutes);

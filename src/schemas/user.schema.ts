@@ -3,26 +3,27 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
 
-export const AuthSchema = z.object({
-  shop_id: z.coerce.number(),
-  email: z.string().email(),
-  uid: z.string(),
-  api_key: z.string(),
-  role: z.string(),
-  user: z.object({}).catchall(z.unknown()),
-});
-
 export const UserSchema = z
   .object({
-    id: z.string(),
+    id: z.coerce.number(),
+    uid: z.string(),
     email: z.string().email(),
     username: z.string(),
     password: z.string(),
     status: z.string(),
-    api_key: z.string(),
+    apiKey: z.string(),
     role: z.string(),
   })
   .openapi("User");
+
+export const AuthSchema = z.object({
+  shopId: z.coerce.number(),
+  email: z.string().email(),
+  uid: z.string(),
+  apiKey: z.string(),
+  role: z.string(),
+  user: UserSchema,
+});
 
 export const UserPublicSchema = z
   .object({
@@ -35,11 +36,11 @@ export const UserPublicSchema = z
 export const UserUpdateRequestSchema = z.object({
   uid: z.string().describe("User UID"),
   username: z.string().describe("Username"),
-  full_name: z.string().describe("Full name"),
+  fullName: z.string().describe("Full name"),
 });
 
 export const AuthenticateUserSchema = z.object({
-  shop_id: z.number().describe("Associated shop ID"),
+  shopId: z.number().describe("Associated shop ID"),
   email: z.string().email().describe("User email"),
   password: z.string().describe("User password"),
 });
@@ -57,7 +58,7 @@ export const CreateUserInputSchema = z.object({
   email: z.string().email().describe("User email"),
   username: z.string().describe("User username"),
   password: z.string().describe("User password"),
-  shop_id: z.number().describe("Shop ID to associate with"),
+  shopId: z.number().describe("Shop ID to associate with"),
   ref: z.number().optional().describe("Optional referral ID"),
 });
 
@@ -70,7 +71,14 @@ export const AdminPublicSchema = z.object({
 
 export const GoogleAuthRequestSchema = z
   .object({
-    id_token: z.string().describe("Google OAuth ID token"),
-    shop_id: z.number().describe("Shop identifier to fetch/shop user"),
+    idToken: z.string().describe("Google OAuth ID token"),
+    shopId: z.number().describe("Shop identifier to fetch/shop user"),
   })
   .openapi("GoogleAuthResponse");
+
+export  const tokenPayloadSchema = z.object({
+  email: z.string().email(),
+  shopId: z.number(),
+  apiKey: z.string(),
+  role: z.enum(["admin", "user"]),
+});

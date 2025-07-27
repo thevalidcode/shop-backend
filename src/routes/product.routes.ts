@@ -5,9 +5,9 @@ import { authenticate } from "../middleware/authenticate";
 
 router.get("/", products.getProducts);
 router.get("/admin", authenticate, products.getProductsForAdmins);
-router.get("/:product_id", products.getProductByID);
+router.get("/:productId", products.getProductByID);
 router.get(
-  "/admin/:product_id",
+  "/admin/:productId",
   authenticate,
   products.getProductByIDFromAdmin
 );

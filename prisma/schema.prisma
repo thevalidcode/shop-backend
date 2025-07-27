@@ -30,6 +30,7 @@ model Shop {
   EmailTemplate    EmailTemplate[]
   Faq              Faq[]
   General          General[]
+  SessionCode      SessionCode[]
   
   @@map("shops")
 }
@@ -55,7 +56,7 @@ model User {
   
   ref        Int?
   referredBy User?    @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
-  referrals  User[]   @relation("Referral")  // <-- this is the missing part
+  referrals  User[]   @relation("Referral") 
 
   @@map("users")
 }
@@ -266,4 +267,15 @@ model General {
   defaultClientCurrency String? @map("default_client_currency")
 
   @@map("general")
+}
+
+model SessionCode {
+  code      String   @id
+  email     String
+  shopId    Int      @map("shop_id")
+  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+
+  @@map("session_codes")
 }

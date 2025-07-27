@@ -1,24 +1,16 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
-import { z } from "zod";
+import { tokenPayloadSchema } from "../schemas/user.schema";
 import { prisma } from "../config/db";
-
-// Zod schema for verifying JWT payload
-const tokenPayloadSchema = z.object({
-  email: z.string().email(),
-  shop_id: z.number(),
-  api_key: z.string(),
-  role: z.enum(["admin", "user"]),
-});
 
 // Extend Express Request to include `auth`
 declare module "express" {
   interface Request {
     auth?: {
       email: string;
-      shop_id: number;
-      api_key: string;
+      shopId: number;
+      apiKey: string;
       role: string;
       uid: string;
       user: any;
@@ -32,13 +24,23 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   const token = req.cookies.auth_token;
+  const csrfCookie = req.cookies.csrf_token;
+  const csrfHeader = req.headers["x-csrf-token"];
 
-  if (!token) {
-    res.status(401).json({ error: "Not authenticated" });
+  // Step 1: Ensure cookies exist
+  if (!token || !csrfCookie) {
+    res.status(401).json({ error: "Missing auth or CSRF token" });
+    return;
+  }
+
+  // Step 2: Compare CSRF cookie with CSRF header
+  if (!csrfHeader || csrfHeader !== csrfCookie) {
+    res.status(403).json({ error: "CSRF token mismatch" });
     return;
   }
 
   try {
+    // Step 3: Decode and validate JWT
     const decoded = jwt.verify(token, env.JWT_SECRET);
     const parsed = tokenPayloadSchema.safeParse(decoded);
 
@@ -47,41 +49,33 @@ export const authenticate = async (
       return;
     }
 
-    const { email, shop_id, api_key, role } = parsed.data;
+    const { email, shopId, apiKey, role } = parsed.data;
 
+    // Step 4: Find user or admin from DB
     const [user, admin] = await Promise.all([
-      prisma.user.findFirst({
-        where: {
-          shopId: shop_id,
-          email,
-        },
-      }),
-      prisma.admin.findFirst({
-        where: {
-          shopId: shop_id,
-          email,
-        },
-      }),
+      prisma.user.findFirst({ where: { shopId, email } }),
+      prisma.admin.findFirst({ where: { shopId, email } }),
     ]);
 
     const account = admin || user;
 
-    if (!account || account.apiKey !== api_key) {
-      res.status(401).json({ error: "Key mismatch or user not found" });
+    if (!account || account.apiKey !== apiKey) {
+      res.status(401).json({ error: "Invalid API key or user not found" });
       return;
     }
 
+    // Step 5: Attach user info to request
     req.auth = {
       email,
-      shop_id,
-      api_key,
+      shopId,
+      apiKey,
       role,
-      uid: account.uid?.toString() || "",
+      uid: account.uid,
       user: account,
     };
 
     next();
-  } catch (err) {
+  } catch (err: any) {
     res.status(401).json({ error: "Invalid or expired token" });
   }
 };

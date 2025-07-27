@@ -8,9 +8,10 @@ import { env } from "../config/env";
 import { AuthSchema } from "../schemas/user.schema";
 import { prisma } from "../config/db";
 import { getNextShopModelId } from "../utils/nextId";
+import { randomBytes } from "crypto";
 
 const createUserSchema = z.object({
-  shop_id: z.coerce.number(),
+  shopId: z.coerce.number(),
   email: z.string().email(),
   username: z.string(),
   password: z.string().min(6),
@@ -20,7 +21,7 @@ const createUserSchema = z.object({
 const meQuerySchema = z.object({
   email: z.string().email(),
   password: z.string(),
-  shop_id: z.coerce.number(),
+  shopId: z.coerce.number(),
 });
 
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
@@ -29,7 +30,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { shop_id, role } = parsed.data;
+  const { shopId, role } = parsed.data;
 
   if (role === "user") {
     res.status(403).json({ error: "Unauthorised User." });
@@ -38,7 +39,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 
   try {
     const allUsers = await prisma.user.findMany({
-      where: { shopId: shop_id },
+      where: { shopId },
       select: {
         id: true,
         uid: true,
@@ -63,12 +64,12 @@ export const createUser = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { shop_id, email, username, ref, password } = parsed.data;
+  const { shopId, email, username, ref, password } = parsed.data;
 
   try {
     const existing = await prisma.user.findFirst({
       where: {
-        shopId: shop_id,
+        shopId,
         OR: [{ email }, { username }],
       },
     });
@@ -83,9 +84,9 @@ export const createUser = async (
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newId = await getNextShopModelId("user", shop_id);
+    const newId = await getNextShopModelId("user", shopId);
     const userData = {
-      shopId: shop_id,
+      shopId,
       id: newId,
       email,
       username,
@@ -99,13 +100,21 @@ export const createUser = async (
     const token = jwt.sign(
       {
         email,
-        shop_id,
-        api_key: newUser.apiKey,
+        shopId,
+        apiKey: newUser.apiKey,
         role: "user",
       },
       env.JWT_SECRET,
       { expiresIn: "7d" }
     );
+    const csrfToken = randomBytes(32).toString("hex");
+
+    res.cookie("csrf_token", csrfToken, {
+      httpOnly: false,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     res.cookie("auth_token", token, {
       httpOnly: true,
@@ -114,7 +123,7 @@ export const createUser = async (
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    await sendEmail(undefined, "new_user", userData, shop_id);
+    await sendEmail(undefined, "newUser", userData, shopId);
 
     res.status(200).send({
       success: "Created Successfully",
@@ -135,15 +144,15 @@ export const me = async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { email, password, shop_id } = parsed.data;
+  const { email, password, shopId } = parsed.data;
 
   try {
     const account =
       (await prisma.user.findFirst({
-        where: { email, shopId: shop_id },
+        where: { email, shopId },
       })) ||
       (await prisma.admin.findFirst({
-        where: { email, shopId: shop_id },
+        where: { email, shopId },
       }));
 
     if (!account) {
@@ -164,11 +173,20 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const api_key = account.apiKey || uuidv4();
+    const apiKey = account.apiKey || uuidv4();
     const role = account.role;
 
-    const token = jwt.sign({ email, shop_id, api_key, role }, env.JWT_SECRET, {
+    const token = jwt.sign({ email, shopId, apiKey, role }, env.JWT_SECRET, {
       expiresIn: "7d",
+    });
+
+    const csrfToken = randomBytes(32).toString("hex");
+
+    res.cookie("csrf_token", csrfToken, {
+      httpOnly: false,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.cookie("auth_token", token, {
@@ -186,5 +204,23 @@ export const me = async (req: Request, res: Response): Promise<void> => {
     });
   } catch (err: any) {
     res.status(500).json({ error: "Login failed: " + err.message });
+  }
+};
+
+export const verifySession = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const authParsed = AuthSchema.safeParse(req.auth);
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+  const { role } = authParsed.data;
+
+  try {
+    res.status(200).send({ role });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to verify user session" });
   }
 };
