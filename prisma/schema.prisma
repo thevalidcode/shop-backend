@@ -32,26 +32,25 @@ model Shop {
   SessionCode      SessionCode[]
   
   // Relation to the new counter table
-  StoreCounter     StoreCounter?
+  shopCounter     ShopCounter?
 
   @@map("shops")
 }
 
-model StoreCounter {
-  shopId Int @id
+model ShopCounter {
+  shopId Int @id @map("shop_id")
 
-  // Add a counter for each model that needs a per-shop sequential ID
-  productCounter  Int @default(0)
-  orderCounter    Int @default(0)
-  blogCounter     Int @default(0)
-  faqCounter      Int @default(0)
-  categoryCounter Int @default(0)
-  userCounter     Int @default(0)
-  emailLogCounter Int @default(0)
+  productCounter  Int @default(0) @map("product_counter")
+  orderCounter    Int @default(0) @map("order_counter")
+  blogCounter     Int @default(0) @map("blog_counter")
+  faqCounter      Int @default(0) @map("faq_counter")
+  categoryCounter Int @default(0) @map("category_counter")
+  userCounter     Int @default(0) @map("user_counter")
+  emailLogCounter Int @default(0) @map("email_log_counter")
 
   shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
-  @@map("store_counters")
+  @@map("shop_counters")
 }
 
 
@@ -106,7 +105,7 @@ model Admin {
 
 model Product {
   id             Int       @id @default(autoincrement()) @map("id")
-  shopScopedId   Int       // The per-shop sequential ID
+  shopScopedId   Int      @map("shop_scoped_id")
   uid            String    @unique
   name           String
   description    String?
@@ -142,7 +141,7 @@ model Product {
 
 model Order {
   id                 Int       @id @default(autoincrement()) @map("id")
-  shopScopedId       Int       // The per-shop sequential ID
+  shopScopedId   Int      @map("shop_scoped_id")
   uid                String    @unique
   userUid            String    @map("user_uid")
   productId          Int       @map("product_id")
@@ -166,7 +165,7 @@ model Order {
 
 model Blog {
   id          Int      @id @default(autoincrement()) @map("id")
-  shopScopedId Int     // The per-shop sequential ID
+  shopScopedId   Int      @map("shop_scoped_id")
   title       String
   content     String
   description String   @default("")
@@ -185,7 +184,7 @@ model Blog {
 
 model Category {
   id          Int      @id @default(autoincrement()) @map("id")
-  shopScopedId Int     // The per-shop sequential ID
+  shopScopedId   Int      @map("shop_scoped_id")
   uid         String   @unique
   name        String
   slug        String
@@ -207,7 +206,7 @@ model Category {
 
 model Faq {
   id        Int      @id @default(autoincrement()) @map("id")
-  shopScopedId Int   // The per-shop sequential ID
+  shopScopedId   Int      @map("shop_scoped_id")
   question  String
   answer    String
   status    String   @default("active")
@@ -225,7 +224,7 @@ model Faq {
 
 model EmailLog {
   id        Int      @id @default(autoincrement()) @map("id")
-  shopScopedId Int   // The per-shop sequential ID
+  shopScopedId   Int      @map("shop_scoped_id")
   uid       String   @unique
   sender    String
   receiver  String

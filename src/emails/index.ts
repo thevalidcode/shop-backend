@@ -77,7 +77,7 @@ async function dispatchEmail({
 
     // Use a transaction to atomically get the next ID and create the log
     await prisma.$transaction(async (tx) => {
-      const counter = await tx.storeCounter.update({
+      const counter = await tx.shopCounter.update({
         where: { shopId },
         data: { emailLogCounter: { increment: 1 } },
       });
@@ -103,7 +103,7 @@ async function dispatchEmail({
   } catch (err: any) {
     // Logging the error should also be atomic
     await prisma.$transaction(async (tx) => {
-        const counter = await tx.storeCounter.update({
+        const counter = await tx.shopCounter.update({
             where: { shopId },
             data: { emailLogCounter: { increment: 1 } },
         });

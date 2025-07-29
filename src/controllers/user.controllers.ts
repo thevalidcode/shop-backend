@@ -74,7 +74,7 @@ export const createUser = async (
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.$transaction(async (tx) => {
-        const counter = await tx.storeCounter.update({
+        const counter = await tx.shopCounter.update({
             where: { shopId },
             data: { userCounter: { increment: 1 } },
         });

@@ -90,7 +90,7 @@ export const googleCallback = async (
     if (!user) {
       user = await prisma.$transaction(async (tx) => {
         // Atomically increment the user counter for the shop
-        const counter = await tx.storeCounter.update({
+        const counter = await tx.shopCounter.update({
           where: { shopId },
           data: { userCounter: { increment: 1 } },
         });

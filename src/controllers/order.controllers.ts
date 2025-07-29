@@ -122,7 +122,7 @@ export const placeOrder = async (
   
   try {
     const newOrder = await prisma.$transaction(async (tx) => {
-        const counter = await tx.storeCounter.update({
+        const counter = await tx.shopCounter.update({
             where: { shopId },
             data: { orderCounter: { increment: 1 } }
         });
@@ -244,7 +244,7 @@ export const bulkCreateOrders = async (
   try {
     const newOrders = await prisma.$transaction(async (tx) => {
         const count = parsed.data.orders.length;
-        const counter = await tx.storeCounter.update({
+        const counter = await tx.shopCounter.update({
             where: { shopId },
             data: { orderCounter: { increment: count } },
         });

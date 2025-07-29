@@ -199,7 +199,7 @@ export const addProduct = async (
 
   try {
     const newProduct = await prisma.$transaction(async (tx) => {
-        const counter = await tx.storeCounter.update({
+        const counter = await tx.shopCounter.update({
             where: { shopId },
             data: { productCounter: { increment: 1 } },
         });

@@ -6,6 +6,7 @@ extendZodWithOpenApi(z);
 export const UserSchema = z
   .object({
     id: z.coerce.number(),
+    shopScopedId: z.number(),
     uid: z.string(),
     email: z.string().email(),
     username: z.string(),
@@ -28,6 +29,7 @@ export const AuthSchema = z.object({
 export const UserPublicSchema = z
   .object({
     id: z.string(),
+    shopScopedId: z.number(),
     email: z.string().email(),
     username: z.string(),
   })
@@ -49,6 +51,7 @@ export const AuthenticateUserResponseSchema = z.object({
   success: z.literal("Logged in successfully"),
   user: z.object({
     id: z.coerce.number().describe("User id"),
+    shopScopedId: z.number().describe("Shop-specific user ID"),
     email: z.string().email().describe("User email"),
     username: z.string().describe("User username"),
   }),

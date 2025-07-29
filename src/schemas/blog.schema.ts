@@ -16,6 +16,7 @@ export const createBlogSchema = z.object({
 export const BlogSchema = z
   .object({
     id: z.coerce.number(),
+    shopScopedId: z.number(),
     title: z.string().min(1),
     content: z.string().min(1),
     slug: z.string().min(1),

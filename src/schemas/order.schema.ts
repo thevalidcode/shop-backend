@@ -18,6 +18,7 @@ const orderStatusEnum = z.enum([
 export const OrderPublicSchema = z
   .object({
     id: z.coerce.number(),
+    shopScopedId: z.number(),
     uid: z.string(),
     userUid: z.string(),
     productId: z.coerce.number(),

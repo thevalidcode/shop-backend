@@ -74,7 +74,7 @@ export const addBlog = async (req: Request, res: Response): Promise<void> => {
 
   try {
     const newBlog = await prisma.$transaction(async (tx) => {
-        const counter = await tx.storeCounter.update({
+        const counter = await tx.shopCounter.update({
             where: { shopId },
             data: { blogCounter: { increment: 1 } }
         });
