@@ -40,7 +40,7 @@ export const getProductsForAdmins = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { shopId } = req.auth!; // `isAdmin` middleware ensures req.auth exists
+  const { shopId } = req.auth!;
 
   try {
     const products = await prisma.product.findMany({
@@ -198,22 +198,31 @@ export const addProduct = async (
   const { shopId } = req.auth!;
 
   try {
-    const lastProduct = await prisma.product.findFirst({
-      where: { shopId },
-      orderBy: { position: "desc" },
-      select: { position: true }
-    });
-    const newPosition = lastProduct ? lastProduct.position + 1 : 1;
-    
-    const productData = {
-      ...parsed.data,
-      uid: uuidv4(),
-      shopId,
-      status: "active",
-      position: newPosition,
-    };
+    const newProduct = await prisma.$transaction(async (tx) => {
+        const counter = await tx.storeCounter.update({
+            where: { shopId },
+            data: { productCounter: { increment: 1 } },
+        });
 
-    const newProduct = await prisma.product.create({ data: productData });
+        const lastProduct = await tx.product.findFirst({
+            where: { shopId },
+            orderBy: { position: "desc" },
+            select: { position: true },
+        });
+        const newPosition = lastProduct ? lastProduct.position + 1 : 1;
+
+        const product = await tx.product.create({
+            data: {
+                ...parsed.data,
+                uid: uuidv4(),
+                shopId,
+                shopScopedId: counter.productCounter,
+                status: "active",
+                position: newPosition,
+            },
+        });
+        return product;
+    });
 
     res.status(201).json({ success: "Product added successfully.", product: newProduct });
   } catch (error: any) {

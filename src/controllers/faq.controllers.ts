@@ -56,7 +56,7 @@ export const getFAQByID = async (
         shopId,
       },
     });
-     if (!faq) {
+    if (!faq) {
       res.status(404).json({ error: "FAQ not found" });
       return;
     }
@@ -73,28 +73,35 @@ export const addFAQ = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { shopId } = req.auth!; // isAdmin middleware guarantees this exists
+  const { shopId } = req.auth!;
 
   try {
-    const lastFaq = await prisma.faq.findFirst({
-      where: { shopId },
-      orderBy: { position: "desc" },
-      select: { position: true },
-    });
+    const newFaq = await prisma.$transaction(async (tx) => {
+        const counter = await tx.storeCounter.update({
+            where: { shopId },
+            data: { faqCounter: { increment: 1 } },
+        });
 
-    const newPosition = lastFaq ? lastFaq.position + 1 : 1;
-    
-    const newFaq = await prisma.faq.create({
-      data: {
-        // No `id` provided, database will auto-increment
-        shopId,
-        slug: parsed.data.question.toLowerCase().replace(/\s+/g, "-"),
-        question: parsed.data.question,
-        answer: parsed.data.answer,
-        status: "active",
-        position: newPosition,
-        uid: uuidv4(),
-      },
+        const lastFaq = await tx.faq.findFirst({
+            where: { shopId },
+            orderBy: { position: "desc" },
+            select: { position: true },
+        });
+        const newPosition = lastFaq ? lastFaq.position + 1 : 1;
+
+        const faq = await tx.faq.create({
+            data: {
+                shopId,
+                shopScopedId: counter.faqCounter,
+                slug: parsed.data.question.toLowerCase().replace(/\s+/g, "-"),
+                question: parsed.data.question,
+                answer: parsed.data.answer,
+                status: "active",
+                position: newPosition,
+                uid: uuidv4(),
+            },
+        });
+        return faq;
     });
 
     res.status(201).json({ success: "FAQ added successfully.", faq: newFaq });

@@ -72,27 +72,29 @@ export const createUser = async (
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userData = {
-      shopId,
-      email,
-      username,
-      password: hashedPassword,
-      uid: uuidv4(),
-      apiKey: uuidv4(),
-      ref: ref ? Number(ref) : undefined,
-    };
 
-    const newUser = await prisma.user.create({
-      data: userData,
+    const newUser = await prisma.$transaction(async (tx) => {
+        const counter = await tx.storeCounter.update({
+            where: { shopId },
+            data: { userCounter: { increment: 1 } },
+        });
+
+        return tx.user.create({
+            data: {
+              shopId,
+              email,
+              username,
+              password: hashedPassword,
+              uid: uuidv4(),
+              apiKey: uuidv4(),
+              shopScopedId: counter.userCounter,
+              ref: ref ? Number(ref) : undefined,
+            }
+        });
     });
 
     const token = jwt.sign(
-      {
-        email,
-        shopId,
-        apiKey: newUser.apiKey,
-        role: "user",
-      },
+      { email, shopId, apiKey: newUser.apiKey, role: "user" },
       env.JWT_SECRET,
       { expiresIn: "7d" }
     );

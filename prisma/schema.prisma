@@ -31,11 +31,33 @@ model Shop {
   General          General[]
   SessionCode      SessionCode[]
   
+  // Relation to the new counter table
+  StoreCounter     StoreCounter?
+
   @@map("shops")
 }
 
+model StoreCounter {
+  shopId Int @id
+
+  // Add a counter for each model that needs a per-shop sequential ID
+  productCounter  Int @default(0)
+  orderCounter    Int @default(0)
+  blogCounter     Int @default(0)
+  faqCounter      Int @default(0)
+  categoryCounter Int @default(0)
+  userCounter     Int @default(0)
+  emailLogCounter Int @default(0)
+
+  shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
+  @@map("store_counters")
+}
+
+
 model User {
   id         Int      @id @default(autoincrement())
+  shopScopedId Int    // The per-shop sequential ID
   refCode    Int?     @unique @default(autoincrement()) @map("ref_code")
   uid        String   @unique
   email      String
@@ -57,6 +79,7 @@ model User {
   referredBy User?    @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
   referrals  User[]   @relation("Referral") 
 
+  @@unique([shopId, shopScopedId])
   @@unique([email, shopId])
   @@unique([username, shopId])
   @@map("users")
@@ -83,6 +106,7 @@ model Admin {
 
 model Product {
   id             Int       @id @default(autoincrement()) @map("id")
+  shopScopedId   Int       // The per-shop sequential ID
   uid            String    @unique
   name           String
   description    String?
@@ -111,12 +135,14 @@ model Product {
 
   shop           Shop      @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
   
+  @@unique([shopId, shopScopedId])
   @@unique([slug, shopId])
   @@map("products")
 }
 
 model Order {
   id                 Int       @id @default(autoincrement()) @map("id")
+  shopScopedId       Int       // The per-shop sequential ID
   uid                String    @unique
   userUid            String    @map("user_uid")
   productId          Int       @map("product_id")
@@ -134,7 +160,86 @@ model Order {
   shopId             Int       @map("shop_id")
   shop               Shop      @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
+  @@unique([shopId, shopScopedId])
   @@map("orders")
+}
+
+model Blog {
+  id          Int      @id @default(autoincrement()) @map("id")
+  shopScopedId Int     // The per-shop sequential ID
+  title       String
+  content     String
+  description String   @default("")
+  status      String   @default("active")
+  position    Int
+  slug        String
+  uid         String   @unique
+  shopId      Int      @map("shop_id")
+  shop        Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  timestamp   DateTime @default(now())
+  
+  @@unique([shopId, shopScopedId])
+  @@unique([slug, shopId])
+  @@map("blogs")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement()) @map("id")
+  shopScopedId Int     // The per-shop sequential ID
+  uid         String   @unique
+  name        String
+  slug        String
+  description String   @default("")
+  imageUrl    String?  @map("image_url")
+  bannerUrl   String?  @map("banner_url")
+  iconUrl     String?  @map("icon_url")
+  status      String   @default("active")
+  position    Int      @default(1)
+  parentUid   String?  @map("parent_uid")
+  shopId      Int      @map("shop_id")
+  shop        Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  timestamp   DateTime @default(now())
+
+  @@unique([shopId, shopScopedId])
+  @@unique([slug, shopId])
+  @@map("categories")
+}
+
+model Faq {
+  id        Int      @id @default(autoincrement()) @map("id")
+  shopScopedId Int   // The per-shop sequential ID
+  question  String
+  answer    String
+  status    String   @default("active")
+  position  Int
+  slug      String
+  uid       String   @unique
+  shopId    Int      @map("shop_id")
+  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  timestamp DateTime @default(now())
+  
+  @@unique([shopId, shopScopedId])
+  @@unique([slug, shopId])
+  @@map("faqs")
+}
+
+model EmailLog {
+  id        Int      @id @default(autoincrement()) @map("id")
+  shopScopedId Int   // The per-shop sequential ID
+  uid       String   @unique
+  sender    String
+  receiver  String
+  subject   String
+  html      String
+  status    String
+  messageId String?  @map("message_id")
+  response  String?
+  shopId    Int      @map("shop_id")
+  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  timestamp DateTime @default(now())
+  
+  @@unique([shopId, shopScopedId])
+  @@map("email_logs")
 }
 
 model AdminEmail {
@@ -160,43 +265,6 @@ model AffiliateSetting {
   @@map("affiliate_settings")
 }
 
-model Blog {
-  id          Int      @id @default(autoincrement()) @map("id")
-  title       String
-  content     String
-  description String   @default("")
-  status      String   @default("active")
-  position    Int
-  slug        String
-  uid         String   @unique
-  shopId      Int      @map("shop_id")
-  shop        Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp   DateTime @default(now())
-  
-  @@unique([slug, shopId])
-  @@map("blogs")
-}
-
-model Category {
-  id          Int      @id @default(autoincrement()) @map("id")
-  uid         String   @unique
-  name        String
-  slug        String
-  description String   @default("")
-  imageUrl    String?  @map("image_url")
-  bannerUrl   String?  @map("banner_url")
-  iconUrl     String?  @map("icon_url")
-  status      String   @default("active")
-  position    Int      @default(1)
-  parentUid   String?  @map("parent_uid")
-  shopId      Int      @map("shop_id")
-  shop        Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp   DateTime @default(now())
-
-  @@unique([slug, shopId])
-  @@map("categories")
-}
-
 model Currency {
   id        Int      @id @default(autoincrement())
   uid       String   @unique
@@ -219,23 +287,6 @@ model DesignStyle {
   @@map("design_styles")
 }
 
-model EmailLog {
-  id        Int      @id @default(autoincrement()) @map("id")
-  uid       String   @unique
-  sender    String
-  receiver  String
-  subject   String
-  html      String
-  status    String
-  messageId String?  @map("message_id")
-  response  String?
-  shopId    Int      @map("shop_id")
-  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp DateTime @default(now())
-
-  @@map("email_logs")
-}
-
 model EmailTemplate {
   id        Int      @id @default(autoincrement()) @map("id")
   uid       String   @unique
@@ -247,22 +298,6 @@ model EmailTemplate {
   
   @@unique([type, shopId])
   @@map("email_templates")
-}
-
-model Faq {
-  id        Int      @id @default(autoincrement()) @map("id")
-  question  String
-  answer    String
-  status    String   @default("active")
-  position  Int
-  slug      String
-  uid       String   @unique
-  shopId    Int      @map("shop_id")
-  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp DateTime @default(now())
-  
-  @@unique([slug, shopId])
-  @@map("faqs")
 }
 
 model General {

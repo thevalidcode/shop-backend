@@ -179,26 +179,36 @@ export const addCategory = async (
   const { shopId } = req.auth!;
 
   try {
-    const lastCategory = await prisma.category.findFirst({
-      where: { shopId },
-      orderBy: { position: "desc" },
-    });
-    const newPosition = lastCategory ? lastCategory.position + 1 : 1;
+     const newCategory = await prisma.$transaction(async (tx) => {
+        const counter = await tx.storeCounter.update({
+            where: { shopId },
+            data: { categoryCounter: { increment: 1 } },
+        });
 
-    const newCategory = await prisma.category.create({
-      data: {
-        uid: uuidv4(),
-        shopId,
-        slug: parsed.data.name.toLowerCase().replace(/\s+/g, "-"),
-        name: parsed.data.name,
-        description: parsed.data.description || "",
-        status: "Active",
-        position: newPosition,
-      },
+        const lastCategory = await tx.category.findFirst({
+            where: { shopId },
+            orderBy: { position: "desc" },
+        });
+        const newPosition = lastCategory ? lastCategory.position + 1 : 1;
+
+        const category = await tx.category.create({
+            data: {
+                shopScopedId: counter.categoryCounter,
+                uid: uuidv4(),
+                shopId,
+                slug: parsed.data.name.toLowerCase().replace(/\s+/g, "-"),
+                name: parsed.data.name,
+                description: parsed.data.description || "",
+                status: "Active",
+                position: newPosition,
+            },
+        });
+        return category;
     });
 
     res.status(201).json({ success: "Category added successfully.", category: newCategory });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("Failed to add category:", error)
+    res.status(500).json({ error: "Failed to add category." });
   }
 };

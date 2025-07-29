@@ -54,7 +54,10 @@ export const getBlogByID = async (
     const blog = await prisma.blog.findFirst({
       where: { shopId, id: blogId },
     });
-
+    if (!blog) {
+        res.status(404).json({ error: "Blog not found" });
+        return;
+    }
     res.status(200).json({ blog });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -70,24 +73,33 @@ export const addBlog = async (req: Request, res: Response): Promise<void> => {
   const { shopId } = req.auth!;
 
   try {
-    const lastBlog = await prisma.blog.findFirst({
-      where: { shopId },
-      orderBy: { position: "desc" },
-      select: { position: true },
-    });
-    const newPosition = lastBlog ? lastBlog.position + 1 : 1;
+    const newBlog = await prisma.$transaction(async (tx) => {
+        const counter = await tx.storeCounter.update({
+            where: { shopId },
+            data: { blogCounter: { increment: 1 } }
+        });
 
-    const newBlog = await prisma.blog.create({
-      data: {
-        title: parsed.data.title,
-        slug: parsed.data.title.toLowerCase().replace(/\s+/g, "-"),
-        content: parsed.data.content,
-        description: parsed.data.description || "",
-        status: "Active",
-        position: newPosition,
-        shopId,
-        uid: uuid4(),
-      },
+        const lastBlog = await tx.blog.findFirst({
+            where: { shopId },
+            orderBy: { position: "desc" },
+            select: { position: true },
+        });
+        const newPosition = lastBlog ? lastBlog.position + 1 : 1;
+
+        const blog = await tx.blog.create({
+            data: {
+                shopScopedId: counter.blogCounter,
+                title: parsed.data.title,
+                slug: parsed.data.title.toLowerCase().replace(/\s+/g, "-"),
+                content: parsed.data.content,
+                description: parsed.data.description || "",
+                status: "Active",
+                position: newPosition,
+                shopId,
+                uid: uuid4(),
+            },
+        });
+        return blog;
     });
 
     res.status(201).json({
@@ -141,7 +153,7 @@ export const deleteBlog = async (
   const { shopId } = req.auth!;
 
   try {
-    await prisma.blog.delete({
+    await prisma.blog.deleteMany({
       where: { shopId, uid },
     });
 

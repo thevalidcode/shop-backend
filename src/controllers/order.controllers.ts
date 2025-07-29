@@ -121,18 +121,24 @@ export const placeOrder = async (
   const { shopId, user } = req.auth!;
   
   try {
-    const newOrder = await prisma.order.create({
-      data: {
-        ...parsed.data,
-        uid: uuidv4(),
-        shopId,
-        userUid: user.uid,
-        productId: parsed.data.productId,
-        shippingAddress: parsed.data.shippingAddress,
-        billingAddress: parsed.data.billingAddress,
-        paymentMethod: parsed.data.paymentMethod,
-      },
+    const newOrder = await prisma.$transaction(async (tx) => {
+        const counter = await tx.storeCounter.update({
+            where: { shopId },
+            data: { orderCounter: { increment: 1 } }
+        });
+        
+        const order = await tx.order.create({
+          data: {
+            ...parsed.data,
+            uid: uuidv4(),
+            shopId,
+            shopScopedId: counter.orderCounter,
+            userUid: user.uid,
+          },
+        });
+        return order;
     });
+
     res
       .status(201)
       .json({ success: "Order placed successfully", uid: newOrder.uid });
@@ -157,7 +163,7 @@ export const updateOrder = async (
   const { shopId } = req.auth!;
   
   try {
-    await prisma.order.update({
+    await prisma.order.updateMany({
       where: { uid: orderUid, shopId },
       data: parsed.data.update,
     });
@@ -175,7 +181,7 @@ export const deleteOrder = async (
   const { shopId } = req.auth!;
 
   try {
-    await prisma.order.delete({ where: { uid: orderUid, shopId } });
+    await prisma.order.deleteMany({ where: { uid: orderUid, shopId } });
     res.status(200).json({ success: "Order deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -236,19 +242,34 @@ export const bulkCreateOrders = async (
   const { shopId, user } = req.auth!;
 
   try {
-    const orderData = parsed.data.orders.map((order) => ({
-      ...order,
-      uid: uuidv4(),
-      shopId,
-      userUid: user.uid,
-    }));
+    const newOrders = await prisma.$transaction(async (tx) => {
+        const count = parsed.data.orders.length;
+        const counter = await tx.storeCounter.update({
+            where: { shopId },
+            data: { orderCounter: { increment: count } },
+        });
 
-    await prisma.order.createMany({
-      data: orderData,
-      skipDuplicates: true,
+        let currentCounter = counter.orderCounter - count;
+
+        const orderData = parsed.data.orders.map((order) => {
+            currentCounter++;
+            return {
+                ...order,
+                uid: uuidv4(),
+                shopId,
+                shopScopedId: currentCounter,
+                userUid: user.uid,
+            };
+        });
+
+        await tx.order.createMany({
+            data: orderData,
+        });
+        
+        return orderData;
     });
 
-    const uids = orderData.map((o) => o.uid);
+    const uids = newOrders.map((o) => o.uid);
     res.status(201).json({ success: "Bulk orders created", uids });
   } catch (error: any) {
     console.error("Failed to bulk create orders:", error);
@@ -272,7 +293,7 @@ export const bulkUpdateOrderStatus = async (
   try {
     await prisma.$transaction(
       parsed.data.updates.map((update) =>
-        prisma.order.update({
+        prisma.order.updateMany({
           where: { uid: update.uid, shopId },
           data: { status: update.status },
         })
