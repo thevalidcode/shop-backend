@@ -6,7 +6,6 @@ import { verifyGoogleIdToken } from "../helpers/googleverify";
 import axios from "axios";
 import { randomBytes } from "crypto";
 import bcrypt from "bcrypt";
-import { getNextShopModelId } from "../utils/nextId";
 import { env } from "../config/env";
 
 const isValidShopDomain = async (url: string): Promise<boolean> => {
@@ -91,11 +90,11 @@ export const googleCallback = async (
     if (!user) {
       const timestamp = new Date();
       const uid = uuidv4();
-      const newId = await getNextShopModelId("user", shopId);
+      // FIX: Removed getNextShopModelId
 
       user = await prisma.user.create({
         data: {
-          id: newId,
+          // FIX: `id` is now omitted, the database will auto-increment it.
           email: googleUser.email,
           username: googleUser.name.replace(/\s/g, "").toLowerCase(),
           image: googleUser.picture,
@@ -167,7 +166,7 @@ export const verifySessionCode = async (
   });
 
   const token = jwt.sign(
-    { email: user.email, shopId: user.shopId, apiKey: user.apiKey },
+    { email: user.email, shopId: user.shopId, apiKey: user.apiKey, role: user.role },
     env.JWT_SECRET,
     { expiresIn: "7d" }
   );

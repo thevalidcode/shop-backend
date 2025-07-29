@@ -26,23 +26,29 @@ const app = express();
 // --- Dynamic CORS Setup ---
 let allowedOrigins: string[] = [];
 
-async function updateAllowedOrigins(): Promise<void> {
-  const shops = await prisma.shop.findMany({
-    where: { ssl: true },
-  });
+// FIX: Export this function to be awaited at startup
+export async function updateAllowedOrigins(): Promise<void> {
+  try {
+    const shops = await prisma.shop.findMany({
+      where: { ssl: true },
+    });
 
-  const domains = shops.map((shop: any) => shop.uid);
-  allowedOrigins = [
-    "http://localhost:3000",
-    "http://localhost:7070",
-    ...domains.flatMap((domain: string) => [
-      `https://${domain}`,
-      `https://${domain}:7070`,
-    ]),
-  ];
+    const domains = shops.map((shop: any) => shop.uid);
+    allowedOrigins = [
+      "http://localhost:3000",
+      "http://localhost:7070",
+      ...domains.flatMap((domain: string) => [
+        `https://${domain}`,
+        `https://${domain}:7070`,
+      ]),
+    ];
+    console.log("Allowed CORS origins updated.");
+  } catch (error) {
+    console.error("Failed to update allowed origins:", error);
+  }
 }
 
-updateAllowedOrigins();
+// Set an interval to refresh the origins list periodically
 setInterval(updateAllowedOrigins, 5 * 60 * 1000);
 
 // Define CORS Middleware for all non-/admin routes

@@ -2,7 +2,6 @@ import nodemailer from "nodemailer";
 import { prisma } from "../config/db";
 import { getTemplate } from "./templates";
 import { v4 as uuidv4 } from "uuid";
-import { getNextShopModelId } from "../utils/nextId";
 
 const transporter = nodemailer.createTransport({
   sendmail: true,
@@ -73,12 +72,12 @@ async function dispatchEmail({
   html: string;
   shopId: number;
 }): Promise<boolean> {
-  const newId = await getNextShopModelId("emailLog", shopId);
+  // FIX: Removed call to getNextShopModelId
   try {
     const result = await transporter.sendMail({ from, to, subject, html });
     await prisma.emailLog.create({
       data: {
-        id: newId,
+        // No `id` provided, database will auto-increment it.
         sender: from,
         receiver: to,
         subject,
@@ -96,7 +95,7 @@ async function dispatchEmail({
   } catch (err: any) {
     await prisma.emailLog.create({
       data: {
-        id: newId,
+        // No `id` provided, database will auto-increment it.
         sender: from,
         receiver: to,
         subject,

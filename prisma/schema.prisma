@@ -16,7 +16,6 @@ model Shop {
   status    String   @default("active")
   timestamp DateTime @default(now())
 
-  // Relations
   User             User[]
   Admin            Admin[]
   Product          Product[]
@@ -36,9 +35,9 @@ model Shop {
 }
 
 model User {
-  id         Int
+  id         Int      @id @default(autoincrement())
   refCode    Int?     @unique @default(autoincrement()) @map("ref_code")
-  uid        String   @id
+  uid        String   @unique
   email      String
   image      String?
   password   String
@@ -58,6 +57,8 @@ model User {
   referredBy User?    @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
   referrals  User[]   @relation("Referral") 
 
+  @@unique([email, shopId])
+  @@unique([username, shopId])
   @@map("users")
 }
 
@@ -76,19 +77,20 @@ model Admin {
   timestamp DateTime @default(now())
   lastSeen  DateTime @default(now()) @map("last_seen")
 
+  @@unique([email, shopId])
   @@map("admins")
 }
 
 model Product {
-  id             Int       @map("id")
-  uid            String    @id
+  id             Int       @id @default(autoincrement()) @map("id")
+  uid            String    @unique
   name           String
   description    String?
   category       String
   type           String
   min            Int       @default(1)
   max            Int       @default(1)
-  position       Int       @default(1)
+  position       Int       @default(0)
   status         String    @default("active")
   stock          Int       @default(0)
   sku            String?
@@ -108,28 +110,29 @@ model Product {
   timestamp      DateTime  @default(now())
 
   shop           Shop      @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-
+  
+  @@unique([slug, shopId])
   @@map("products")
 }
 
 model Order {
-  id                 Int      @map("id")
-  uid                String   @id
-  userUid            String   @map("user_uid")
-  productId          Int      @map("product_id")
-  price              Decimal  @default(0)
+  id                 Int       @id @default(autoincrement()) @map("id")
+  uid                String    @unique
+  userUid            String    @map("user_uid")
+  productId          Int       @map("product_id")
+  price              Decimal   @default(0)
   quantity           Int
-  currency           String   @default("USD")
-  status             String   @default("Pending")
-  shippingAddress    String   @map("shipping_address")
-  billingAddress     String   @map("billing_address")
-  paymentMethod      String   @map("payment_method")
-  trackingNumber     String?  @map("tracking_number")
+  currency           String    @default("USD")
+  status             String    @default("Pending")
+  shippingAddress    String    @map("shipping_address")
+  billingAddress     String    @map("billing_address")
+  paymentMethod      String    @map("payment_method")
+  trackingNumber     String?   @map("tracking_number")
   estimatedDelivery  DateTime? @map("estimated_delivery")
   deliveredAt        DateTime? @map("delivered_at")
-  timestamp          DateTime @default(now())
-  shopId             Int      @map("shop_id")
-  shop               Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  timestamp          DateTime  @default(now())
+  shopId             Int       @map("shop_id")
+  shop               Shop      @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
   @@map("orders")
 }
@@ -146,35 +149,37 @@ model AdminEmail {
 }
 
 model AffiliateSetting {
-  id      Int    @map("id")
-  uid     String @id
+  id      Int    @id @default(autoincrement()) @map("id")
+  uid     String @unique
   percent Int
   mode    String @default("percentage")
   shopId  Int    @map("shop_id")
   shop    Shop   @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-
+  
+  @@unique([shopId])
   @@map("affiliate_settings")
 }
 
 model Blog {
-  id          Int      @map("id")
+  id          Int      @id @default(autoincrement()) @map("id")
   title       String
   content     String
   description String   @default("")
   status      String   @default("active")
   position    Int
   slug        String
-  uid         String   @id
+  uid         String   @unique
   shopId      Int      @map("shop_id")
   shop        Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
   timestamp   DateTime @default(now())
-
+  
+  @@unique([slug, shopId])
   @@map("blogs")
 }
 
 model Category {
-  id          Int      @map("id")
-  uid         String   @id
+  id          Int      @id @default(autoincrement()) @map("id")
+  uid         String   @unique
   name        String
   slug        String
   description String   @default("")
@@ -188,6 +193,7 @@ model Category {
   shop        Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
   timestamp   DateTime @default(now())
 
+  @@unique([slug, shopId])
   @@map("categories")
 }
 
@@ -201,20 +207,21 @@ model Currency {
 }
 
 model DesignStyle {
-  id      Int    @map("id")
-  uid     String @id
-  shopId  Int    @map("shop_id")
-  shop    Shop   @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  title   String
-  hex     String
-  schema  Json
-
+  id     Int    @id @default(autoincrement()) @map("id")
+  uid    String @unique
+  shopId Int    @map("shop_id")
+  shop   Shop   @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  title  String
+  hex    String
+  schema Json
+  
+  @@unique([shopId])
   @@map("design_styles")
 }
 
 model EmailLog {
-  id        Int      @map("id")
-  uid       String   @id
+  id        Int      @id @default(autoincrement()) @map("id")
+  uid       String   @unique
   sender    String
   receiver  String
   subject   String
@@ -230,42 +237,45 @@ model EmailLog {
 }
 
 model EmailTemplate {
-  id        Int      @map("id")
-  uid       String   @id
+  id        Int      @id @default(autoincrement()) @map("id")
+  uid       String   @unique
   type      String
   content   String
   shopId    Int      @map("shop_id")
   shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
   timestamp DateTime @default(now())
-
+  
+  @@unique([type, shopId])
   @@map("email_templates")
 }
 
 model Faq {
-  id        Int      @map("id")
+  id        Int      @id @default(autoincrement()) @map("id")
   question  String
   answer    String
   status    String   @default("active")
   position  Int
   slug      String
-  uid       String   @id
+  uid       String   @unique
   shopId    Int      @map("shop_id")
   shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
   timestamp DateTime @default(now())
-
+  
+  @@unique([slug, shopId])
   @@map("faqs")
 }
 
 model General {
-  id                    Int    @map("id")
-  uid                   String @id
-  shopId                Int    @map("shop_id")
-  shop                  Shop   @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  title                 String @default("Shop")
+  id                    Int     @id @default(autoincrement()) @map("id")
+  uid                   String  @unique
+  shopId                Int     @map("shop_id")
+  shop                  Shop    @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  title                 String  @default("Shop")
   logoUrl               String? @map("logo_url")
   faviconUrl            String? @map("favicon_url")
   defaultClientCurrency String? @map("default_client_currency")
 
+  @@unique([shopId])
   @@map("general")
 }
 

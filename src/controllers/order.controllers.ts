@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { prisma } from "../config/db";
-import { AuthSchema } from "../schemas/user.schema";
 import {
   placeOrderSchema,
   updateOrderSchema,
@@ -12,27 +11,16 @@ import {
   OrderSchema,
 } from "../schemas/order.schema";
 import { z } from "zod";
-import { getNextShopModelId } from "../utils/nextId";
 
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
+  const { shopId, user } = req.auth!;
 
-  const { role, shopId, user } = authParsed.data;
-
-  if (role !== "user") {
-    res.status(403).json({ error: "Access denied, Users only." });
-    return;
-  }
   try {
     const orders = await prisma.order.findMany({
       where: { shopId, userUid: user.uid },
       orderBy: { id: "desc" },
     });
-    const parsedOrders = orders.map((o) => OrderPublicSchema.parse(o));
+    const parsedOrders = z.array(OrderPublicSchema).parse(orders);
     res.status(200).json(parsedOrders);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -43,25 +31,14 @@ export const getOrdersForAdmins = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
-  const { role, shopId } = authParsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Access denied, Admins only." });
-    return;
-  }
+  const { shopId } = req.auth!;
 
   try {
     const orders = await prisma.order.findMany({
       where: { shopId },
       orderBy: { id: "desc" },
     });
-    const parsedOrders = orders.map((o) => OrderSchema.parse(o));
+    const parsedOrders = z.array(OrderSchema).parse(orders);
     res.status(200).json(parsedOrders);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -72,12 +49,7 @@ export const getOrderByID = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-  const { shopId, user } = authParsed.data;
+  const { shopId, user } = req.auth!;
   const parsed = z.object({ orderUid: z.string() }).safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -108,18 +80,8 @@ export const getOrderByIDForAdmins = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-  const { role, shopId } = authParsed.data;
+  const { shopId } = req.auth!;
   const parsed = z.object({ orderUid: z.string() }).safeParse(req.params);
-
-  if (role === "user") {
-    res.status(403).json({ error: "Access denied, Admins only." });
-    return;
-  }
 
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -149,31 +111,20 @@ export const placeOrder = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = placeOrderSchema.safeParse(req.body);
 
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
 
-  const { shopId, role, user } = authParsed.data;
-  if (role !== "user") {
-    res.status(403).json({ error: "Access denied, Users only." });
-    return;
-  }
-
+  const { shopId, user } = req.auth!;
+  
   try {
-    const newId = await getNextShopModelId("order", shopId);
     const newOrder = await prisma.order.create({
       data: {
         ...parsed.data,
         uid: uuidv4(),
-        id: newId,
         shopId,
         userUid: user.uid,
         productId: parsed.data.productId,
@@ -183,10 +134,11 @@ export const placeOrder = async (
       },
     });
     res
-      .status(200)
+      .status(201)
       .json({ success: "Order placed successfully", uid: newOrder.uid });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("Failed to place order:", error);
+    res.status(500).json({ error: "Failed to place order." });
   }
 };
 
@@ -194,7 +146,6 @@ export const updateOrder = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = updateOrderSchema.safeParse(req.body);
   const { orderUid } = req.params;
 
@@ -202,17 +153,9 @@ export const updateOrder = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
-  const { role, shopId } = authParsed.data;
-  if (role === "user") {
-    res.status(403).json({ error: "Access denied, Admins only." });
-    return;
-  }
-
+  
+  const { shopId } = req.auth!;
+  
   try {
     await prisma.order.update({
       where: { uid: orderUid, shopId },
@@ -228,19 +171,8 @@ export const deleteOrder = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const { orderUid } = req.params;
-
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
-  const { role, shopId } = authParsed.data;
-  if (role === "user") {
-    res.status(403).json({ error: "Access denied, Admins only." });
-    return;
-  }
+  const { shopId } = req.auth!;
 
   try {
     await prisma.order.delete({ where: { uid: orderUid, shopId } });
@@ -254,7 +186,6 @@ export const getOrdersByStatus = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = getOrdersByStatusSchema
     .extend({
       status: z.union([getOrdersByStatusSchema.shape.status, z.literal("all")]),
@@ -265,16 +196,12 @@ export const getOrdersByStatus = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
-  const { shopId, role, user } = authParsed.data;
+  
+  const { shopId, role, user } = req.auth!;
   const { status } = parsed.data;
 
   try {
-    const whereClause = {
+    const whereClause: any = {
       shopId,
       ...(role === "user" ? { userUid: user.uid } : {}),
       ...(status === "all" ? {} : { status }),
@@ -299,49 +226,33 @@ export const bulkCreateOrders = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = bulkCreateSchema.safeParse(req.body);
 
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
 
-  const { role, shopId, user } = authParsed.data;
-
-  if (role !== "user") {
-    res.status(403).json({ error: "Access denied, Users only." });
-    return;
-  }
+  const { shopId, user } = req.auth!;
 
   try {
-    const orders = await Promise.all(
-      parsed.data.orders.map(async (order) => {
-        const newId = await getNextShopModelId("order", shopId);
-        return prisma.order.create({
-          data: {
-            ...order,
-            uid: uuidv4(),
-            id: newId,
-            shopId,
-            userUid: user.uid,
-            productId: order.productId,
-            shippingAddress: order.shippingAddress,
-            billingAddress: order.billingAddress,
-            paymentMethod: order.paymentMethod,
-          },
-        });
-      })
-    );
+    const orderData = parsed.data.orders.map((order) => ({
+      ...order,
+      uid: uuidv4(),
+      shopId,
+      userUid: user.uid,
+    }));
 
-    const uids = orders.map((o) => o.uid);
-    res.status(200).json({ success: "Bulk orders created", uids });
+    await prisma.order.createMany({
+      data: orderData,
+      skipDuplicates: true,
+    });
+
+    const uids = orderData.map((o) => o.uid);
+    res.status(201).json({ success: "Bulk orders created", uids });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("Failed to bulk create orders:", error);
+    res.status(500).json({ error: "Failed to bulk create orders." });
   }
 };
 
@@ -349,26 +260,17 @@ export const bulkUpdateOrderStatus = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = bulkStatusUpdateSchema.safeParse(req.body);
 
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
-  const { role, shopId } = authParsed.data;
-  if (role === "user") {
-    res.status(403).json({ error: "Access denied, Admins only." });
-    return;
-  }
-
+  
+  const { shopId } = req.auth!;
+  
   try {
-    await Promise.all(
+    await prisma.$transaction(
       parsed.data.updates.map((update) =>
         prisma.order.update({
           where: { uid: update.uid, shopId },
