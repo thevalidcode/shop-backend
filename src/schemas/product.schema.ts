@@ -6,6 +6,7 @@ extendZodWithOpenApi(z);
 export const ProductSchema = z
   .object({
     id: z.number(),
+    shopScopedId: z.number(),
     uid: z.string(),
     name: z.string(),
     description: z.string().nullable(),
@@ -37,6 +38,7 @@ export const ProductSchema = z
 export const ProductPublicSchema = z
   .object({
     id: z.number(),
+    shopScopedId: z.number(),
     uid: z.string(),
     name: z.string(),
     description: z.string().nullable(),

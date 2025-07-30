@@ -6,7 +6,6 @@ import { verifyGoogleIdToken } from "../helpers/googleverify";
 import axios from "axios";
 import { randomBytes } from "crypto";
 import bcrypt from "bcrypt";
-import { getNextShopModelId } from "../utils/nextId";
 import { env } from "../config/env";
 
 const isValidShopDomain = async (url: string): Promise<boolean> => {
@@ -89,29 +88,31 @@ export const googleCallback = async (
     });
 
     if (!user) {
-      const timestamp = new Date();
-      const uid = uuidv4();
-      const newId = await getNextShopModelId("user", shopId);
+      user = await prisma.$transaction(async (tx) => {
+        const counter = await tx.shopCounter.update({
+          where: { shopId },
+          data: { userCounter: { increment: 1 } },
+        });
 
-      user = await prisma.user.create({
-        data: {
-          id: newId,
-          email: googleUser.email,
-          username: googleUser.name.replace(/\s/g, "").toLowerCase(),
-          image: googleUser.picture,
-          password: await bcrypt.hash(Date.now().toString(), 10),
-          apiKey: uuidv4(),
-          timestamp,
-          uid,
-          role: "user",
-          shopId,
-        },
+        return tx.user.create({
+          data: {
+            shopScopedId: counter.userCounter,
+            email: googleUser.email,
+            username: googleUser.name.replace(/\s/g, "").toLowerCase() + counter.userCounter,
+            image: googleUser.picture,
+            password: await bcrypt.hash(Date.now().toString(), 10),
+            apiKey: uuidv4(),
+            timestamp: new Date(),
+            uid: uuidv4(),
+            role: "user",
+            shopId,
+          },
+        });
       });
     }
 
-    // Generate short-lived session code
     const sessionCode = uuidv4();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // Expires in 5 mins
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); 
 
     await prisma.sessionCode.create({
       data: {
@@ -123,11 +124,10 @@ export const googleCallback = async (
       },
     });
 
-    // Redirect to frontend with session code
     res.redirect(`${redirectDomain}?session_code=${sessionCode}`);
   } catch (err: any) {
-    console.error(err.message);
-    res.status(500).send("OAuth failed");
+    console.error("Google OAuth callback failed:", err);
+    res.status(500).send("OAuth failed due to a server error.");
   }
 };
 
@@ -160,14 +160,13 @@ export const verifySessionCode = async (
     return;
   }
 
-  // Mark session code as used
   await prisma.sessionCode.update({
     where: { code: sessionCode },
     data: { used: true },
   });
 
   const token = jwt.sign(
-    { email: user.email, shopId: user.shopId, apiKey: user.apiKey },
+    { email: user.email, shopId: user.shopId, apiKey: user.apiKey, role: user.role },
     env.JWT_SECRET,
     { expiresIn: "7d" }
   );
@@ -175,14 +174,14 @@ export const verifySessionCode = async (
 
   res.cookie("csrf_token", csrfToken, {
     httpOnly: false,
-    secure: true,
+    secure: env.NODE_ENV === "production",
     sameSite: "none",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   res.cookie("auth_token", token, {
     httpOnly: true,
-    secure: true,
+    secure: env.NODE_ENV === "production",
     sameSite: "none",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });

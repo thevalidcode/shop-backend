@@ -205,7 +205,7 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/product/create",
-  summary: "Create a new service",
+  summary: "Create a new product",
   tags: ["Products"],
   security: [{ CookieAuth: [] }],
   request: {

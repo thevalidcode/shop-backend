@@ -16,6 +16,7 @@ export const createFAQSchema = z.object({
 export const FAQSchema = z
   .object({
     id: z.coerce.number(),
+    shopScopedId: z.number(),
     slug: z.string().min(1),
     question: z.string().min(1),
     answer: z.string().min(1),

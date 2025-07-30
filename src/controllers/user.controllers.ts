@@ -5,9 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Request, Response } from "express";
 import { sendEmail } from "../emails";
 import { env } from "../config/env";
-import { AuthSchema } from "../schemas/user.schema";
 import { prisma } from "../config/db";
-import { getNextShopModelId } from "../utils/nextId";
 import { randomBytes } from "crypto";
 
 const createUserSchema = z.object({
@@ -25,17 +23,7 @@ const meQuerySchema = z.object({
 });
 
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
-  const parsed = AuthSchema.safeParse(req.auth);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
-  }
-  const { shopId, role } = parsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Unauthorised User." });
-    return;
-  }
+  const { shopId } = req.auth!;
 
   try {
     const allUsers = await prisma.user.findMany({
@@ -84,26 +72,29 @@ export const createUser = async (
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newId = await getNextShopModelId("user", shopId);
-    const userData = {
-      shopId,
-      id: newId,
-      email,
-      username,
-      password: hashedPassword,
-      uid: uuidv4(),
-      apiKey: uuidv4(),
-      ref: ref ? Number(ref) : undefined,
-    };
-    const newUser = await prisma.user.create({ data: userData });
+
+    const newUser = await prisma.$transaction(async (tx) => {
+        const counter = await tx.shopCounter.update({
+            where: { shopId },
+            data: { userCounter: { increment: 1 } },
+        });
+
+        return tx.user.create({
+            data: {
+              shopId,
+              email,
+              username,
+              password: hashedPassword,
+              uid: uuidv4(),
+              apiKey: uuidv4(),
+              shopScopedId: counter.userCounter,
+              ref: ref ? Number(ref) : undefined,
+            }
+        });
+    });
 
     const token = jwt.sign(
-      {
-        email,
-        shopId,
-        apiKey: newUser.apiKey,
-        role: "user",
-      },
+      { email, shopId, apiKey: newUser.apiKey, role: "user" },
       env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -111,7 +102,7 @@ export const createUser = async (
 
     res.cookie("csrf_token", csrfToken, {
       httpOnly: false,
-      secure: true,
+      secure: env.NODE_ENV === "production",
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -123,9 +114,9 @@ export const createUser = async (
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    await sendEmail(undefined, "newUser", userData, shopId);
+    await sendEmail(undefined, "newUser", { ...newUser }, shopId);
 
-    res.status(200).send({
+    res.status(201).send({
       success: "Created Successfully",
       user: {
         id: newUser.id,
@@ -134,7 +125,8 @@ export const createUser = async (
       },
     });
   } catch (error: any) {
-    res.status(500).send({ error: error.message });
+    console.error("User creation failed:", error);
+    res.status(500).send({ error: "Could not create user." });
   }
 };
 
@@ -184,7 +176,7 @@ export const me = async (req: Request, res: Response): Promise<void> => {
 
     res.cookie("csrf_token", csrfToken, {
       httpOnly: false,
-      secure: true,
+      secure: env.NODE_ENV === "production",
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -203,7 +195,8 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       user: safeAccount,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Login failed: " + err.message });
+    console.error("Login failed:", err);
+    res.status(500).json({ error: "Login failed due to a server error." });
   }
 };
 
@@ -211,12 +204,7 @@ export const verifySession = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-  const { role } = authParsed.data;
+  const { role } = req.auth!;
 
   try {
     res.status(200).send({ role });

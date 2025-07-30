@@ -1,22 +1,15 @@
 import { z } from "zod";
 import { prisma } from "../config/db";
 import type { Request, Response } from "express";
-import { AuthSchema } from "../schemas/user.schema";
 import {
   DeleteProductInputSchema,
   DeleteMultipleProductsInputSchema,
   ProductUpdateInputSchema,
   ProductCreateInputSchema,
 } from "../schemas/product.schema";
-import { getNextShopModelId } from "../utils/nextId";
 import { v4 as uuidv4 } from "uuid";
 
 const getProductsSchema = z.object({
-  shopId: z.coerce.number(),
-});
-
-const productIdSchema = z.object({
-  productId: z.coerce.number(),
   shopId: z.coerce.number(),
 });
 
@@ -47,17 +40,7 @@ export const getProductsForAdmins = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = AuthSchema.safeParse(req.auth);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
-  }
-  const { shopId, role } = parsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Unauthorised User." });
-    return;
-  }
+  const { shopId } = req.auth!;
 
   try {
     const products = await prisma.product.findMany({
@@ -74,17 +57,29 @@ export const getProductByID = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = productIdSchema.safeParse(req.params);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
+  const paramsParsed = z.object({ productId: z.coerce.number() }).safeParse(req.params);
+  const queryParsed = z.object({ shopId: z.coerce.number() }).safeParse(req.query);
+  
+  if (!paramsParsed.success) {
+      res.status(400).json({ error: paramsParsed.error.flatten() });
+      return;
   }
-  const { shopId, productId } = parsed.data;
+  if (!queryParsed.success) {
+      res.status(400).json({ error: queryParsed.error.flatten() });
+      return;
+  }
+
+  const { shopId } = queryParsed.data;
+  const { productId } = paramsParsed.data;
 
   try {
     const product = await prisma.product.findFirst({
-      where: { id: productId, shopId },
+      where: { id: productId, shopId, status: 'active' },
     });
+    if (!product) {
+        res.status(404).json({ error: "Product not found" });
+        return;
+    }
     res.status(200).json({ product });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -95,28 +90,22 @@ export const getProductByIDFromAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  const parsed = productIdSchema.safeParse(req.params);
+  const parsed = z.object({ productId: z.coerce.number() }).safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
   const { productId } = parsed.data;
-  const { shopId, role } = authParsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Unauthorised User." });
-    return;
-  }
+  const { shopId } = req.auth!;
 
   try {
     const product = await prisma.product.findFirst({
       where: { id: productId, shopId },
     });
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
     res.status(200).json({ product });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -127,35 +116,29 @@ export const updateProduct = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = ProductUpdateInputSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
   const reqData = parsed.data;
-  const { shopId, role } = authParsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Unauthorised User." });
-    return;
-  }
+  const { shopId } = req.auth!;
 
   try {
-    await prisma.product.update({
+    const productToUpdate = await prisma.product.findFirst({
+      where: { uid: reqData.uid, shopId }
+    });
+    if (!productToUpdate) {
+        res.status(404).json({ error: "Product not found in this shop." });
+        return;
+    }
+
+    const updatedProduct = await prisma.product.update({
       where: { uid: reqData.uid },
       data: reqData,
     });
 
-    const product = await prisma.product.findFirst({
-      where: { uid: reqData.uid, shopId },
-    });
-
-    res.status(200).json({ success: "Product updated successfully.", product });
+    res.status(200).json({ success: "Product updated successfully.", product: updatedProduct });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -165,26 +148,16 @@ export const deleteProduct = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = DeleteProductInputSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
   const { uid } = parsed.data;
-  const { role } = authParsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Unauthorised User." });
-    return;
-  }
+  const { shopId } = req.auth!;
 
   try {
-    await prisma.product.delete({ where: { uid } });
+    await prisma.product.deleteMany({ where: { uid, shopId } });
     res.status(200).json({ success: "Product deleted successfully." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -195,26 +168,16 @@ export const deleteMultipleProduct = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = DeleteMultipleProductsInputSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
   const { uids } = parsed.data;
-  const { role } = authParsed.data;
-
-  if (role === "user") {
-    res.status(403).json({ error: "Unauthorised User." });
-    return;
-  }
+  const { shopId } = req.auth!;
 
   try {
-    await prisma.product.deleteMany({ where: { uid: { in: uids } } });
+    await prisma.product.deleteMany({ where: { uid: { in: uids }, shopId } });
     res.status(200).json({ success: "Products deleted successfully." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -225,40 +188,45 @@ export const addProduct = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = ProductCreateInputSchema.safeParse(req.body);
 
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-  const { role, shopId } = authParsed.data;
-  if (role === "user") {
-    res.status(403).json({ error: "Unauthorised User." });
-    return;
-  }
+  
+  const { shopId } = req.auth!;
 
   try {
-    const newId = await getNextShopModelId("product", shopId);
-    const uid = uuidv4();
+    const newProduct = await prisma.$transaction(async (tx) => {
+        const counter = await tx.shopCounter.update({
+            where: { shopId },
+            data: { productCounter: { increment: 1 } },
+        });
 
-    const productData = {
-      ...parsed.data,
-      id: newId,
-      uid,
-      shopId,
-      status: "active",
-      position: newId,
-    };
+        const lastProduct = await tx.product.findFirst({
+            where: { shopId },
+            orderBy: { position: "desc" },
+            select: { position: true },
+        });
+        const newPosition = lastProduct ? lastProduct.position + 1 : 1;
 
-    const product = await prisma.product.create({ data: productData });
+        const product = await tx.product.create({
+            data: {
+                ...parsed.data,
+                uid: uuidv4(),
+                shopId,
+                shopScopedId: counter.productCounter,
+                status: "active",
+                position: newPosition,
+            },
+        });
+        return product;
+    });
 
-    res.status(200).json({ success: "Product added successfully.", product });
+    res.status(201).json({ success: "Product added successfully.", product: newProduct });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("Failed to add product:", error);
+    res.status(500).json({ error: "Failed to add product." });
   }
 };

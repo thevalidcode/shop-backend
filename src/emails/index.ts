@@ -2,7 +2,6 @@ import nodemailer from "nodemailer";
 import { prisma } from "../config/db";
 import { getTemplate } from "./templates";
 import { v4 as uuidv4 } from "uuid";
-import { getNextShopModelId } from "../utils/nextId";
 
 const transporter = nodemailer.createTransport({
   sendmail: true,
@@ -73,40 +72,56 @@ async function dispatchEmail({
   html: string;
   shopId: number;
 }): Promise<boolean> {
-  const newId = await getNextShopModelId("emailLog", shopId);
   try {
     const result = await transporter.sendMail({ from, to, subject, html });
-    await prisma.emailLog.create({
-      data: {
-        id: newId,
-        sender: from,
-        receiver: to,
-        subject,
-        html,
-        status: "success",
-        timestamp: new Date(),
-        messageId: result.messageId,
-        response: result.response,
-        shopId,
-        uid: uuidv4(),
-      },
+
+    // Use a transaction to atomically get the next ID and create the log
+    await prisma.$transaction(async (tx) => {
+      const counter = await tx.shopCounter.update({
+        where: { shopId },
+        data: { emailLogCounter: { increment: 1 } },
+      });
+
+      await tx.emailLog.create({
+        data: {
+          shopScopedId: counter.emailLogCounter,
+          sender: from,
+          receiver: to,
+          subject,
+          html,
+          status: "success",
+          timestamp: new Date(),
+          messageId: result.messageId,
+          response: result.response,
+          shopId,
+          uid: uuidv4(),
+        },
+      });
     });
 
     return true;
   } catch (err: any) {
-    await prisma.emailLog.create({
-      data: {
-        id: newId,
-        sender: from,
-        receiver: to,
-        subject,
-        html,
-        status: "error",
-        timestamp: new Date(),
-        response: err.message,
-        shopId,
-        uid: uuidv4(),
-      },
+    // Logging the error should also be atomic
+    await prisma.$transaction(async (tx) => {
+        const counter = await tx.shopCounter.update({
+            where: { shopId },
+            data: { emailLogCounter: { increment: 1 } },
+        });
+
+        await tx.emailLog.create({
+            data: {
+                shopScopedId: counter.emailLogCounter,
+                sender: from,
+                receiver: to,
+                subject,
+                html,
+                status: "error",
+                timestamp: new Date(),
+                response: err.message,
+                shopId,
+                uid: uuidv4(),
+            },
+        });
     });
     return false;
   }

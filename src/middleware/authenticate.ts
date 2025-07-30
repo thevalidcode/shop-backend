@@ -64,14 +64,17 @@ export const authenticate = async (
       return;
     }
 
+    // FIX: Omit password before attaching to request
+    const { password, ...safeAccount } = account;
+
     // Step 5: Attach user info to request
     req.auth = {
       email,
       shopId,
       apiKey,
       role,
-      uid: account.uid,
-      user: account,
+      uid: safeAccount.uid,
+      user: safeAccount,
     };
 
     next();
