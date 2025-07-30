@@ -89,20 +89,18 @@ export const googleCallback = async (
 
     if (!user) {
       user = await prisma.$transaction(async (tx) => {
-        // Atomically increment the user counter for the shop
         const counter = await tx.shopCounter.update({
           where: { shopId },
           data: { userCounter: { increment: 1 } },
         });
 
-        // Create the new user with the sequential shopScopedId
         return tx.user.create({
           data: {
             shopScopedId: counter.userCounter,
             email: googleUser.email,
-            username: googleUser.name.replace(/\s/g, "").toLowerCase() + counter.userCounter, // Ensure username is unique
+            username: googleUser.name.replace(/\s/g, "").toLowerCase() + counter.userCounter,
             image: googleUser.picture,
-            password: await bcrypt.hash(Date.now().toString(), 10), // Placeholder password
+            password: await bcrypt.hash(Date.now().toString(), 10),
             apiKey: uuidv4(),
             timestamp: new Date(),
             uid: uuidv4(),

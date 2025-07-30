@@ -31,7 +31,6 @@ model Shop {
   General          General[]
   SessionCode      SessionCode[]
   
-  // Relation to the new counter table
   shopCounter     ShopCounter?
 
   @@map("shops")
