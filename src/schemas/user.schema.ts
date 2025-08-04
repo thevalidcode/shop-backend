@@ -61,8 +61,20 @@ export const CreateUserInputSchema = z.object({
   email: z.string().email().describe("User email"),
   username: z.string().describe("User username"),
   password: z.string().describe("User password"),
-  shopId: z.number().describe("Shop ID to associate with"),
-  ref: z.number().optional().describe("Optional referral ID"),
+  shopDomain: z.string().min(1).describe("Shop domain to join"),
+  ref: z.union([z.string(), z.number()]).optional().describe("Optional referral ID"),
+});
+
+export const CreateUserResponseSchema = z.object({
+  success: z.string(),
+  user: z.object({
+    id: z.number(),
+    email: z.string(),
+    username: z.string(),
+    shopDomain: z.string(),
+    shopUrl: z.string(),
+  }),
+  message: z.string(),
 });
 
 export const AdminPublicSchema = z.object({

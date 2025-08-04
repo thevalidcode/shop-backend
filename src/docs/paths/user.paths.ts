@@ -4,6 +4,7 @@ import {
   AuthenticateUserResponseSchema,
   AuthenticateUserSchema,
   CreateUserInputSchema,
+  CreateUserResponseSchema,
   UserUpdateRequestSchema,
   UserPublicSchema,
 } from "../../schemas/user.schema";
@@ -56,7 +57,7 @@ registry.registerPath({
   path: "/user",
   summary: "Get all users",
   tags: ["Users"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   responses: {
     200: UsersListResponse,
     403: Forbidden,
@@ -70,7 +71,7 @@ registry.registerPath({
   path: "/user/{uid}",
   summary: "Get user by UID",
   tags: ["Users"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   parameters: [
     {
       name: "uid",
@@ -97,7 +98,21 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/user",
-  summary: "Create a new user",
+  summary: "Register as Customer for a Specific Shop",
+  description:
+    "Register a new customer account for a specific shop.\n\n" +
+    "### 🏪 Shop-Specific Registration:\n" +
+    "- Users register for a specific shop using the shop domain\n" +
+    "- Each user account is tied to one shop\n" +
+    "- Shop must exist and be active\n\n" +
+    "### 🔍 Prerequisites:\n" +
+    "- Use `/shop/discover` to find available shops\n" +
+    "- Use `/shop/info/{domain}` to verify shop exists\n" +
+    "- Check shop is active before registration\n\n" +
+    "### ✅ On Success:\n" +
+    "- Creates customer account for the specified shop\n" +
+    "- Sets authentication cookies\n" +
+    "- Returns shop URL and account details",
   tags: ["Users"],
   request: {
     body: {
@@ -109,23 +124,25 @@ registry.registerPath({
     },
   },
   responses: {
-    204: {
-      description: "User created successfully",
+    201: {
+      description: "Customer account created successfully",
       content: {
         "application/json": {
-          schema: z.object({
-            success: z.string(),
-            token: z.string().jwt(),
-            user: z.object({
-              id: z.coerce.number().describe("User id"),
-              email: z.string().email().describe("User email"),
-              username: z.string().describe("User username"),
-            }),
-          }),
+          schema: CreateUserResponseSchema,
         },
       },
     },
     400: BadRequest,
+    404: {
+      description: "Shop not found or inactive",
+      content: {
+        "application/json": {
+          schema: z.object({
+            error: z.string(),
+          }),
+        },
+      },
+    },
     500: ServerError,
   },
 });
@@ -158,7 +175,7 @@ registry.registerPath({
   path: "/user",
   summary: "Delete a single user",
   tags: ["Users"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
@@ -184,7 +201,7 @@ registry.registerPath({
   path: "/user/multiple",
   summary: "Delete multiple users",
   tags: ["Users"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {

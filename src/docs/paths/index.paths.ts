@@ -10,4 +10,9 @@ import "./order.paths";
 import "./blog.paths";
 import "./faq.paths";
 
+import "./cart.paths";
+import "./checkout.paths";
+import "./payment.paths";
+import "./adminPanel.paths";
+
 export { registry };
