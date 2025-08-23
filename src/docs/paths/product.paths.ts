@@ -50,7 +50,7 @@ registry.registerPath({
   path: "/product/admin",
   summary: "Get all products for admins",
   tags: ["Products"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   responses: {
     200: ProductListResponse,
     403: Forbidden,
@@ -64,7 +64,7 @@ registry.registerPath({
   path: "/product/{providerId}",
   summary: "Get products by provider ID",
   tags: ["Products"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   parameters: [
     {
       name: "providerId",
@@ -113,7 +113,7 @@ registry.registerPath({
   path: "/product/admin/{productId}",
   summary: "Get a service by ID (admin)",
   tags: ["Products"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   parameters: [
     {
       name: "productId",
@@ -135,7 +135,7 @@ registry.registerPath({
   path: "/product",
   summary: "Update a service",
   tags: ["Products"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
@@ -159,7 +159,7 @@ registry.registerPath({
   path: "/product",
   summary: "Delete a single service",
   tags: ["Products"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
@@ -183,7 +183,7 @@ registry.registerPath({
   path: "/product/multiple",
   summary: "Delete multiple products",
   tags: ["Products"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
@@ -207,7 +207,7 @@ registry.registerPath({
   path: "/product/create",
   summary: "Create a new product",
   tags: ["Products"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {

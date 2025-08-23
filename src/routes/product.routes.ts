@@ -12,7 +12,7 @@ router.get("/:productId", products.getProductByID);
 router.post("/", authenticate, isAdmin, products.addProduct);
 router.get("/admin/all", authenticate, isAdmin, products.getProductsForAdmins);
 router.get("/admin/:productId", authenticate, isAdmin, products.getProductByIDFromAdmin);
-router.patch("/", authenticate, isAdmin, products.updateProduct);
+router.patch("/", authenticate, products.updateProduct);
 router.delete("/", authenticate, isAdmin, products.deleteProduct);
 router.delete("/multiple", authenticate, isAdmin, products.deleteMultipleProduct);
 

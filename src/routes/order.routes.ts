@@ -9,8 +9,8 @@ import { isAdmin, isUser } from "../middleware/authorize";
 // User-only routes
 router.get("/", authenticate, isUser, orders.getOrders);
 router.get("/:orderUid", authenticate, isUser, orders.getOrderByID);
-router.post("/", authenticate, isUser, orders.placeOrder);
-router.post("/bulk", authenticate, isUser, orders.bulkCreateOrders);
+// router.post("/", authenticate, isUser, orders.placeOrder);
+// router.post("/bulk", authenticate, isUser, orders.bulkCreateOrders);
 
 // Admin-only routes
 router.get("/admin/all", authenticate, isAdmin, orders.getOrdersForAdmins);

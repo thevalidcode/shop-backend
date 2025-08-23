@@ -74,7 +74,7 @@ registry.registerPath({
   path: "/blog",
   summary: "Create a new blog",
   tags: ["Blogs"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
@@ -98,7 +98,7 @@ registry.registerPath({
   path: "/blog",
   summary: "Update a blog",
   tags: ["Blogs"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
@@ -122,7 +122,7 @@ registry.registerPath({
   path: "/blog",
   summary: "Delete a blog",
   tags: ["Blogs"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
@@ -146,7 +146,7 @@ registry.registerPath({
   path: "/blog/multiple",
   summary: "Delete multiple blogs",
   tags: ["Blogs"],
-  security: [{ CookieAuth: [] }],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {

@@ -7,6 +7,12 @@ import {
   UserInvalidSessionResponse,
   InvalidSessionResponse,
 } from "../responses/auth.response";
+import { 
+  AdminRegistrationSchema, 
+  AdminRegistrationResponseSchema, 
+  DomainCheckResponseSchema 
+} from "../../schemas/admin.schema";
+import { BadRequest, ServerError } from "../responses/common.response";
 
 registry.registerPath({
   method: "get",
@@ -84,5 +90,94 @@ registry.registerPath({
     200: SessionVerifiedResponse,
     400: InvalidSessionResponse,
     404: UserInvalidSessionResponse,
+  },
+});
+
+// NEW: Admin Registration
+registry.registerPath({
+  method: "post",
+  path: "/admin/register",
+  summary: "Register as Shop Owner (Create Shop and Admin Account)",
+  description:
+    "Complete registration endpoint for new shop owners.\n\n" +
+    "### 🏪 What It Does:\n" +
+    "- Creates a new shop with chosen domain\n" +
+    "- Creates admin account for the shop owner\n" +
+    "- Initializes shop settings and counters\n" +
+    "- Issues authentication tokens for immediate login\n\n" +
+    "### 🌐 Domain Requirements:\n" +
+    "- 3-30 characters long\n" +
+    "- Lowercase letters, numbers, and hyphens only\n" +
+    "- Must be unique across the platform\n\n" +
+    "### ✅ On Success:\n" +
+    "- Returns shop info with unique URL\n" +
+    "- Sets authentication cookies\n" +
+    "- Provides next steps for shop setup",
+  tags: ["Auth"],
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: AdminRegistrationSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Shop and admin account created successfully",
+      content: {
+        "application/json": {
+          schema: AdminRegistrationResponseSchema,
+        },
+      },
+    },
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// NEW: Domain Availability Check
+registry.registerPath({
+  method: "get",
+  path: "/admin/check-domain/{domain}",
+  summary: "Check Shop Domain Availability",
+  description:
+    "Check if a shop domain is available for registration.\n\n" +
+    "### 🔍 What It Does:\n" +
+    "- Validates domain format\n" +
+    "- Checks if domain is already taken\n" +
+    "- Returns availability status and suggested URL\n\n" +
+    "### ✅ Use This Before Registration:\n" +
+    "- Help users choose available domains\n" +
+    "- Prevent registration failures\n" +
+    "- Show preview of shop URL",
+  tags: ["Auth"],
+  parameters: [
+    {
+      name: "domain",
+      in: "path",
+      required: true,
+      description: "Domain to check availability for",
+      schema: { 
+        type: "string",
+        pattern: "^[a-z0-9-]+$",
+        minLength: 3,
+        maxLength: 30
+      },
+    },
+  ],
+  responses: {
+    200: {
+      description: "Domain availability check result",
+      content: {
+        "application/json": {
+          schema: DomainCheckResponseSchema,
+        },
+      },
+    },
+    400: BadRequest,
+    500: ServerError,
   },
 });

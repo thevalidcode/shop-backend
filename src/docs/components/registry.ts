@@ -10,7 +10,7 @@ registry.registerComponent("securitySchemes", "CookieAuth", {
 });
 
 // CSRF token in headers
-registry.registerComponent("securitySchemes", "CsrffHeader", {
+registry.registerComponent("securitySchemes", "CsrfHeader", {
   type: "apiKey",
   in: "header",
   name: "x-csrf-token",

@@ -16,9 +16,13 @@ import blogRoutes from "./routes/blog.routes";
 import faqRoutes from "./routes/faq.routes";
 import productRoutes from "./routes/product.routes";
 import adminRoutes from "./routes/admin.routes";
+import adminPanelRoutes from "./routes/adminPanel.routes";
 import categoryRoutes from "./routes/category.routes";
 import orderRoutes from "./routes/order.routes";
 import versionRouter from "./routes/version.routes";
+import cartRoutes from "./routes/cart.routes";
+import checkoutRoutes from "./routes/checkout.routes";
+import paymentRoutes from "./routes/payment.routes";
 import swaggerRouter from "./docs/swagger";
 
 const app = express();
@@ -113,9 +117,13 @@ app.use("/api/v1/product", cors(dynamicCors), productRoutes);
 app.use("/api/v1/category", cors(dynamicCors), categoryRoutes);
 app.use("/api/v1/order", cors(dynamicCors), orderRoutes);
 app.use("/api/v1/version", cors(dynamicCors), versionRouter);
+app.use("/api/v1/cart", cors(dynamicCors), cartRoutes);
+app.use("/api/v1/payment", cors(dynamicCors), paymentRoutes);
+app.use("/api/v1/checkout", cors(dynamicCors), checkoutRoutes);
 
 // Internal Routes
 app.use("/admin", adminRoutes);
+app.use("/api/v1/admin", adminPanelRoutes);
 app.use("/api/auth/shop", oauthRoutes);
 
 app.use(swaggerRouter);
