@@ -4,8 +4,8 @@ import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { Request, Response } from "express";
 import { sendEmail } from "../emails";
-import { env } from "../config/env";
-import { prisma } from "../config/db";
+import { env } from "../config/env.config";
+import { prisma } from "../config/db.config";
 import { randomBytes } from "crypto";
 import { AdminUpdateUserSchema } from "../schemas/admin.schema";
 
@@ -45,7 +45,10 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export const createUser = async (req: Request, res: Response): Promise<void> => {
+export const createUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const parsed = createUserSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -57,19 +60,21 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     // Find shop by domain
     const shop = await prisma.shop.findFirst({
       where: { uid: shopDomain },
-      select: { shopId: true, status: true, uid: true }
+      select: { shopId: true, status: true, uid: true },
     });
-    
+
     if (!shop) {
-      res.status(404).json({ error: "Shop not found. Please check the shop domain." });
+      res
+        .status(404)
+        .json({ error: "Shop not found. Please check the shop domain." });
       return;
     }
-    
+
     if (shop.status !== "active") {
       res.status(400).json({ error: "This shop is not currently active." });
       return;
     }
-    
+
     const existing = await prisma.user.findFirst({
       where: {
         shopId: shop.shopId,
@@ -89,23 +94,23 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.$transaction(async (tx) => {
-        const counter = await tx.shopCounter.update({
-            where: { shopId: shop.shopId },
-            data: { userCounter: { increment: 1 } },
-        });
+      const counter = await tx.shopCounter.update({
+        where: { shopId: shop.shopId },
+        data: { userCounter: { increment: 1 } },
+      });
 
-        return tx.user.create({
-            data: {
-              shopId: shop.shopId,
-              email,
-              username,
-              password: hashedPassword,
-              uid: uuidv4(),
-              apiKey: uuidv4(),
-              shopScopedId: counter.userCounter,
-              ref: ref ? Number(ref) : undefined,
-            }
-        });
+      return tx.user.create({
+        data: {
+          shopId: shop.shopId,
+          email,
+          username,
+          password: hashedPassword,
+          uid: uuidv4(),
+          apiKey: uuidv4(),
+          shopScopedId: counter.userCounter,
+          ref: ref ? Number(ref) : undefined,
+        },
+      });
     });
 
     const token = jwt.sign(
@@ -120,10 +125,10 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       secure: true, // Always true for SameSite=None
       sameSite: "none" as const, // Must be 'none' for cross-site requests
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  };
+    };
 
-  res.cookie("auth_token", token, cookieOptions);
-  res.cookie("csrf_token", csrfToken, { ...cookieOptions, httpOnly: false });
+    res.cookie("auth_token", token, cookieOptions);
+    res.cookie("csrf_token", csrfToken, { ...cookieOptions, httpOnly: false });
 
     await sendEmail(undefined, "newUser", { ...newUser }, shop.shopId);
 
@@ -134,9 +139,9 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         email: newUser.email,
         username: newUser.username,
         shopDomain: shopDomain,
-        shopUrl: `https://${shopDomain}.yourplatform.com`
+        shopUrl: `https://${shopDomain}.yourplatform.com`,
       },
-      message: `Welcome to ${shopDomain}! You can now start shopping.`
+      message: `Welcome to ${shopDomain}! You can now start shopping.`,
     });
   } catch (error: any) {
     console.error("User creation failed:", error);
@@ -193,10 +198,10 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       secure: true, // Always true for SameSite=None
       sameSite: "none" as const, // Must be 'none' for cross-site requests
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  };
+    };
 
-  res.cookie("auth_token", token, cookieOptions);
-  res.cookie("csrf_token", csrfToken, { ...cookieOptions, httpOnly: false });
+    res.cookie("auth_token", token, cookieOptions);
+    res.cookie("csrf_token", csrfToken, { ...cookieOptions, httpOnly: false });
 
     const { password: _, apiKey: __, ...safeAccount } = account;
     res.status(200).json({
@@ -210,7 +215,10 @@ export const me = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export const verifySession = async (req: Request, res: Response): Promise<void> => {
+export const verifySession = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { role } = req.auth!;
 
   try {
@@ -226,7 +234,8 @@ export const updateUserByAdmin = async (req: Request, res: Response) => {
 
   const validation = AdminUpdateUserSchema.safeParse(req.body);
   if (!validation.success) {
-    return res.status(400).json({ error: validation.error.flatten() });
+    res.status(400).json({ error: validation.error.flatten() });
+    return;
   }
 
   try {
@@ -234,9 +243,10 @@ export const updateUserByAdmin = async (req: Request, res: Response) => {
       where: { uid, shopId }, // Ensures admin can only update users in their own shop
       data: validation.data,
     });
-    
+
     if (updatedUser.count === 0) {
-      return res.status(404).json({ error: "User not found in this shop." });
+      res.status(404).json({ error: "User not found in this shop." });
+      return;
     }
 
     res.status(200).json({ success: "User updated successfully." });
@@ -253,9 +263,10 @@ export const deleteUserByAdmin = async (req: Request, res: Response) => {
     const deletedUser = await prisma.user.deleteMany({
       where: { uid, shopId },
     });
-    
+
     if (deletedUser.count === 0) {
-      return res.status(404).json({ error: "User not found in this shop." });
+      res.status(404).json({ error: "User not found in this shop." });
+      return;
     }
 
     res.status(200).json({ success: "User deleted successfully." });

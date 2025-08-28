@@ -1,4 +1,4 @@
-import { prisma } from "../config/db";
+import { prisma } from "../config/db.config";
 import { v4 as uuid4 } from "uuid";
 import type { Request, Response } from "express";
 import { ShopIdSchema } from "../schemas/common.schema";

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { prisma } from "../config/db";
+import { prisma } from "../config/db.config";
 import type { Request, Response } from "express";
 import {
   DeleteProductInputSchema,

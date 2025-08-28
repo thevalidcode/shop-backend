@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import { prisma } from "../config/db";
+import { prisma } from "../config/db.config";
 import { CreateOrderSchema, PaystackWebhookSchema } from "../schemas/checkout.schema";
 import { v4 as uuidv4 } from "uuid";
 import { Decimal } from "@prisma/client/runtime/library";
 import { decryptKey } from "../utils/encrypt";
 import axios from "axios";
 import crypto from "crypto";
-import { env } from "../config/env";
+import { env } from "../config/env.config";
 
 /**
  * @desc    Create an order from the user's current cart

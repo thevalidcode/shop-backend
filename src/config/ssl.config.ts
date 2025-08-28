@@ -1,7 +1,7 @@
 import fs from "fs";
 import tls, { SecureContext } from "tls";
-import { prisma } from "../config/db";
-import { env as processENV } from "./env";
+import { prisma } from "./db.config";
+import { env as processENV } from "./env.config";
 
 const env = processENV.NODE_ENV;
 
@@ -29,10 +29,14 @@ async function loadCertificates(): Promise<void> {
       if (env === "production") {
         sslOptions[domain.uid] = {
           cert: fs.readFileSync(
-            `/etc/letsencrypt/live/${domain.uid}/fullchain.pem`
+            `/etc/ssl/${
+              domain.uid.includes("validpanel.com") ? "validpanel.com" : domain
+            }/fullchain.crt`
           ),
           key: fs.readFileSync(
-            `/etc/letsencrypt/live/${domain.uid}/privkey.pem`
+            `/etc/ssl/${
+              domain.uid.includes("validpanel.com") ? "validpanel.com" : domain
+            }/keyfile.key`
           ),
         };
       }
@@ -56,8 +60,16 @@ async function SNICallback(
 
     if (shop?.ssl) {
       ctx = {
-        cert: fs.readFileSync(`/etc/letsencrypt/live/${domain}/fullchain.pem`),
-        key: fs.readFileSync(`/etc/letsencrypt/live/${domain}/privkey.pem`),
+        cert: fs.readFileSync(
+          `/etc/ssl/${
+            domain.includes("validpanel.com") ? "validpanel.com" : domain
+          }/fullchain.crt`
+        ),
+        key: fs.readFileSync(
+          `/etc/ssl/${
+            domain.includes("validpanel.com") ? "validpanel.com" : domain
+          }/keyfile.key`
+        ),
       };
       sslOptions[domain] = ctx;
     }

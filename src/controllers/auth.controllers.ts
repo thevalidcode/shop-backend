@@ -1,12 +1,12 @@
 import jwt from "jsonwebtoken";
-import { prisma } from "../config/db";
+import { prisma } from "../config/db.config";
 import { v4 as uuidv4 } from "uuid";
 import type { Request, Response } from "express";
 import { verifyGoogleIdToken } from "../helpers/googleverify";
 import axios from "axios";
 import { randomBytes } from "crypto";
 import bcrypt from "bcrypt";
-import { env } from "../config/env";
+import { env } from "../config/env.config";
 
 const isValidShopDomain = async (url: string): Promise<boolean> => {
   const match = url.match(/^https?:\/\/([^/]+)/i);

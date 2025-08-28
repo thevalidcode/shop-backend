@@ -1,13 +1,12 @@
 import http from "http";
 import https from "https";
-import fs from "fs";
-import path from "path";
 import { Server } from "socket.io";
-import app, { updateAllowedOrigins } from "./app";
-import { SNICallback } from "./config/ssl";
+import { updateAllowedOrigins } from "./config/cors.config";
+import app from "./app";
+import { SNICallback } from "./config/ssl.config";
 import { startCronJobs } from "./cronJobs";
 import { setupSocket } from "./socket";
-import { env } from "./config/env";
+import { env } from "./config/env.config";
 
 let mainServer: http.Server | https.Server;
 
@@ -30,15 +29,10 @@ async function startServer() {
       console.log("HTTP fallback running on http://validpanel.com:5020/");
     });
   } else {
-    const devServerOptions: https.ServerOptions = {
-      key: fs.readFileSync(path.join(__dirname, '../localhost-key.pem')),
-      cert: fs.readFileSync(path.join(__dirname, '../localhost.pem')),
-    };
-    
-    mainServer = https.createServer(devServerOptions, app);
+    mainServer = http.createServer(app);
 
     mainServer.listen(7030, () => {
-      console.log("Development server running on https://localhost:7030/"); // Note: https
+      console.log("Development server running on http://localhost:7030/");
     });
   }
 

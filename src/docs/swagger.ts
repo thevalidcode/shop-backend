@@ -3,6 +3,8 @@ import swaggerUi from "swagger-ui-express";
 import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
 import { registry } from "./paths/index.paths";
 import { API_VERSION } from "../version";
+import { openCors } from "../config/cors.config";
+import * as swaggers from "../controllers/swagger.controllers";
 
 const swaggerRouter = Router();
 
@@ -27,7 +29,7 @@ const openApiDocument = generator.generateDocument({
   },
   servers: [
     {
-      url: "https://validpanel.com:7030/api/v1",
+      url: "https://validpanel.com/shop/backend/api/v1",
       description: "Public testing server (use this to test endpoints)",
     },
     {
@@ -35,7 +37,7 @@ const openApiDocument = generator.generateDocument({
       description: "Public server (use this for auth endpoints)",
     },
     {
-      url: "https://{domain}:7030/api/v1",
+      url: "https://{domain}/shop/backend/api/v1",
       description: "Custom shop domain (replace `{domain}` with your own)",
       variables: {
         domain: {
@@ -51,8 +53,12 @@ const openApiDocument = generator.generateDocument({
   ],
 });
 
+swaggerRouter.get("/login", openCors, swaggers.adminLogin);
+swaggerRouter.post("/login", openCors, swaggers.authenticateAdmin);
+swaggerRouter.post("/logout", openCors, swaggers.logoutAdmin);
+
 swaggerRouter.use(
-  "/admin/docs",
+  "/docs",
   isAdmin,
   swaggerUi.serve,
   swaggerUi.setup(openApiDocument, {

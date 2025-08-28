@@ -1,10 +1,8 @@
 import express from "express";
 import bodyParser from "body-parser";
-import cors, { CorsOptions, CorsRequest } from "cors";
+import cors from "cors";
 import session from "express-session";
-import pgSession from "connect-pg-simple";
-import { pool, prisma } from "./config/db";
-import { env } from "./config/env";
+import { env } from "./config/env.config";
 import cookieParser from "cookie-parser";
 import path from "path";
 
@@ -16,7 +14,6 @@ import blogRoutes from "./routes/blog.routes";
 import faqRoutes from "./routes/faq.routes";
 import productRoutes from "./routes/product.routes";
 import adminRoutes from "./routes/admin.routes";
-import adminPanelRoutes from "./routes/adminPanel.routes";
 import categoryRoutes from "./routes/category.routes";
 import orderRoutes from "./routes/order.routes";
 import versionRouter from "./routes/version.routes";
@@ -24,60 +21,13 @@ import cartRoutes from "./routes/cart.routes";
 import checkoutRoutes from "./routes/checkout.routes";
 import paymentRoutes from "./routes/payment.routes";
 import swaggerRouter from "./docs/swagger";
+import { dynamicCors, updateAllowedOrigins } from "./config/cors.config";
+import PrismaSessionStore from "./utils/PrismaSessionStore";
 
 const app = express();
 
-// --- Dynamic CORS Setup ---
-let allowedOrigins: string[] = [];
-
-// FIX: Export this function to be awaited at startup
-export async function updateAllowedOrigins(): Promise<void> {
-  try {
-    const shops = await prisma.shop.findMany({
-      where: { ssl: true },
-    });
-
-    const domains = shops.map((shop: any) => shop.uid);
-    allowedOrigins = [
-      "http://localhost:3000",
-      "http://localhost:7070",
-      ...domains.flatMap((domain: string) => [
-        `https://${domain}`,
-        `https://${domain}:7070`,
-      ]),
-    ];
-    console.log("Allowed CORS origins updated.");
-  } catch (error) {
-    console.error("Failed to update allowed origins:", error);
-  }
-}
-
 // Set an interval to refresh the origins list periodically
 setInterval(updateAllowedOrigins, 5 * 60 * 1000);
-
-// Define CORS Middleware for all non-/admin routes
-const dynamicCors = function (
-  req: CorsRequest,
-  callback: (err: Error | null, options?: CorsOptions) => void
-) {
-  const origin = req.headers.origin;
-
-  if (env.NODE_ENV === "development") {
-    return callback(null, { origin: true, credentials: true });
-  }
-
-  if (!origin) {
-    return callback(new Error("Origin header is required by CORS"), {
-      origin: false,
-    });
-  }
-
-  if (allowedOrigins.includes(origin)) {
-    return callback(null, { origin: true, credentials: true });
-  }
-
-  return callback(new Error("Not allowed by CORS"), { origin: false });
-};
 
 // --- Middleware ---
 app.use(bodyParser.json());
@@ -87,17 +37,11 @@ app.use(
   "/assets",
   express.static(path.join(__dirname, "..", "public", "assets"))
 );
-
-// --- Session ---
-const pgSess = pgSession(session);
+app.set("trust proxy", 1)
 
 app.use(
   session({
-    store: new pgSess({
-      pool: pool,
-      tableName: "user_sessions",
-      createTableIfMissing: true,
-    }),
+    store: new PrismaSessionStore(),
     secret: env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -120,12 +64,10 @@ app.use("/api/v1/version", cors(dynamicCors), versionRouter);
 app.use("/api/v1/cart", cors(dynamicCors), cartRoutes);
 app.use("/api/v1/payment", cors(dynamicCors), paymentRoutes);
 app.use("/api/v1/checkout", cors(dynamicCors), checkoutRoutes);
+app.use("/api/v1/admin", cors(dynamicCors), adminRoutes);
 
 // Internal Routes
-app.use("/admin", adminRoutes);
-app.use("/api/v1/admin", adminPanelRoutes);
+app.use("/swagger", swaggerRouter);
 app.use("/api/auth/shop", oauthRoutes);
-
-app.use(swaggerRouter);
 
 export default app;

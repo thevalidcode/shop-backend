@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { prisma } from "../config/db";
+import { prisma } from "../config/db.config";
 import { getTemplate } from "./templates";
 import { v4 as uuidv4 } from "uuid";
 

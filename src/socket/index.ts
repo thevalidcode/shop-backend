@@ -1,5 +1,5 @@
 import { Server, Socket } from "socket.io";
-import { prisma } from "../config/db";
+import { prisma } from "../config/db.config";
 
 // Define the structure of user data expected from the client
 interface SocketUserData {

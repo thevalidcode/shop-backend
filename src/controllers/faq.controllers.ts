@@ -8,7 +8,7 @@ import {
 } from "../schemas/faq.schema";
 import { ShopIdSchema } from "../schemas/common.schema";
 import { v4 as uuidv4 } from "uuid";
-import { prisma } from "../config/db";
+import { prisma } from "../config/db.config";
 
 export const getFAQs = async (req: Request, res: Response): Promise<void> => {
   const parsed = ShopIdSchema.safeParse(req.query);

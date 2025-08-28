@@ -1,6 +1,5 @@
-// src/controllers/order.controllers.ts
 import type { Request, Response } from "express";
-import { prisma } from "../config/db";
+import { prisma } from "../config/db.config";
 import {
   updateOrderSchema,
   bulkStatusUpdateSchema,

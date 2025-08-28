@@ -13,6 +13,6 @@ import "./faq.paths";
 import "./cart.paths";
 import "./checkout.paths";
 import "./payment.paths";
-import "./adminPanel.paths";
+import "./admin.paths";
 
 export { registry };

@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { env } from "../config/env";
+import { env } from "../config/env.config";
 import { tokenPayloadSchema } from "../schemas/user.schema";
-import { prisma } from "../config/db";
+import { prisma } from "../config/db.config";
 
 // Extend Express Request to include `auth`
 declare module "express" {
