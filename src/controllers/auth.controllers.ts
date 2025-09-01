@@ -98,13 +98,15 @@ export const googleCallback = async (
           data: {
             shopScopedId: counter.userCounter,
             email: googleUser.email,
-            username: googleUser.name.replace(/\s/g, "").toLowerCase() + counter.userCounter,
+            username:
+              googleUser.name.replace(/\s/g, "").toLowerCase() +
+              counter.userCounter,
             image: googleUser.picture,
             password: await bcrypt.hash(Date.now().toString(), 10),
             apiKey: uuidv4(),
             timestamp: new Date(),
             uid: uuidv4(),
-            role: "user",
+            role: "BASIC",
             shopId,
           },
         });
@@ -112,16 +114,22 @@ export const googleCallback = async (
     }
 
     const sessionCode = uuidv4();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); 
-
-    await prisma.sessionCode.create({
-      data: {
-        code: sessionCode,
-        email: user.email,
-        shopId,
-        expiresAt,
-        used: false,
-      },
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const counter = await prisma.$transaction(async (tx) => {
+      const counter = await tx.shopCounter.update({
+        where: { shopId },
+        data: { sessionCodeCounter: { increment: 1 } },
+      });
+      await tx.sessionCode.create({
+        data: {
+          code: sessionCode,
+          email: user.email,
+          shopScopedId: counter.sessionCodeCounter,
+          shopId,
+          expiresAt,
+          used: false,
+        },
+      });
     });
 
     res.redirect(`${redirectDomain}?session_code=${sessionCode}`);
@@ -166,7 +174,12 @@ export const verifySessionCode = async (
   });
 
   const token = jwt.sign(
-    { email: user.email, shopId: user.shopId, apiKey: user.apiKey, role: user.role },
+    {
+      email: user.email,
+      shopId: user.shopId,
+      apiKey: user.apiKey,
+      role: user.role,
+    },
     env.JWT_SECRET,
     { expiresIn: "7d" }
   );

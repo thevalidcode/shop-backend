@@ -1,19 +1,22 @@
 import express from "express";
 const router = express.Router();
 import * as products from "../controllers/product.controllers";
-import { authenticate } from "../middleware/authenticate";
-import { isAdmin } from "../middleware/authorize";
+import { authenticateAdmin } from "../middleware/auth";
 
 // Public routes
 router.get("/", products.getProducts);
 router.get("/:productId", products.getProductByID);
 
 // Admin-only routes
-router.post("/", authenticate, isAdmin, products.addProduct);
-router.get("/admin/all", authenticate, isAdmin, products.getProductsForAdmins);
-router.get("/admin/:productId", authenticate, isAdmin, products.getProductByIDFromAdmin);
-router.patch("/", authenticate, products.updateProduct);
-router.delete("/", authenticate, isAdmin, products.deleteProduct);
-router.delete("/multiple", authenticate, isAdmin, products.deleteMultipleProduct);
+router.post("/", authenticateAdmin, products.addProduct);
+router.get("/admin/all", authenticateAdmin, products.getProductsForAdmins);
+router.get(
+  "/admin/:productId",
+  authenticateAdmin,
+  products.getProductByIDFromAdmin
+);
+router.patch("/", authenticateAdmin, products.updateProduct);
+router.delete("/", authenticateAdmin, products.deleteProduct);
+router.delete("/multiple", authenticateAdmin, products.deleteMultipleProduct);
 
 export default router;

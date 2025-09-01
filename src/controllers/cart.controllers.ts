@@ -7,9 +7,17 @@ import { AddToCartSchema, UpdateCartItemSchema } from "../schemas/cart.schema";
 const getOrCreateCart = async (userUid: string, shopId: number) => {
   let cart = await prisma.cart.findUnique({ where: { userUid } });
   if (!cart) {
-    cart = await prisma.cart.create({ data: { userUid, shopId } });
+    await prisma.$transaction(async (tx) => {
+      const counter = await tx.shopCounter.update({
+        where: { shopId },
+        data: { cartCounter: { increment: 1 } },
+      });
+      cart = await tx.cart.create({
+        data: { shopScopedId: counter.cartCounter, userUid, shopId },
+      });
+    });
   }
-  return cart;
+  return cart!;
 };
 
 // GET /cart
@@ -52,7 +60,7 @@ export const addItemToCart = async (req: Request, res: Response) => {
     const product = await prisma.product.findFirst({
       where: { id: productId, shopId },
     });
-    if (!product || product.status !== "active" || product.stock < quantity) {
+    if (!product || product.status !== "ACTIVE" || product.stock < quantity) {
       res
         .status(404)
         .json({ error: "Product is not available or insufficient stock." });
@@ -71,8 +79,19 @@ export const addItemToCart = async (req: Request, res: Response) => {
         data: { quantity: { increment: quantity } },
       });
     } else {
-      await prisma.cartItem.create({
-        data: { cartId: cart.id, productId, quantity },
+      await prisma.$transaction(async (tx) => {
+        const counter = await tx.shopCounter.update({
+          where: { shopId },
+          data: { cartItemCounter: { increment: 1 } },
+        });
+        await prisma.cartItem.create({
+          data: {
+            shopScopedId: counter.cartItemCounter,
+            cartId: cart.id,
+            productId,
+            quantity,
+          },
+        });
       });
     }
 

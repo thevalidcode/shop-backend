@@ -1,25 +1,26 @@
-// --- START OF FILE src/routes/order.routes.ts ---
-
 import express from "express";
 const router = express.Router();
 import * as orders from "../controllers/order.controllers";
-import { authenticate } from "../middleware/authenticate";
-import { isAdmin, isUser } from "../middleware/authorize";
+import {
+  authenticateUser,
+  authenticateAdmin,
+  authenticateAnyone,
+} from "../middleware/auth";
 
 // User-only routes
-router.get("/", authenticate, isUser, orders.getOrders);
-router.get("/:orderUid", authenticate, isUser, orders.getOrderByID);
-// router.post("/", authenticate, isUser, orders.placeOrder);
-// router.post("/bulk", authenticate, isUser, orders.bulkCreateOrders);
+router.get("/", authenticateUser, orders.getOrders);
+router.get("/:orderUid", authenticateUser, orders.getOrderByID);
+// router.post("/", authenticate, orders.placeOrder);
+// router.post("/bulk", authenticate, orders.bulkCreateOrders);
 
 // Admin-only routes
-router.get("/admin/all", authenticate, isAdmin, orders.getOrdersForAdmins);
-router.get("/admin/:orderUid", authenticate, isAdmin, orders.getOrderByIDForAdmins);
-router.patch("/:orderUid", authenticate, isAdmin, orders.updateOrder);
-router.delete("/:orderUid", authenticate, isAdmin, orders.deleteOrder);
-router.patch("/bulk/status", authenticate, isAdmin, orders.bulkUpdateOrderStatus);
+router.get("/admin/all", authenticateAdmin, orders.getOrdersForAdmins);
+router.get("/admin/:orderUid", authenticateAdmin, orders.getOrderByIDForAdmins);
+router.patch("/:orderUid", authenticateAdmin, orders.updateOrder);
+router.delete("/:orderUid", authenticateAdmin, orders.deleteOrder);
+router.patch("/bulk/status", authenticateAdmin, orders.bulkUpdateOrderStatus);
 
 // Shared route (logic inside controller handles role)
-router.get("/status/:status", authenticate, orders.getOrdersByStatus);
+router.get("/status/:status", authenticateAnyone, orders.getOrdersByStatus);
 
 export default router;

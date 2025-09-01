@@ -1,19 +1,10 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { OrderStatus } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
-const orderStatusEnum = z.enum([
-  "Pending",
-  "Processing",
-  "Shipped",
-  "Delivered",
-  "Completed",
-  "Canceled",
-  "Failed",
-  "Refunded",
-  "Returned",
-]);
+const orderStatusEnum = z.nativeEnum(OrderStatus);
 
 export const OrderPublicSchema = z
   .object({

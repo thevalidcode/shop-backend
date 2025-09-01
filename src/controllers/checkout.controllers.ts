@@ -6,7 +6,6 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { decryptKey } from "../utils/encrypt";
 import axios from "axios";
 import crypto from "crypto";
-import { env } from "../config/env.config";
 
 /**
  * @desc    Create an order from the user's current cart
@@ -105,7 +104,7 @@ export const createOrderFromCart = async (req: Request, res: Response): Promise<
  */
 export const initializePayment = async (req: Request, res: Response): Promise<void> => {
   const { orderUid } = req.body;
-  const { uid: userUid, shopId, email } = req.auth!;
+  const { uid: userUid, shopId } = req.auth!;
 
   if (!orderUid) {
     res.status(400).json({ error: "Order UID is required." });
@@ -114,7 +113,7 @@ export const initializePayment = async (req: Request, res: Response): Promise<vo
   
   try {
     const order = await prisma.order.findFirst({
-      where: { uid: orderUid, userUid, shopId, status: "Pending" },
+      where: { uid: orderUid, userUid, shopId, status: "PENDING" },
     });
 
     if (!order) {
@@ -135,7 +134,7 @@ export const initializePayment = async (req: Request, res: Response): Promise<vo
     const amountInKobo = order.totalAmount.times(100).toNumber();
 
     const response = await axios.post("https://api.paystack.co/transaction/initialize", {
-      email: email,
+      email: req.auth?.user.email!,
       amount: amountInKobo,
       reference: order.orderRef,
       currency: order.currency,
@@ -199,7 +198,7 @@ export const verifyPaymentWebhook = async (req: Request, res: Response): Promise
             await prisma.order.update({
                 where: { orderRef },
                 data: {
-                    status: 'Processing',
+                    status: "PROCESSING",
                     paymentReference: orderRef,
                 },
             });

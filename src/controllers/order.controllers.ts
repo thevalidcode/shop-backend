@@ -10,11 +10,11 @@ import {
 import { z } from "zod";
 
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
-  const { shopId, user } = req.auth!;
+  const { shopId, uid, user } = req.auth!;
 
   try {
     const orders = await prisma.order.findMany({
-      where: { shopId, userUid: user.uid },
+      where: { shopId, userUid: uid },
       orderBy: { id: "desc" },
     });
     const parsedOrders = z.array(OrderPublicSchema).parse(orders);
@@ -46,7 +46,7 @@ export const getOrderByID = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { shopId, user } = req.auth!;
+  const { shopId, uid, user } = req.auth!;
   const parsed = z.object({ orderUid: z.string() }).safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -58,7 +58,7 @@ export const getOrderByID = async (
       where: {
         uid: parsed.data.orderUid,
         shopId,
-        userUid: user.uid,
+        userUid: uid,
       },
     });
 
@@ -115,9 +115,9 @@ export const updateOrder = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  
+
   const { shopId } = req.auth!;
-  
+
   try {
     await prisma.order.updateMany({
       where: { uid: orderUid, shopId },
@@ -158,14 +158,14 @@ export const getOrdersByStatus = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  
-  const { shopId, role, user } = req.auth!;
+
+  const { shopId, user, uid } = req.auth!;
   const { status } = parsed.data;
 
   try {
     const whereClause: any = {
       shopId,
-      ...(role === "user" ? { userUid: user.uid } : {}),
+      ...{ userUid: uid },
       ...(status === "all" ? {} : { status }),
     };
 
@@ -174,9 +174,7 @@ export const getOrdersByStatus = async (
       orderBy: { id: "desc" },
     });
 
-    const parsedOrders = orders.map((o) =>
-      role === "user" ? OrderPublicSchema.parse(o) : OrderSchema.parse(o)
-    );
+    const parsedOrders = orders.map((o) => OrderPublicSchema.parse(o));
 
     res.status(200).json(parsedOrders);
   } catch (error: any) {
@@ -194,9 +192,9 @@ export const bulkUpdateOrderStatus = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  
+
   const { shopId } = req.auth!;
-  
+
   try {
     await prisma.$transaction(
       parsed.data.updates.map((update) =>

@@ -5,6 +5,8 @@ import session from "express-session";
 import { env } from "./config/env.config";
 import cookieParser from "cookie-parser";
 import path from "path";
+import { dynamicCors, updateAllowedOrigins } from "./config/cors.config";
+import PrismaSessionStore from "./utils/PrismaSessionStore";
 
 // Routes
 import userRouter from "./routes/user.routes";
@@ -21,8 +23,6 @@ import cartRoutes from "./routes/cart.routes";
 import checkoutRoutes from "./routes/checkout.routes";
 import paymentRoutes from "./routes/payment.routes";
 import swaggerRouter from "./docs/swagger";
-import { dynamicCors, updateAllowedOrigins } from "./config/cors.config";
-import PrismaSessionStore from "./utils/PrismaSessionStore";
 
 const app = express();
 
@@ -37,7 +37,7 @@ app.use(
   "/assets",
   express.static(path.join(__dirname, "..", "public", "assets"))
 );
-app.set("trust proxy", 1)
+app.set("trust proxy", 1);
 
 app.use(
   session({

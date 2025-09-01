@@ -96,7 +96,7 @@ export const addFAQ = async (req: Request, res: Response): Promise<void> => {
                 slug: parsed.data.question.toLowerCase().replace(/\s+/g, "-"),
                 question: parsed.data.question,
                 answer: parsed.data.answer,
-                status: "active",
+                status: "ACTIVE",
                 position: newPosition,
                 uid: uuidv4(),
             },

@@ -197,7 +197,7 @@ export const getActiveShops = async (
 ): Promise<void> => {
   try {
     const shops = await prisma.shop.findMany({
-      where: { status: "active" },
+      where: { status: "ACTIVE" },
       include: {
         General: {
           select: {
@@ -233,12 +233,7 @@ export const getCurrentAdmin = async (
     res.status(401).json({ error: "Unauthorized: auth info missing" });
     return;
   }
-  const { shopId, uid, role } = req.auth;
-
-  if (role !== "admin") {
-    res.status(403).json({ error: "Access denied. Admins only." });
-    return;
-  }
+  const { shopId, uid } = req.auth;
 
   try {
     const admin = await prisma.admin.findFirst({
@@ -276,10 +271,22 @@ export const createContactMessage = async (req: Request, res: Response) => {
   const { name, email, phone, message, shopId } = validation.data;
 
   try {
-    await prisma.contactMessage.create({
-      data: { name, email, phone, message, shopId },
+    await prisma.$transaction(async (tx) => {
+      const counter = await tx.shopCounter.update({
+        where: { shopId },
+        data: { contactMessageCounter: { increment: 1 } },
+      });
+      await tx.contactMessage.create({
+        data: {
+          name,
+          shopScopedId: counter.contactMessageCounter,
+          email,
+          phone,
+          message,
+          shopId,
+        },
+      });
     });
-
     // Notify admin via email
     await sendEmail(
       undefined,

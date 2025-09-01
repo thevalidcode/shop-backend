@@ -7,7 +7,7 @@ import { sendEmail } from "../emails";
 import { env } from "../config/env.config";
 import { prisma } from "../config/db.config";
 import { randomBytes } from "crypto";
-import { AdminUpdateUserSchema } from "../schemas/admin.schema";
+import { UserUpdateRequestSchema } from "../schemas/user.schema";
 
 const createUserSchema = z.object({
   shopDomain: z.string().min(1), // Shop domain is required (cleaner than shopId)
@@ -70,7 +70,7 @@ export const createUser = async (
       return;
     }
 
-    if (shop.status !== "active") {
+    if (shop.status !== "ACTIVE") {
       res.status(400).json({ error: "This shop is not currently active." });
       return;
     }
@@ -171,7 +171,7 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if ("status" in account && account.status === "banned") {
+    if ("status" in account && account.status === "BANNED") {
       res
         .status(403)
         .json({ error: "You’ve been banned from this site. Contact support." });
@@ -219,7 +219,7 @@ export const verifySession = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { role } = req.auth!;
+  const { role } = req.auth?.user!;
 
   try {
     res.status(200).send({ role });
@@ -232,7 +232,7 @@ export const updateUserByAdmin = async (req: Request, res: Response) => {
   const { uid } = req.params;
   const { shopId } = req.auth!;
 
-  const validation = AdminUpdateUserSchema.safeParse(req.body);
+  const validation = UserUpdateRequestSchema.safeParse(req.body);
   if (!validation.success) {
     res.status(400).json({ error: validation.error.flatten() });
     return;

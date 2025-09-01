@@ -37,8 +37,8 @@ export const UserPublicSchema = z
 
 export const UserUpdateRequestSchema = z.object({
   uid: z.string().describe("User UID"),
-  username: z.string().describe("Username"),
-  fullName: z.string().describe("Full name"),
+  username: z.string().describe("Username").optional(),
+  fullName: z.string().describe("Full name").optional(),
 });
 
 export const AuthenticateUserSchema = z.object({
@@ -62,7 +62,10 @@ export const CreateUserInputSchema = z.object({
   username: z.string().describe("User username"),
   password: z.string().describe("User password"),
   shopDomain: z.string().min(1).describe("Shop domain to join"),
-  ref: z.union([z.string(), z.number()]).optional().describe("Optional referral ID"),
+  ref: z
+    .union([z.string(), z.number()])
+    .optional()
+    .describe("Optional referral ID"),
 });
 
 export const CreateUserResponseSchema = z.object({
@@ -77,13 +80,6 @@ export const CreateUserResponseSchema = z.object({
   message: z.string(),
 });
 
-export const AdminPublicSchema = z.object({
-  id: z.string(),
-  email: z.string().email(),
-  username: z.string(),
-  role: z.string(),
-});
-
 export const GoogleAuthRequestSchema = z
   .object({
     idToken: z.string().describe("Google OAuth ID token"),
@@ -91,9 +87,9 @@ export const GoogleAuthRequestSchema = z
   })
   .openapi("GoogleAuthResponse");
 
-export  const tokenPayloadSchema = z.object({
+export const tokenPayloadSchema = z.object({
   email: z.string().email(),
   shopId: z.number(),
   apiKey: z.string(),
-  role: z.enum(["admin", "user"]),
+  uid: z.string().uuid(),
 });

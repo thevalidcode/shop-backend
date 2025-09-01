@@ -90,8 +90,8 @@ export const registerAdmin = async (
           shopId: nextShopId,
           uid: shopDomain, // Use chosen domain instead of random UUID
           ssl: false,
-          plan: "starter",
-          status: "active",
+          plan: "FREE",
+          status: "ACTIVE",
         },
       });
 
@@ -117,8 +117,8 @@ export const registerAdmin = async (
           username,
           password: hashedPassword,
           apiKey: randomUUID(),
-          role: "admin",
-          status: "active",
+          role: "BASIC",
+          status: "ACTIVE",
           shopId: shop.shopId,
         },
       });
@@ -357,16 +357,25 @@ export const createPaymentGateway = async (
   const { encryptedKey, iv } = encryptKey(secretKey);
 
   try {
-    const newGateway = await prisma.paymentGateway.create({
-      data: {
-        uid: randomUUID(),
-        shopId,
-        name,
-        publicKey,
-        encryptedSecretKey: encryptedKey,
-        iv,
-        isActive,
-      },
+    const newGateway = await prisma.$transaction(async (tx) => {
+      const counter = await tx.shopCounter.update({
+        where: { shopId: shopId },
+        data: { paymentGatewayCounter: { increment: 1 } },
+      });
+      const data = await tx.paymentGateway.create({
+        data: {
+          uid: randomUUID(),
+          shopId,
+          shopScopedId: counter.paymentGatewayCounter,
+          name,
+          publicKey,
+          encryptedSecretKey: encryptedKey,
+          iv,
+          isActive,
+        },
+      });
+
+      return data;
     });
     const { encryptedSecretKey, iv: _, ...safeGateway } = newGateway;
     res.status(201).json(safeGateway);
@@ -477,14 +486,19 @@ export const creditUserWallet = async (
       if (updatedUser.count === 0) {
         throw new Error("UserNotFound");
       }
+      const counter = await tx.shopCounter.update({
+        where: { shopId: shopId },
+        data: { walletTransactionCounter: { increment: 1 } },
+      });
 
       await tx.walletTransaction.create({
         data: {
           userUid,
           shopId,
           amount: decimalAmount,
+          shopScopedId: counter.walletTransactionCounter,
           description,
-          type: "credit",
+          type: "CREDIT",
         },
       });
     });
@@ -540,13 +554,18 @@ export const debitUserWallet = async (
           spent: { increment: decimalAmount },
         },
       });
+      const counter = await tx.shopCounter.update({
+        where: { shopId: shopId },
+        data: { walletTransactionCounter: { increment: 1 } },
+      });
       await tx.walletTransaction.create({
         data: {
           userUid,
           shopId,
+          shopScopedId: counter.walletTransactionCounter,
           amount: decimalAmount,
           description,
-          type: "debit",
+          type: "DEBIT",
         },
       });
     });

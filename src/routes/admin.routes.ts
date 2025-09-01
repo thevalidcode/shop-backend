@@ -1,12 +1,11 @@
 import express from "express";
 import * as adminController from "../controllers/admin.controllers";
-import { authenticate } from "../middleware/authenticate";
-import { isAdmin } from "../middleware/authorize";
+import { authenticateAdmin } from "../middleware/auth";
 
 const router = express.Router();
 
-// Apply authentication and admin authorization to ALL routes in this file
-router.use(authenticate, isAdmin);
+// Apply authentication to ALL routes in this file
+router.use(authenticateAdmin);
 
 router.post("/register", adminController.registerAdmin);
 router.get("/check-domain/:domain", adminController.checkDomainAvailability);

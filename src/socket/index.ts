@@ -27,7 +27,7 @@ function setupSocket(io: Server): void {
         await prisma.user.update({
           where: { uid: data.uid },
           data: {
-            status: "active",
+            status: "ACTIVE",
             lastSeen: new Date(),
           },
         });
@@ -55,7 +55,7 @@ function setupSocket(io: Server): void {
           await prisma.user.update({
             where: { uid },
             data: {
-              status: "inactive",
+              status: "INACTIVE",
               lastSeen: new Date(),
             },
           });

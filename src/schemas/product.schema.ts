@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { DiscountType, ProductStatus } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
@@ -15,7 +16,7 @@ export const ProductSchema = z
     min: z.number(),
     max: z.number(),
     position: z.number(),
-    status: z.string(),
+    status: z.nativeEnum(ProductStatus),
     stock: z.number(),
     sku: z.string().nullable(),
     imageUrl: z.string().nullable(),
@@ -27,7 +28,7 @@ export const ProductSchema = z
     dimensions: z.string().nullable(),
     price: z.number(),
     comparePrice: z.number().nullable(),
-    discountType: z.string().nullable(),
+    discountType: z.nativeEnum(DiscountType).nullable(),
     discountValue: z.number().nullable(),
     slug: z.string().min(1),
     shopId: z.number(),
@@ -47,7 +48,7 @@ export const ProductPublicSchema = z
     min: z.number(),
     max: z.number(),
     price: z.number(),
-    status: z.string(),
+    status: z.nativeEnum(ProductStatus),
     stock: z.number(),
     imageUrl: z.string().nullable(),
     galleryUrls: z.array(z.string()).nullable(),
@@ -55,7 +56,7 @@ export const ProductPublicSchema = z
     brand: z.string().nullable(),
     comparePrice: z.number().nullable(),
     slug: z.string().min(1),
-    discountType: z.string().nullable(),
+    discountType: z.nativeEnum(DiscountType).nullable(),
     discountValue: z.number().nullable(),
     timestamp: z.string(),
   })
@@ -81,7 +82,7 @@ export const ProductCreateInputSchema = z.object({
   dimensions: z.string().optional(),
   slug: z.string().min(1),
   comparePrice: z.number().optional(),
-  discountType: z.string().optional(),
+  discountType: z.nativeEnum(DiscountType).optional(),
   discountValue: z.number().optional(),
 });
 
@@ -95,7 +96,7 @@ export const ProductUpdateInputSchema = z.object({
   max: z.number().optional(),
   price: z.number().optional(),
   position: z.number().optional(),
-  status: z.string().optional(),
+  status: z.nativeEnum(ProductStatus).optional(),
   stock: z.number().optional(),
   sku: z.string().optional(),
   imageUrl: z.string().optional(),
@@ -106,7 +107,7 @@ export const ProductUpdateInputSchema = z.object({
   weight: z.number().optional(),
   dimensions: z.string().optional(),
   comparePrice: z.number().optional(),
-  discountType: z.string().optional(),
+  discountType: z.nativeEnum(DiscountType).optional(),
   slug: z.string().min(1),
   discountValue: z.number().optional(),
 });

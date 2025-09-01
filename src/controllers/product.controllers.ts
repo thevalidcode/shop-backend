@@ -26,7 +26,7 @@ export const getProducts = async (
 
   try {
     const products = await prisma.product.findMany({
-      where: { shopId, status: "active" },
+      where: { shopId, status: "ACTIVE" },
       orderBy: { position: "asc" },
     });
 
@@ -57,16 +57,20 @@ export const getProductByID = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const paramsParsed = z.object({ productId: z.coerce.number() }).safeParse(req.params);
-  const queryParsed = z.object({ shopId: z.coerce.number() }).safeParse(req.query);
-  
+  const paramsParsed = z
+    .object({ productId: z.coerce.number() })
+    .safeParse(req.params);
+  const queryParsed = z
+    .object({ shopId: z.coerce.number() })
+    .safeParse(req.query);
+
   if (!paramsParsed.success) {
-      res.status(400).json({ error: paramsParsed.error.flatten() });
-      return;
+    res.status(400).json({ error: paramsParsed.error.flatten() });
+    return;
   }
   if (!queryParsed.success) {
-      res.status(400).json({ error: queryParsed.error.flatten() });
-      return;
+    res.status(400).json({ error: queryParsed.error.flatten() });
+    return;
   }
 
   const { shopId } = queryParsed.data;
@@ -74,11 +78,11 @@ export const getProductByID = async (
 
   try {
     const product = await prisma.product.findFirst({
-      where: { id: productId, shopId, status: 'active' },
+      where: { id: productId, shopId, status: "ACTIVE" },
     });
     if (!product) {
-        res.status(404).json({ error: "Product not found" });
-        return;
+      res.status(404).json({ error: "Product not found" });
+      return;
     }
     res.status(200).json({ product });
   } catch (error: any) {
@@ -90,7 +94,9 @@ export const getProductByIDFromAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = z.object({ productId: z.coerce.number() }).safeParse(req.params);
+  const parsed = z
+    .object({ productId: z.coerce.number() })
+    .safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
@@ -126,11 +132,11 @@ export const updateProduct = async (
 
   try {
     const productToUpdate = await prisma.product.findFirst({
-      where: { uid: reqData.uid, shopId }
+      where: { uid: reqData.uid, shopId },
     });
     if (!productToUpdate) {
-        res.status(404).json({ error: "Product not found in this shop." });
-        return;
+      res.status(404).json({ error: "Product not found in this shop." });
+      return;
     }
 
     const updatedProduct = await prisma.product.update({
@@ -138,7 +144,10 @@ export const updateProduct = async (
       data: reqData,
     });
 
-    res.status(200).json({ success: "Product updated successfully.", product: updatedProduct });
+    res.status(200).json({
+      success: "Product updated successfully.",
+      product: updatedProduct,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -194,42 +203,46 @@ export const addProduct = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  
+
   const { shopId } = req.auth!;
 
   try {
     const newProduct = await prisma.$transaction(async (tx) => {
-        const counter = await tx.shopCounter.update({
-            where: { shopId },
-            data: { productCounter: { increment: 1 } },
-        });
+      const counter = await tx.shopCounter.update({
+        where: { shopId },
+        data: { productCounter: { increment: 1 } },
+      });
 
-        const lastProduct = await tx.product.findFirst({
-            where: { shopId },
-            orderBy: { position: "desc" },
-            select: { position: true },
-        });
-        const newPosition = lastProduct ? lastProduct.position + 1 : 1;
+      const lastProduct = await tx.product.findFirst({
+        where: { shopId },
+        orderBy: { position: "desc" },
+        select: { position: true },
+      });
+      const newPosition = lastProduct ? lastProduct.position + 1 : 1;
 
-        const product = await tx.product.create({
-            data: {
-                ...parsed.data,
-                uid: uuidv4(),
-                shopId,
-                shopScopedId: counter.productCounter,
-                status: "active",
-                position: newPosition,
-            },
-        });
-        return product;
+      const product = await tx.product.create({
+        data: {
+          ...parsed.data,
+          uid: uuidv4(),
+          shopId,
+          shopScopedId: counter.productCounter,
+          status: "ACTIVE",
+          position: newPosition,
+        },
+      });
+      return product;
     });
 
-    res.status(201).json({ success: "Product added successfully.", product: newProduct });
+    res
+      .status(201)
+      .json({ success: "Product added successfully.", product: newProduct });
   } catch (error: any) {
     console.error("Failed to add product:", error);
     // Check for unique constraint violation on the slug
-    if (error.code === 'P2002' && error.meta?.target?.includes('slug')) {
-      res.status(409).json({ error: "A product with this slug already exists." });
+    if (error.code === "P2002" && error.meta?.target?.includes("slug")) {
+      res
+        .status(409)
+        .json({ error: "A product with this slug already exists." });
       return;
     }
     res.status(500).json({ error: "Failed to add product." });
