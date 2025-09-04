@@ -14,7 +14,6 @@ const envSchema = z.object({
     .string()
     .length(32, { message: "MASTER_KEY must be 32 characters long" }),
   JWT_SECRET: z.string().min(1),
-  INTERNAL_JWT_SECRET: z.string().min(1),
   SESSION_SECRET: z.string().min(1),
   ADMIN_USERNAME: z.string().min(1),
   ADMIN_PASSWORD: z.string().min(1),
