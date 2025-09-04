@@ -7,7 +7,8 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
-  PORT: z.coerce.number().default(7030),
+  PRIMARY_PORT: z.coerce.number().default(7030),
+  SECONDARY_PORT: z.coerce.number().default(5020),
   DATABASE_URL: z.string().url(),
   MASTER_KEY: z
     .string()
@@ -21,6 +22,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string(),
   BACKEND_PROXY_PATH: z.string(),
   RATE_KEY: z.string(),
+  CORE_SERVICE_SECRET: z.string(),
 });
 
 export const env = envSchema.parse(process.env);

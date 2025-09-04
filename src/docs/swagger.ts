@@ -4,6 +4,7 @@ import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
 import { registry } from "./paths/index.paths";
 import { API_VERSION } from "../version";
 import { openCors } from "../config/cors.config";
+import { env } from "../config/env.config";
 import * as swaggers from "../controllers/swagger.controllers";
 
 const swaggerRouter = Router();
@@ -19,8 +20,7 @@ const openApiDocument = generator.generateDocument({
   info: {
     title: "Valid Panel - Shop API Documentation",
     version: API_VERSION,
-    description:
-      "Comprehensive API documentation for the Shop feature of Valid Panel. This includes detailed endpoints for user authentication, product ordering, referrals, and shop management for both users and admins.\n\nAll API requests must include a valid `Origin` header. Requests without an `Origin`, or with an unregistered one, will result in a CORS error. The `Origin` must match a registered shop domain.\nAlready registered and allowed Origins include:\n- http://localhost:3000\n- http://localhost:7030\n- https://validpanel.com\n\nWe recommend using Postman for testing especially if it's a `GET` request. Ensure your requests simulate a browser-like environment by setting a valid `Origin` header to one of the domains listed above.",
+    description: `Comprehensive API documentation for the Shop feature of Valid Panel. This includes detailed endpoints for user authentication, product ordering, referrals, and shop management for both users and admins.\n\nAll API requests must include a valid Origin header. Requests without an Origin, or with an unregistered one, will result in a CORS error. The Origin must match a registered shop domain.\nAlready registered and allowed Origins include:\n- http://localhost:3000\n- http://localhost:${env.PRIMARY_PORT}\n- https://validpanel.com\n\nWe recommend using Postman for testing especially if it's a GET request. Ensure your requests simulate a browser-like environment by setting a valid Origin header to one of the domains listed above.`,
     contact: {
       name: "Valid Code",
       url: "https://linkedin.com/in/thevalidcode",
@@ -47,7 +47,7 @@ const openApiDocument = generator.generateDocument({
       },
     },
     {
-      url: "http://localhost:7030/api/v1",
+      url: "http://localhost:${env.PRIMARY_PORT}/api/v1",
       description: "Local development server",
     },
   ],

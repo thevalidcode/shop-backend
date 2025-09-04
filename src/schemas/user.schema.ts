@@ -88,8 +88,6 @@ export const GoogleAuthRequestSchema = z
   .openapi("GoogleAuthResponse");
 
 export const tokenPayloadSchema = z.object({
-  email: z.string().email(),
   shopId: z.number(),
-  apiKey: z.string(),
   uid: z.string().uuid(),
 });

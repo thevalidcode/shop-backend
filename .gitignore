@@ -6,3 +6,5 @@ node_modules
 
 app/
 /prisma/generated
+
+.DS_Store

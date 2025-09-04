@@ -11,11 +11,11 @@ export const authenticateUser = async (
     const payload = verifyBrowserAuth(req, res);
     if (!payload) return;
 
-    const { email, shopId, apiKey, uid } = payload;
+    const { shopId, uid } = payload;
 
-    const user = await prisma.user.findFirst({ where: { shopId, email } });
-    if (!user || user.apiKey !== apiKey) {
-      res.status(401).json({ error: "Invalid user API key or not found" });
+    const user = await prisma.user.findFirst({ where: { shopId, uid } });
+    if (!user) {
+      res.status(401).json({ error: "Invalid or expired token" });
       return;
     }
 
@@ -43,11 +43,11 @@ export const authenticateAdmin = async (
     const payload = verifyBrowserAuth(req, res) || verifyInternalAuth(req, res);
     if (!payload) return;
 
-    const { email, shopId, apiKey, uid } = payload;
+    const { shopId, uid } = payload;
 
-    const admin = await prisma.admin.findFirst({ where: { shopId, email } });
-    if (!admin || admin.apiKey !== apiKey) {
-      res.status(401).json({ error: "Invalid admin API key or not found" });
+    const admin = await prisma.admin.findFirst({ where: { shopId, uid } });
+    if (!admin) {
+      res.status(401).json({ error: "Invalid or expired token" });
       return;
     }
 
@@ -74,18 +74,18 @@ export const authenticateAnyone = async (
   const payload = verifyBrowserAuth(req, res) || verifyInternalAuth(req, res);
   if (!payload) return;
 
-  const { email, shopId, apiKey, uid } = payload;
+  const { shopId, uid } = payload;
 
   try {
     const [user, admin] = await Promise.all([
-      prisma.user.findFirst({ where: { shopId, email } }),
-      prisma.admin.findFirst({ where: { shopId, email } }),
+      prisma.user.findFirst({ where: { shopId, uid } }),
+      prisma.admin.findFirst({ where: { shopId, uid } }),
     ]);
 
     const account = admin || user;
 
-    if (!account || account.apiKey !== apiKey) {
-      res.status(401).json({ error: "Invalid API key or user not found" });
+    if (!account) {
+      res.status(401).json({ error: "Invalid or expired token" });
       return;
     }
 

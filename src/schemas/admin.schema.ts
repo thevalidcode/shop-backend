@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { Admin, AdminRole, AdminStatus, ContactStatus } from "../../prisma/generated";
+import {
+  Admin,
+  AdminRole,
+  AdminStatus,
+  ContactStatus,
+} from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
@@ -39,16 +44,12 @@ export const AuthenticateAdminResponseSchema = z.object({
 });
 
 export const internalTokenPayloadSchema = z.object({
-  service: z.literal("core-platform", {
-    errorMap: () => ({ message: "Invalid value provided" }),
-  }),
+  serviceKey: z.string(),
   type: z.literal("system", {
     errorMap: () => ({ message: "Invalid value provided" }),
   }),
-  email: z.string().email(),
+  uid: z.string().uuid(),
   shopId: z.number(),
-  apiKey: z.string(),
-  uid: z.string(),
 });
 
 export const CreatePaymentGatewaySchema = z.object({

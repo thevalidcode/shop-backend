@@ -71,7 +71,7 @@ For development with hot-reloading:
 npm run dev
 ```
 
-The server should start on `http://localhost:7030/`.
+The server should start on `http://localhost:PORT/`.
 
 #### Production Mode
 
@@ -110,7 +110,7 @@ Most administrative and user-specific endpoints are protected. Authentication is
 This project integrates Swagger for comprehensive API documentation. Once the server is running, you can access the interactive API documentation at:
 
 ```
-http://localhost:7030/api-docs
+http://localhost:PORT/api-docs
 ```
 
 This interface allows you to explore all available endpoints, their expected parameters, and response structures, making API integration a breeze.
