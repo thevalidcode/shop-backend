@@ -25,7 +25,7 @@ import {
 // Authenticate user
 registry.registerPath({
   method: "post",
-  path: "/user/me",
+  path: "/users/me",
   summary: "Authenticate user",
   tags: ["Users"],
   request: {
@@ -54,7 +54,7 @@ registry.registerPath({
 // Get all users (admin)
 registry.registerPath({
   method: "get",
-  path: "/user",
+  path: "/users",
   summary: "Get all users",
   tags: ["Users"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -68,7 +68,7 @@ registry.registerPath({
 // Get single user by UID
 registry.registerPath({
   method: "get",
-  path: "/user/{uid}",
+  path: "/users/{uid}",
   summary: "Get user by UID",
   tags: ["Users"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -97,7 +97,7 @@ registry.registerPath({
 // Create user
 registry.registerPath({
   method: "post",
-  path: "/user",
+  path: "/users",
   summary: "Register as Customer for a Specific Shop",
   description:
     "Register a new customer account for a specific shop.\n\n" +
@@ -150,7 +150,7 @@ registry.registerPath({
 // Update user
 registry.registerPath({
   method: "patch",
-  path: "/user",
+  path: "/users",
   summary: "Update user info",
   tags: ["Users"],
   request: {
@@ -172,7 +172,7 @@ registry.registerPath({
 // Delete single user
 registry.registerPath({
   method: "delete",
-  path: "/user",
+  path: "/users",
   summary: "Delete a single user",
   tags: ["Users"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -198,7 +198,7 @@ registry.registerPath({
 // Delete multiple users
 registry.registerPath({
   method: "delete",
-  path: "/user/multiple",
+  path: "/users/multiple",
   summary: "Delete multiple users",
   tags: ["Users"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],

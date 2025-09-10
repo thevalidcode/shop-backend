@@ -14,10 +14,10 @@ import {
   ShopInfoResponseSchema 
 } from "../../schemas/shop.schema";
 
-// GET /shop/data
+// GET /shops/data
 registry.registerPath({
   method: "get",
-  path: "/shop/data",
+  path: "/shops/data",
   summary: "Get the shop data for a custom domain",
   tags: ["Shop"],
   parameters: [
@@ -35,10 +35,10 @@ registry.registerPath({
   },
 });
 
-// GET /shop/styles
+// GET /shops/styles
 registry.registerPath({
   method: "get",
-  path: "/shop/styles",
+  path: "/shops/styles",
   summary: "Get design styles for a shop",
   tags: ["Shop"],
   parameters: [
@@ -55,10 +55,10 @@ registry.registerPath({
   },
 });
 
-// GET /shop/site-data
+// GET /shops/site-data
 registry.registerPath({
   method: "get",
-  path: "/shop/site-data",
+  path: "/shops/site-data",
   summary: "Get general site data for a shop",
   tags: ["Shop"],
   parameters: [
@@ -75,10 +75,10 @@ registry.registerPath({
   },
 });
 
-// GET /shop/rates
+// GET /shops/rates
 registry.registerPath({
   method: "get",
-  path: "/shop/rates",
+  path: "/shops/rates",
   summary: "Get latest exchange rates",
   tags: ["Shop"],
   responses: {
@@ -87,10 +87,10 @@ registry.registerPath({
   },
 });
 
-// GET /shop/current-user
+// GET /shops/current-user
 registry.registerPath({
   method: "get",
-  path: "/shop/current-user",
+  path: "/shops/current-user",
   summary: "Get the currently authenticated user",
   tags: ["Shop"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -101,10 +101,10 @@ registry.registerPath({
   },
 });
 
-// GET /shop/current-admin
+// GET /shops/current-admin
 registry.registerPath({
   method: "get",
-  path: "/shop/current-admin",
+  path: "/shops/current-admin",
   summary: "Get the currently authenticated admin",
   tags: ["Shop"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -116,10 +116,10 @@ registry.registerPath({
   },
 });
 
-// NEW: GET /shop/discover
+// NEW: GET /shops/discover
 registry.registerPath({
   method: "get",
-  path: "/shop/discover",
+  path: "/shops/discover",
   summary: "Discover All Active Shops",
   description:
     "Get a list of all active shops on the platform.\n\n" +
@@ -145,10 +145,10 @@ registry.registerPath({
   },
 });
 
-// NEW: GET /shop/info/{identifier}
+// NEW: GET /shops/info/{identifier}
 registry.registerPath({
   method: "get",
-  path: "/shop/info/{identifier}",
+  path: "/shops/info/{identifier}",
   summary: "Get Shop Information by Domain or ID",
   description:
     "Get detailed information about a specific shop.\n\n" +

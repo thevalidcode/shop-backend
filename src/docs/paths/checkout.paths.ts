@@ -5,7 +5,7 @@ import { BadRequest, Forbidden, ServerError } from "../responses/common.response
 
 registry.registerPath({
   method: "post",
-  path: "/checkout",
+  path: "/checkouts",
   summary: "Create an order from the user's cart",
   description: "Atomically creates an order, decrements stock, and clears the user's cart.",
   tags: ["Checkout & Payment"],

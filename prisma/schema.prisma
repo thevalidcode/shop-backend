@@ -16,17 +16,9 @@ datasource db {
 
 enum ShopStatus {
   ACTIVE   @map("active")
-  INACTIVE @map("inactive")
+  CANCELED @map("canceled")
   DISABLED @map("disabled")
-}
-
-enum ShopPlan {
-  FREE       @map("free")
-  STARTER    @map("starter")
-  ESSENTIALS @map("essentials")
-  PRO        @map("pro")
-  BUSINESS   @map("business")
-  EMPIRE     @map("empire")
+  EXPIRED  @map("expired")
 }
 
 enum UserStatus {
@@ -67,7 +59,7 @@ enum OrderStatus {
   PROCESSING @map("Processing")
   SHIPPED    @map("Shipped")
   DELIVERED  @map("Delivered")
-  CANCELLED  @map("Cancelled")
+  CANCELED   @map("Canceled")
 }
 
 enum BlogStatus {
@@ -118,12 +110,18 @@ enum TransactionType {
  */
 
 model Shop {
-  shopId    Int        @id @map("shop_id")
-  uid       String     @unique
-  ssl       Boolean    @default(false)
-  plan      ShopPlan   @default(FREE)
-  status    ShopStatus @default(ACTIVE)
-  timestamp DateTime   @default(now())
+  shopId      Int      @id @map("shop_id")
+  uid         String   @unique
+  ssl         Boolean  @default(false)
+  timestamp   DateTime @default(now())
+  name        String
+  description String?
+
+  // mirrored fields
+  plan      String
+  status    ShopStatus
+  expiresAt DateTime?  @map("expires_at")
+  features  Json
 
   User              User[]
   Admin             Admin[]
@@ -176,6 +174,7 @@ model User {
   refCode      Int?       @unique @default(autoincrement()) @map("ref_code")
   uid          String     @unique
   email        String
+  fullName     String
   image        String?
   password     String
   username     String
@@ -196,6 +195,7 @@ model User {
 
   cart         Cart?
   transactions WalletTransaction[]
+  Order        Order[]
 
   @@unique([shopId, shopScopedId])
   @@unique([email, shopId])
@@ -279,6 +279,7 @@ model Order {
   shopId            Int           @map("shop_id")
 
   shop  Shop        @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  user  User        @relation(fields: [userUid], references: [uid], onDelete: Cascade)
   items OrderItem[]
 
   @@unique([shopId, shopScopedId])

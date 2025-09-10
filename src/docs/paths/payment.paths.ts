@@ -6,7 +6,7 @@ import { NotFound } from "../responses/shop.response";
 
 registry.registerPath({
   method: "post",
-  path: "/payment/initialize",
+  path: "/payments/initialize",
   summary: "Initialize a payment transaction",
   description: "Takes an order UID and returns a payment provider URL to complete the payment.",
   tags: ["Checkout & Payment"],
@@ -42,7 +42,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/payment/webhook/{shopId}",
+  path: "/payments/webhook/{shopId}",
   summary: "Webhook for payment provider notifications",
   description: "Public endpoint for receiving and verifying payment status updates from providers like Paystack.",
   tags: ["Checkout & Payment"],

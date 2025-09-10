@@ -22,6 +22,7 @@ import versionRouter from "./routes/version.routes";
 import cartRoutes from "./routes/cart.routes";
 import checkoutRoutes from "./routes/checkout.routes";
 import paymentRoutes from "./routes/payment.routes";
+import internalRoutes from "./routes/internal.routes";
 import swaggerRouter from "./docs/swagger";
 
 const app = express();
@@ -53,20 +54,21 @@ app.use(
 );
 
 // --- Public Routes ---
-app.use("/api/v1/user", cors(dynamicCors), userRouter);
+app.use("/api/v1/users", cors(dynamicCors), userRouter);
 app.use("/api/v1/shop", cors(dynamicCors), storeRoutes);
-app.use("/api/v1/blog", cors(dynamicCors), blogRoutes);
-app.use("/api/v1/faq", cors(dynamicCors), faqRoutes);
-app.use("/api/v1/product", cors(dynamicCors), productRoutes);
-app.use("/api/v1/category", cors(dynamicCors), categoryRoutes);
-app.use("/api/v1/order", cors(dynamicCors), orderRoutes);
+app.use("/api/v1/blogs", cors(dynamicCors), blogRoutes);
+app.use("/api/v1/faqs", cors(dynamicCors), faqRoutes);
+app.use("/api/v1/products", cors(dynamicCors), productRoutes);
+app.use("/api/v1/categories", cors(dynamicCors), categoryRoutes);
+app.use("/api/v1/orders", cors(dynamicCors), orderRoutes);
 app.use("/api/v1/version", cors(dynamicCors), versionRouter);
-app.use("/api/v1/cart", cors(dynamicCors), cartRoutes);
-app.use("/api/v1/payment", cors(dynamicCors), paymentRoutes);
-app.use("/api/v1/checkout", cors(dynamicCors), checkoutRoutes);
-app.use("/api/v1/admin", cors(dynamicCors), adminRoutes);
+app.use("/api/v1/carts", cors(dynamicCors), cartRoutes);
+app.use("/api/v1/payments", cors(dynamicCors), paymentRoutes);
+app.use("/api/v1/checkouts", cors(dynamicCors), checkoutRoutes);
+app.use("/api/v1/admins", cors(dynamicCors), adminRoutes);
 
 // Internal Routes
+app.use("/internal", internalRoutes);
 app.use("/swagger", swaggerRouter);
 app.use("/api/auth/shop", oauthRoutes);
 

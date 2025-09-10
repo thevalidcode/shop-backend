@@ -22,7 +22,7 @@ const CartResponseSchema = z.object({
 
 registry.registerPath({
   method: "get",
-  path: "/cart",
+  path: "/carts",
   summary: "Get the current user's shopping cart",
   tags: ["Cart"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -38,7 +38,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/cart/items",
+  path: "/carts/items",
   summary: "Add an item to the cart",
   tags: ["Cart"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -56,7 +56,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "patch",
-  path: "/cart/items/{itemId}",
+  path: "/carts/items/{itemId}",
   summary: "Update the quantity of an item in the cart",
   tags: ["Cart"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -75,7 +75,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/cart/items/{itemId}",
+  path: "/carts/items/{itemId}",
   summary: "Remove an item from the cart",
   tags: ["Cart"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],

@@ -26,7 +26,7 @@ import {
 // Public: Get all active products
 registry.registerPath({
   method: "get",
-  path: "/product",
+  path: "/products",
   summary: "Get all active products",
   tags: ["Products"],
   parameters: [
@@ -47,7 +47,7 @@ registry.registerPath({
 // Admin: Get all products
 registry.registerPath({
   method: "get",
-  path: "/product/admin",
+  path: "/products/admin",
   summary: "Get all products for admins",
   tags: ["Products"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -61,7 +61,7 @@ registry.registerPath({
 // Admin: Get products by provider ID
 registry.registerPath({
   method: "get",
-  path: "/product/{providerId}",
+  path: "/products/{providerId}",
   summary: "Get products by provider ID",
   tags: ["Products"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -83,7 +83,7 @@ registry.registerPath({
 // Public: Get single service
 registry.registerPath({
   method: "get",
-  path: "/product/{productId}",
+  path: "/products/{productId}",
   summary: "Get a service by ID (public)",
   tags: ["Products"],
   parameters: [
@@ -110,7 +110,7 @@ registry.registerPath({
 // Admin: Get service by ID
 registry.registerPath({
   method: "get",
-  path: "/product/admin/{productId}",
+  path: "/products/admin/{productId}",
   summary: "Get a service by ID (admin)",
   tags: ["Products"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -132,7 +132,7 @@ registry.registerPath({
 // Admin: Update a service
 registry.registerPath({
   method: "patch",
-  path: "/product",
+  path: "/products",
   summary: "Update a service",
   tags: ["Products"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -156,7 +156,7 @@ registry.registerPath({
 // Admin: Delete single service
 registry.registerPath({
   method: "delete",
-  path: "/product",
+  path: "/products",
   summary: "Delete a single service",
   tags: ["Products"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -180,7 +180,7 @@ registry.registerPath({
 // Admin: Delete multiple products
 registry.registerPath({
   method: "delete",
-  path: "/product/multiple",
+  path: "/products/multiple",
   summary: "Delete multiple products",
   tags: ["Products"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -204,7 +204,7 @@ registry.registerPath({
 // Admin: Create new service
 registry.registerPath({
   method: "post",
-  path: "/product/create",
+  path: "/products/create",
   summary: "Create a new product",
   tags: ["Products"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],

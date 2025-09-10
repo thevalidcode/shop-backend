@@ -127,3 +127,10 @@ export const AdminRegistrationResponseSchema = z.object({
   }),
   nextSteps: z.array(z.string()),
 });
+
+export const internalAdminTokenPayloadSchema = z.object({
+  serviceKey: z.string(),
+  type: z.literal("system", {
+    errorMap: () => ({ message: "Invalid value provided" }),
+  }),
+});

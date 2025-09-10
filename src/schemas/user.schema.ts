@@ -9,6 +9,7 @@ export const UserSchema = z
     shopScopedId: z.number(),
     uid: z.string(),
     email: z.string().email(),
+    fullName: z.string(),
     username: z.string(),
     password: z.string(),
     status: z.string(),
@@ -32,6 +33,7 @@ export const UserPublicSchema = z
     shopScopedId: z.number(),
     email: z.string().email(),
     username: z.string(),
+    fullName: z.string(),
   })
   .openapi("UserPublic");
 
@@ -60,6 +62,7 @@ export const AuthenticateUserResponseSchema = z.object({
 export const CreateUserInputSchema = z.object({
   email: z.string().email().describe("User email"),
   username: z.string().describe("User username"),
+  fullName: z.string().describe("User username"),
   password: z.string().describe("User password"),
   shopDomain: z.string().min(1).describe("Shop domain to join"),
   ref: z

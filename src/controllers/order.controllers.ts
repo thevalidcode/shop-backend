@@ -10,7 +10,7 @@ import {
 import { z } from "zod";
 
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
-  const { shopId, uid, user } = req.auth!;
+  const { shopId, uid } = req.auth!;
 
   try {
     const orders = await prisma.order.findMany({

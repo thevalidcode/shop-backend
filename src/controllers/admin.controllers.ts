@@ -26,6 +26,8 @@ export const registerAdmin = async (
 ): Promise<void> => {
   const registerSchema = z.object({
     email: z.string().email(),
+    plan: z.string(),
+    features: z.any(),
     username: z.string().min(3),
     password: z.string().min(8),
     shopName: z.string().min(1),
@@ -45,7 +47,8 @@ export const registerAdmin = async (
     return;
   }
 
-  const { email, username, password, shopName, shopDomain } = validation.data;
+  const { email, username, password, shopName, shopDomain, plan, features } =
+    validation.data;
 
   try {
     // Check if admin already exists globally
@@ -90,7 +93,9 @@ export const registerAdmin = async (
           shopId: nextShopId,
           uid: shopDomain, // Use chosen domain instead of random UUID
           ssl: false,
-          plan: "FREE",
+          plan,
+          features,
+          name: shopName,
           status: "ACTIVE",
         },
       });
@@ -166,7 +171,7 @@ export const registerAdmin = async (
         shopId: result.shop.shopId,
         domain: result.shop.uid,
         name: shopName,
-        url: `https://${result.shop.uid}.yourplatform.com`, // This would be your actual platform domain
+        url: `https://${result.shop.uid}`, // This would be your actual platform domain
         status: result.shop.status,
         plan: result.shop.plan,
       },
@@ -180,7 +185,7 @@ export const registerAdmin = async (
         "Set up your payment gateways in the admin panel",
         "Add your first products",
         "Customize your shop appearance",
-        `Share your shop URL: https://${result.shop.uid}.yourplatform.com`,
+        `Share your shop URL: https://${result.shop.uid}`,
       ],
     });
   } catch (error: any) {

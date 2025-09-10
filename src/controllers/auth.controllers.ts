@@ -97,6 +97,7 @@ export const googleCallback = async (
         return tx.user.create({
           data: {
             shopScopedId: counter.userCounter,
+            fullName: googleUser.name,
             email: googleUser.email,
             username:
               googleUser.name.replace(/\s/g, "").toLowerCase() +

@@ -20,7 +20,7 @@ import { z } from "zod";
 
 registry.registerPath({
   method: "patch",
-  path: "/admin/settings/general",
+  path: "/admins/settings/general",
   summary: "Update general store settings",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -38,7 +38,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "patch",
-  path: "/admin/settings/design",
+  path: "/admins/settings/design",
   summary: "Update design & theme settings",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -57,7 +57,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/admin/payment-gateways",
+  path: "/admins/payment-gateways",
   summary: "Get configured payment gateways",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -72,7 +72,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/admin/payment-gateways",
+  path: "/admins/payment-gateways",
   summary: "Create a new payment gateway",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -90,7 +90,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "patch",
-  path: "/admin/payment-gateways/{uid}",
+  path: "/admins/payment-gateways/{uid}",
   summary: "Update a payment gateway",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -110,7 +110,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/admin/payment-gateways/{uid}",
+  path: "/admins/payment-gateways/{uid}",
   summary: "Delete a payment gateway",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -125,7 +125,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/admin/users/{userUid}/wallet/credit",
+  path: "/admins/users/{userUid}/wallet/credit",
   summary: "Credit a user's wallet",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -145,7 +145,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/admin/users/{userUid}/wallet/debit",
+  path: "/admins/users/{userUid}/wallet/debit",
   summary: "Debit a user's wallet",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -166,7 +166,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/admin/referrals",
+  path: "/admins/referrals",
   summary: "Get all referral data",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -181,7 +181,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "get",
-  path: "/admin/contact-messages",
+  path: "/admins/contact-messages",
   summary: "Get all contact form messages",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -196,7 +196,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/admin/contact-messages/{uid}",
+  path: "/admins/contact-messages/{uid}",
   summary: "Delete a contact message",
   tags: ["Admins"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],

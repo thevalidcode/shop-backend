@@ -7,15 +7,10 @@ import { sendEmail } from "../emails";
 import { env } from "../config/env.config";
 import { prisma } from "../config/db.config";
 import { randomBytes } from "crypto";
-import { UserUpdateRequestSchema } from "../schemas/user.schema";
-
-const createUserSchema = z.object({
-  shopDomain: z.string().min(1), // Shop domain is required (cleaner than shopId)
-  email: z.string().email(),
-  username: z.string(),
-  password: z.string().min(6),
-  ref: z.union([z.string(), z.number()]).optional(),
-});
+import {
+  UserUpdateRequestSchema,
+  CreateUserInputSchema,
+} from "../schemas/user.schema";
 
 const meQuerySchema = z.object({
   email: z.string().email(),
@@ -49,12 +44,12 @@ export const createUser = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = createUserSchema.safeParse(req.body);
+  const parsed = CreateUserInputSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { shopDomain, email, username, ref, password } = parsed.data;
+  const { shopDomain, email, fullName, username, ref, password } = parsed.data;
 
   try {
     // Find shop by domain
@@ -104,6 +99,7 @@ export const createUser = async (
           shopId: shop.shopId,
           email,
           username,
+          fullName,
           password: hashedPassword,
           uid: uuidv4(),
           apiKey: uuidv4(),
