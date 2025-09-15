@@ -71,7 +71,7 @@ registry.registerPath({
 // POST /blogs
 registry.registerPath({
   method: "post",
-  path: "/blogs",
+  path: "/blogs/admin",
   summary: "Create a new blog",
   tags: ["Blogs"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -95,7 +95,7 @@ registry.registerPath({
 // PATCH /blogs
 registry.registerPath({
   method: "patch",
-  path: "/blogs",
+  path: "/blogs/admin",
   summary: "Update a blog",
   tags: ["Blogs"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -119,7 +119,7 @@ registry.registerPath({
 // DELETE /blogs
 registry.registerPath({
   method: "delete",
-  path: "/blogs",
+  path: "/blogs/admin",
   summary: "Delete a blog",
   tags: ["Blogs"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -143,7 +143,7 @@ registry.registerPath({
 // DELETE /blogs/multiple
 registry.registerPath({
   method: "delete",
-  path: "/blogs/multiple",
+  path: "/blogs/admin/multiple",
   summary: "Delete multiple blogs",
   tags: ["Blogs"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],

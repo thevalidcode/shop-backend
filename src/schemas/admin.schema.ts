@@ -5,6 +5,8 @@ import {
   AdminRole,
   AdminStatus,
   ContactStatus,
+  PaymentGatewayStatus,
+  PaymentMethod,
 } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
@@ -54,9 +56,10 @@ export const internalTokenPayloadSchema = z.object({
 
 export const CreatePaymentGatewaySchema = z.object({
   name: z.string().min(1, "Gateway name is required."),
-  publicKey: z.string().min(1, "Public key is required."),
+  image: z.string().min(1, "Gateway image is required.").url(),
+  platform: z.nativeEnum(PaymentMethod),
   secretKey: z.string().min(1, "Secret key is required."),
-  isActive: z.boolean().optional(),
+  status: z.nativeEnum(PaymentGatewayStatus),
 });
 
 export const UpdatePaymentGatewaySchema = CreatePaymentGatewaySchema.partial();
@@ -133,4 +136,22 @@ export const internalAdminTokenPayloadSchema = z.object({
   type: z.literal("system", {
     errorMap: () => ({ message: "Invalid value provided" }),
   }),
+});
+
+export const registerAdminAndShopSchema = z.object({
+  email: z.string().email(),
+  plan: z.string(),
+  features: z.any(),
+  username: z.string().min(3),
+  password: z.string().min(8),
+  shopName: z.string().min(1),
+  shopDescription: z.string().min(1),
+  shopDomain: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-z0-9-]+$/, {
+      message:
+        "Domain must contain only lowercase letters, numbers, and hyphens",
+    }),
 });

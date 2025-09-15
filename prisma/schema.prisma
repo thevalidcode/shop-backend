@@ -83,11 +83,7 @@ enum AffiliateMode {
 }
 
 enum PaymentMethod {
-  CARD        @map("card")
-  BANK        @map("bank")
-  WALLET      @map("wallet")
-  PAYPAL      @map("paypal")
-  CRYPTO      @map("crypto")
+  MANUAL      @map("manual")
   FLUTTERWAVE @map("flutterwave")
   PAYSTACK    @map("paystack")
 }
@@ -99,8 +95,19 @@ enum ContactStatus {
 }
 
 enum TransactionType {
-  CREDIT @map("credit")
-  DEBIT  @map("debit")
+  WALLET_CREDIT @map("wallet_credit")
+  WALLET_DEBIT  @map("wallet_debit")
+}
+
+enum PaymentGatewayStatus {
+  ACTIVE   @map("active")
+  DISABLED @map("disabled")
+}
+
+enum PaymentStatus {
+  PENDING @map("pending")
+  SUCCESS @map("success")
+  FAILED  @map("failed")
 }
 
 /**
@@ -123,24 +130,25 @@ model Shop {
   expiresAt DateTime?  @map("expires_at")
   features  Json
 
-  User              User[]
-  Admin             Admin[]
-  Product           Product[]
-  Order             Order[]
-  AdminEmail        AdminEmail[]
-  AffiliateSetting  AffiliateSetting[]
-  Blog              Blog[]
-  Category          Category[]
-  DesignStyle       DesignStyle[]
-  EmailLog          EmailLog[]
-  EmailTemplate     EmailTemplate[]
-  Faq               Faq[]
-  General           General[]
-  SessionCode       SessionCode[]
-  ContactMessage    ContactMessage[]
-  PaymentGateway    PaymentGateway[]
-  WalletTransaction WalletTransaction[]
-  shopCounter       ShopCounter?
+  User             User[]
+  Admin            Admin[]
+  Product          Product[]
+  Order            Order[]
+  AdminEmail       AdminEmail[]
+  AffiliateSetting AffiliateSetting[]
+  Blog             Blog[]
+  Category         Category[]
+  DesignStyle      DesignStyle[]
+  EmailLog         EmailLog[]
+  EmailTemplate    EmailTemplate[]
+  Faq              Faq[]
+  Setting          Setting[]
+  SessionCode      SessionCode[]
+  ContactMessage   ContactMessage[]
+  PaymentGateway   PaymentGateway[]
+  Transaction      Transaction[]
+  shopCounter      ShopCounter?
+  Payment          Payment[]
 
   @@map("shops")
 }
@@ -148,20 +156,21 @@ model Shop {
 model ShopCounter {
   shopId Int @id @map("shop_id")
 
-  productCounter           Int @default(0) @map("product_counter")
-  orderCounter             Int @default(0) @map("order_counter")
-  blogCounter              Int @default(0) @map("blog_counter")
-  faqCounter               Int @default(0) @map("faq_counter")
-  categoryCounter          Int @default(0) @map("category_counter")
-  userCounter              Int @default(0) @map("user_counter")
-  emailLogCounter          Int @default(0) @map("email_log_counter")
-  adminEmailCounter        Int @default(0) @map("admin_email_counter")
-  sessionCodeCounter       Int @default(0) @map("session_code_counter")
-  cartCounter              Int @default(0) @map("cart_counter")
-  cartItemCounter          Int @default(0) @map("cart_item_counter")
-  contactMessageCounter    Int @default(0) @map("contact_message_counter")
-  paymentGatewayCounter    Int @default(0) @map("payment_gateway_counter")
-  walletTransactionCounter Int @default(0) @map("wallet_transaction_counter")
+  productCounter        Int @default(0) @map("product_counter")
+  orderCounter          Int @default(0) @map("order_counter")
+  blogCounter           Int @default(0) @map("blog_counter")
+  faqCounter            Int @default(0) @map("faq_counter")
+  categoryCounter       Int @default(0) @map("category_counter")
+  userCounter           Int @default(0) @map("user_counter")
+  emailLogCounter       Int @default(0) @map("email_log_counter")
+  adminEmailCounter     Int @default(0) @map("admin_email_counter")
+  sessionCodeCounter    Int @default(0) @map("session_code_counter")
+  cartCounter           Int @default(0) @map("cart_counter")
+  cartItemCounter       Int @default(0) @map("cart_item_counter")
+  contactMessageCounter Int @default(0) @map("contact_message_counter")
+  paymentGatewayCounter Int @default(0) @map("payment_gateway_counter")
+  TransactionCounter    Int @default(0) @map("wallet_transaction_counter")
+  paymentCounter        Int @default(0) @map("payment_counter")
 
   shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
@@ -194,8 +203,9 @@ model User {
   referrals  User[] @relation("Referral")
 
   cart         Cart?
-  transactions WalletTransaction[]
+  transactions Transaction[]
   Order        Order[]
+  Payment      Payment[]
 
   @@unique([shopId, shopScopedId])
   @@unique([email, shopId])
@@ -402,15 +412,6 @@ model AffiliateSetting {
   @@map("affiliate_settings")
 }
 
-model Currency {
-  id        Int      @id @default(autoincrement())
-  uid       String   @unique
-  timestamp DateTime @default(now())
-  quotes    Json
-
-  @@map("currencies")
-}
-
 model DesignStyle {
   id     Int    @id @default(autoincrement()) @map("id")
   uid    String @unique
@@ -437,18 +438,19 @@ model EmailTemplate {
   @@map("email_templates")
 }
 
-model General {
+model Setting {
   id                    Int     @id @default(autoincrement()) @map("id")
   uid                   String  @unique
   shopId                Int     @map("shop_id")
   shop                  Shop    @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  title                 String  @default("Shop")
+  shopName              String  @default("Shop")
+  shopDescription       String?
   logoUrl               String? @map("logo_url")
   faviconUrl            String? @map("favicon_url")
   defaultClientCurrency String? @map("default_client_currency")
 
   @@unique([shopId])
-  @@map("general")
+  @@map("settings")
 }
 
 model SessionCode {
@@ -514,15 +516,20 @@ model ContactMessage {
 }
 
 model PaymentGateway {
-  id                 Int     @id @default(autoincrement())
-  uid                String  @unique @default(uuid())
-  shopId             Int     @map("shop_id")
+  id                 Int                  @id @default(autoincrement())
+  uid                String               @unique @default(uuid())
+  shopId             Int                  @map("shop_id")
   shopScopedId       Int
   name               String
-  publicKey          String  @map("public_key")
-  encryptedSecretKey String  @map("encrypted_secret_key")
-  iv                 String
-  isActive           Boolean @default(false) @map("is_active")
+  description        String?
+  encryptedSecretKey String?              @map("encrypted_secret_key")
+  iv                 String?
+  platform           PaymentMethod
+  status             PaymentGatewayStatus
+  signature          String?
+  image              String
+  position           Int                  @default(autoincrement())
+  createdAt          DateTime             @default(now()) @map("created_at")
 
   shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
@@ -531,7 +538,7 @@ model PaymentGateway {
   @@map("payment_gateways")
 }
 
-model WalletTransaction {
+model Transaction {
   id           Int             @id @default(autoincrement())
   uid          String          @unique @default(uuid())
   userUid      String          @map("user_uid")
@@ -546,7 +553,7 @@ model WalletTransaction {
   shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
   @@unique([shopId, shopScopedId])
-  @@map("wallet_transactions")
+  @@map("transactions")
 }
 
 model InternalApiSession {
@@ -558,4 +565,24 @@ model InternalApiSession {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("internal_api_sessions")
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  uid           String        @unique @default(uuid())
+  userUid       String        @map("user_id")
+  currency      String
+  amount        Decimal       @db.Decimal(10, 2)
+  chargedAmount Decimal       @map("charged_amount") @db.Decimal(10, 2)
+  status        PaymentStatus
+  method        PaymentMethod
+  createdAt     DateTime      @default(now()) @map("created_at")
+  shopId        Int           @map("shop_id")
+  shopScopedId  Int
+
+  user User @relation(fields: [userUid], references: [uid])
+  shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
+  @@unique([shopId, shopScopedId])
+  @@map("payments")
 }

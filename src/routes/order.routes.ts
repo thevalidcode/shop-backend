@@ -10,15 +10,17 @@ import {
 // User-only routes
 router.get("/", authenticateUser, orders.getOrders);
 router.get("/:orderUid", authenticateUser, orders.getOrderByID);
-// router.post("/", authenticate, orders.placeOrder);
-// router.post("/bulk", authenticate, orders.bulkCreateOrders);
 
 // Admin-only routes
 router.get("/admin/all", authenticateAdmin, orders.getOrdersForAdmins);
 router.get("/admin/:orderUid", authenticateAdmin, orders.getOrderByIDForAdmins);
-router.patch("/:orderUid", authenticateAdmin, orders.updateOrder);
-router.delete("/:orderUid", authenticateAdmin, orders.deleteOrder);
-router.patch("/bulk/status", authenticateAdmin, orders.bulkUpdateOrderStatus);
+router.patch("/admin/:orderUid", authenticateAdmin, orders.updateOrder);
+router.delete("/admin/:orderUid", authenticateAdmin, orders.deleteOrder);
+router.patch(
+  "/admin/bulk/status",
+  authenticateAdmin,
+  orders.bulkUpdateOrderStatus
+);
 
 // Shared route (logic inside controller handles role)
 router.get("/status/:status", authenticateAnyone, orders.getOrdersByStatus);

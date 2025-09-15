@@ -8,47 +8,37 @@ import {
   UpdatePaymentGatewaySchema,
   ModifyWalletBalanceSchema,
   UpdateContactMessageSchema,
+  registerAdminAndShopSchema,
 } from "../schemas/admin.schema";
 import {
   UpdateGeneralSettingsSchema,
   UpdateDesignSettingsSchema,
 } from "../schemas/shop.schema";
 import { encryptKey } from "../utils/encrypt";
-import { z } from "zod";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 
-// NEW: Admin Registration Endpoint (Shop Owner Registration)
-export const registerAdmin = async (
+export const registerAdminAndShop = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const registerSchema = z.object({
-    email: z.string().email(),
-    plan: z.string(),
-    features: z.any(),
-    username: z.string().min(3),
-    password: z.string().min(8),
-    shopName: z.string().min(1),
-    shopDomain: z
-      .string()
-      .min(3)
-      .max(30)
-      .regex(/^[a-z0-9-]+$/, {
-        message:
-          "Domain must contain only lowercase letters, numbers, and hyphens",
-      }),
-  });
-
-  const validation = registerSchema.safeParse(req.body);
+  const validation = registerAdminAndShopSchema.safeParse(req.body);
   if (!validation.success) {
     res.status(400).json({ error: validation.error.flatten() });
     return;
   }
 
-  const { email, username, password, shopName, shopDomain, plan, features } =
-    validation.data;
+  const {
+    email,
+    username,
+    password,
+    shopName,
+    shopDomain,
+    shopDescription,
+    plan,
+    features,
+  } = validation.data;
 
   try {
     // Check if admin already exists globally
@@ -129,11 +119,12 @@ export const registerAdmin = async (
       });
 
       // Create shop general settings
-      await tx.general.create({
+      await tx.setting.create({
         data: {
           uid: randomUUID(),
           shopId: shop.shopId,
-          title: shopName || "My Shop",
+          shopName: shopName || "My Shop",
+          shopDescription: shopDescription || "My Shop",
           defaultClientCurrency: "NGN",
         },
       });
@@ -249,7 +240,7 @@ export const updateGeneralSettings = async (
   }
 
   try {
-    const settings = await prisma.general.upsert({
+    const settings = await prisma.setting.upsert({
       where: { shopId },
       update: validation.data,
       create: {
@@ -333,8 +324,8 @@ export const getPaymentGateways = async (
       select: {
         uid: true,
         name: true,
-        publicKey: true,
-        isActive: true,
+        image: true,
+        status: true,
       },
     });
     const safeGateways = gateways.map((g) => ({
@@ -358,7 +349,7 @@ export const createPaymentGateway = async (
     return;
   }
 
-  const { name, publicKey, secretKey, isActive } = validation.data;
+  const { name, image, secretKey, platform } = validation.data;
   const { encryptedKey, iv } = encryptKey(secretKey);
 
   try {
@@ -373,10 +364,11 @@ export const createPaymentGateway = async (
           shopId,
           shopScopedId: counter.paymentGatewayCounter,
           name,
-          publicKey,
           encryptedSecretKey: encryptedKey,
           iv,
-          isActive,
+          platform,
+          image,
+          status: "ACTIVE",
         },
       });
 
@@ -404,9 +396,9 @@ export const updatePaymentGateway = async (
     return;
   }
 
-  const { name, publicKey, secretKey, isActive } = validation.data;
+  const { name, secretKey, status } = validation.data;
 
-  const updateData: any = { name, publicKey, isActive };
+  const updateData: any = { name, status };
 
   if (secretKey) {
     const { encryptedKey, iv } = encryptKey(secretKey);
@@ -493,17 +485,17 @@ export const creditUserWallet = async (
       }
       const counter = await tx.shopCounter.update({
         where: { shopId: shopId },
-        data: { walletTransactionCounter: { increment: 1 } },
+        data: { TransactionCounter: { increment: 1 } },
       });
 
-      await tx.walletTransaction.create({
+      await tx.transaction.create({
         data: {
           userUid,
           shopId,
           amount: decimalAmount,
-          shopScopedId: counter.walletTransactionCounter,
+          shopScopedId: counter.TransactionCounter,
           description,
-          type: "CREDIT",
+          type: "WALLET_CREDIT",
         },
       });
     });
@@ -561,16 +553,16 @@ export const debitUserWallet = async (
       });
       const counter = await tx.shopCounter.update({
         where: { shopId: shopId },
-        data: { walletTransactionCounter: { increment: 1 } },
+        data: { TransactionCounter: { increment: 1 } },
       });
-      await tx.walletTransaction.create({
+      await tx.transaction.create({
         data: {
           userUid,
           shopId,
-          shopScopedId: counter.walletTransactionCounter,
+          shopScopedId: counter.TransactionCounter,
           amount: decimalAmount,
           description,
-          type: "DEBIT",
+          type: "WALLET_DEBIT",
         },
       });
     });
@@ -588,7 +580,7 @@ export const getWalletHistory = async (
   const { shopId } = req.auth!;
   const { userUid } = req.params;
   try {
-    const transactions = await prisma.walletTransaction.findMany({
+    const transactions = await prisma.transaction.findMany({
       where: { userUid, shopId },
       orderBy: { timestamp: "desc" },
     });

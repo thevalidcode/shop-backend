@@ -29,7 +29,7 @@ const openApiDocument = generator.generateDocument({
   },
   servers: [
     {
-      url: "https://validpanel.com/shop/backend/api/v1",
+      url: `https://validpanel.com${env.BACKEND_PROXY_PATH}/api/v1`,
       description: "Public testing server (use this to test endpoints)",
     },
     {
@@ -37,7 +37,7 @@ const openApiDocument = generator.generateDocument({
       description: "Public server (use this for auth endpoints)",
     },
     {
-      url: "https://{domain}/shop/backend/api/v1",
+      url: `https://{domain}${env.BACKEND_PROXY_PATH}/api/v1`,
       description: "Custom shop domain (replace `{domain}` with your own)",
       variables: {
         domain: {
@@ -47,7 +47,7 @@ const openApiDocument = generator.generateDocument({
       },
     },
     {
-      url: "http://localhost:${env.PRIMARY_PORT}/api/v1",
+      url: `http://localhost:${env.PRIMARY_PORT}/api/v1`,
       description: "Local development server",
     },
   ],

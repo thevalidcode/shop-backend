@@ -71,21 +71,10 @@ export const getSiteData = async (
   const { shopId } = parsed.data;
 
   try {
-    const siteData = await prisma.general.findFirst({
+    const siteData = await prisma.setting.findFirst({
       where: { shopId },
     });
     res.json(siteData);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-export const getRates = async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const rate = await prisma.currency.findFirst({
-      select: { quotes: true },
-    });
-    res.json(rate?.quotes || {});
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -142,9 +131,9 @@ export const getShopByIdentifier = async (
       shop = await prisma.shop.findFirst({
         where: { shopId: Number(identifier) },
         include: {
-          General: {
+          Setting: {
             select: {
-              title: true,
+              shopName: true,
               logoUrl: true,
               faviconUrl: true,
               defaultClientCurrency: true,
@@ -159,9 +148,9 @@ export const getShopByIdentifier = async (
       shop = await prisma.shop.findFirst({
         where: { uid: identifier },
         include: {
-          General: {
+          Setting: {
             select: {
-              title: true,
+              shopName: true,
               logoUrl: true,
               faviconUrl: true,
               defaultClientCurrency: true,
@@ -182,7 +171,7 @@ export const getShopByIdentifier = async (
       status: shop.status,
       plan: shop.plan,
       ssl: shop.ssl,
-      settings: shop.General[0] || null,
+      settings: shop.Setting[0] || null,
     });
   } catch (error: any) {
     console.error("Error fetching shop:", error);
@@ -199,9 +188,9 @@ export const getActiveShops = async (
     const shops = await prisma.shop.findMany({
       where: { status: "ACTIVE" },
       include: {
-        General: {
+        Setting: {
           select: {
-            title: true,
+            shopName: true,
             logoUrl: true,
             defaultClientCurrency: true,
           },
@@ -215,7 +204,7 @@ export const getActiveShops = async (
       domain: shop.uid,
       plan: shop.plan,
       timestamp: shop.timestamp,
-      settings: shop.General[0] || null,
+      settings: shop.Setting[0] || null,
     }));
 
     res.status(200).json(formattedShops);

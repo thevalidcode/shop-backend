@@ -7,10 +7,10 @@ import { authenticateAdmin } from "../middleware/auth";
 router.get("/", blogs.getBlogs);
 router.get("/:blogId", blogs.getBlogByID);
 
-// Protected routes
-router.post("/", authenticateAdmin, blogs.addBlog);
-router.patch("/", authenticateAdmin, blogs.updateBlog);
-router.delete("/", authenticateAdmin, blogs.deleteBlog);
-router.delete("/multiple", authenticateAdmin, blogs.deleteMultipleBlogs);
+// Protected Admin routes
+router.post("/admin", authenticateAdmin, blogs.addBlog);
+router.patch("/admin", authenticateAdmin, blogs.updateBlog);
+router.delete("/admin", authenticateAdmin, blogs.deleteBlog);
+router.delete("/admin/multiple", authenticateAdmin, blogs.deleteMultipleBlogs);
 
 export default router;

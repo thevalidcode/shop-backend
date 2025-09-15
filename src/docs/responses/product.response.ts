@@ -33,17 +33,6 @@ export const SingleProductResponse = {
   },
 };
 
-export const SingleProductPublicResponse = {
-  description: "A single service object",
-  content: {
-    "application/json": {
-      schema: z.object({
-        service: ProductPublicSchema,
-      }),
-    },
-  },
-};
-
 export const ProductCreated = {
   description: "Product created successfully",
   content: {

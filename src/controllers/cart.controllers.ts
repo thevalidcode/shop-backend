@@ -1,4 +1,3 @@
-// src/controllers/cart.controllers.ts
 import { Request, Response } from "express";
 import { prisma } from "../config/db.config";
 import { AddToCartSchema, UpdateCartItemSchema } from "../schemas/cart.schema";
@@ -25,7 +24,7 @@ export const getCart = async (req: Request, res: Response) => {
   const { uid: userUid, shopId } = req.auth!;
   try {
     const cart = await prisma.cart.findUnique({
-      where: { userUid },
+      where: { userUid, shopId },
       include: {
         items: {
           include: { product: true },

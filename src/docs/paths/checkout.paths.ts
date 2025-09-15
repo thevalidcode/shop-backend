@@ -8,7 +8,7 @@ registry.registerPath({
   path: "/checkouts",
   summary: "Create an order from the user's cart",
   description: "Atomically creates an order, decrements stock, and clears the user's cart.",
-  tags: ["Checkout & Payment"],
+  tags: ["Checkout"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: { content: { "application/json": { schema: CreateOrderSchema } } },

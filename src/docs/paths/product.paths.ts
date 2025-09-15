@@ -13,7 +13,6 @@ import {
   ProductsDeleted,
   ProductPublicListResponse,
   ProductListResponse,
-  SingleProductPublicResponse,
   SingleProductResponse,
 } from "../responses/product.response";
 
@@ -54,55 +53,6 @@ registry.registerPath({
   responses: {
     200: ProductListResponse,
     403: Forbidden,
-    500: ServerError,
-  },
-});
-
-// Admin: Get products by provider ID
-registry.registerPath({
-  method: "get",
-  path: "/products/{providerId}",
-  summary: "Get products by provider ID",
-  tags: ["Products"],
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  parameters: [
-    {
-      name: "providerId",
-      in: "path",
-      required: true,
-      schema: { type: "number" },
-    },
-  ],
-  responses: {
-    200: ProductListResponse,
-    403: Forbidden,
-    500: ServerError,
-  },
-});
-
-// Public: Get single service
-registry.registerPath({
-  method: "get",
-  path: "/products/{productId}",
-  summary: "Get a service by ID (public)",
-  tags: ["Products"],
-  parameters: [
-    {
-      name: "productId",
-      in: "path",
-      required: true,
-      schema: { type: "number" },
-    },
-    {
-      name: "shopId",
-      in: "query",
-      required: true,
-      schema: { type: "number" },
-    },
-  ],
-  responses: {
-    200: SingleProductPublicResponse,
-    400: BadRequest,
     500: ServerError,
   },
 });

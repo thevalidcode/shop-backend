@@ -17,7 +17,7 @@ function interpolate(template: string, variables: Record<string, any>): string {
 }
 
 async function loadGeneralSettings(shopId: number) {
-  return prisma.general.findFirst({
+  return prisma.setting.findFirst({
     where: { shopId },
   });
 }

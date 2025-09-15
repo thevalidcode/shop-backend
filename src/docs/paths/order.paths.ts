@@ -17,7 +17,6 @@ import {
 import {
   bulkCreateSchema,
   bulkStatusUpdateSchema,
-  placeOrderSchema,
   updateOrderSchema,
 } from "../../schemas/order.schema";
 
@@ -37,7 +36,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/orders/admin",
+  path: "/orders/admin/all",
   summary: "Get all orders for admins",
   tags: ["Orders"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -92,34 +91,10 @@ registry.registerPath({
   },
 });
 
-// POST /orders (Admin)
-registry.registerPath({
-  method: "post",
-  path: "/orders",
-  summary: "Create a new order",
-  tags: ["Orders"],
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: placeOrderSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    200: OrderCreatedResponse,
-    400: BadRequest,
-    403: Forbidden,
-    500: ServerError,
-  },
-});
-
 // PATCH /orders/{orderUid} (Admin)
 registry.registerPath({
   method: "patch",
-  path: "/orders/{orderUid}",
+  path: "/orders/admin/{orderUid}",
   summary: "Update a order",
   tags: ["Orders"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -151,7 +126,7 @@ registry.registerPath({
 // DELETE /orders/:orderUid (Admin)
 registry.registerPath({
   method: "delete",
-  path: "/orders",
+  path: "/orders/admin",
   summary: "Delete a single order",
   tags: ["Orders"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -193,34 +168,10 @@ registry.registerPath({
   },
 });
 
-// POST /orders/bulk (Admin)
-registry.registerPath({
-  method: "post",
-  path: "/orders/bulk",
-  summary: "Create bulk orders",
-  tags: ["Orders"],
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: bulkCreateSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    200: OrderCreatedListResponse,
-    400: BadRequest,
-    403: Forbidden,
-    500: ServerError,
-  },
-});
-
 // PATCH /orders/bulk/status (Admin)
 registry.registerPath({
   method: "patch",
-  path: "/orders/bulk/status",
+  path: "/orders/admin/bulk/status",
   summary: "Update bulk order status",
   tags: ["Orders"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],

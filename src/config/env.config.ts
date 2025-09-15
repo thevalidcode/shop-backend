@@ -19,8 +19,7 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(1),
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
-  BACKEND_PROXY_PATH: z.string(),
-  RATE_KEY: z.string(),
+  BACKEND_PROXY_PATH: z.string().optional(),
   CORE_SERVICE_SECRET: z.string(),
 });
 

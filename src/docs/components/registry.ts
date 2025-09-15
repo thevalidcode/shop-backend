@@ -23,4 +23,11 @@ registry.registerComponent("securitySchemes", "CsrfCookie", {
   name: "csrf_token",
 });
 
+// Origin token in cookies
+registry.registerComponent("securitySchemes", "OriginHeader", {
+  type: "apiKey",
+  in: "header",
+  name: "origin",
+});
+
 export { registry };

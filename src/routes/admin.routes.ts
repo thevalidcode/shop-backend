@@ -7,7 +7,7 @@ const router = express.Router();
 // Apply authentication to ALL routes in this file
 router.use(authenticateAdmin);
 
-router.post("/register", adminController.registerAdmin);
+router.post("/register", adminController.registerAdminAndShop);
 router.get("/check-domain/:domain", adminController.checkDomainAvailability);
 
 // Settings Routes

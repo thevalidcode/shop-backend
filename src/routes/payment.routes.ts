@@ -1,18 +1,11 @@
 import express from "express";
-import * as checkoutController from "../controllers/checkout.controllers";
-import { authenticateUser } from "../middleware/auth";
+import { authenticateAdmin, authenticateUser } from "../middleware/auth";
+import * as payments from "../controllers/payment.controllers";
 
 const router = express.Router();
 
-router.post(
-  "/initialize",
-  authenticateUser,
-  checkoutController.initializePayment
-);
-router.post(
-  "/webhook/:shopId",
-  express.json(),
-  checkoutController.verifyPaymentWebhook
-);
+router.post("/initialize", authenticateUser, payments.initializePayment);
+router.get("/", authenticateUser, payments.getPaymentsForUsers);
+router.get("/admin", authenticateAdmin, payments.getPaymentsForAdmins);
 
 export default router;

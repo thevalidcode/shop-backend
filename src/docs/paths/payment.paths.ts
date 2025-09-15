@@ -1,15 +1,25 @@
 // src/docs/paths/payment.paths.ts
 import { registry } from "../components/registry";
 import { z } from "zod";
-import { BadRequest, Forbidden, ServerError } from "../responses/common.response";
+import {
+  BadRequest,
+  Forbidden,
+  ServerError,
+} from "../responses/common.response";
 import { NotFound } from "../responses/shop.response";
+import {
+  InitializedPaymentResponse,
+  PaymentListResponse,
+  PaymentPublicListResponse,
+} from "../responses/payment.response";
 
 registry.registerPath({
   method: "post",
   path: "/payments/initialize",
   summary: "Initialize a payment transaction",
-  description: "Takes an order UID and returns a payment provider URL to complete the payment.",
-  tags: ["Checkout & Payment"],
+  description:
+    "Takes an order UID and returns a payment provider URL to complete the payment.",
+  tags: ["Payments"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
@@ -21,18 +31,7 @@ registry.registerPath({
     },
   },
   responses: {
-    200: {
-      description: "Payment initialization successful.",
-      content: {
-        "application/json": {
-          schema: z.object({
-            authorization_url: z.string().url(),
-            access_code: z.string(),
-            reference: z.string(),
-          }),
-        },
-      },
-    },
+    200: InitializedPaymentResponse,
     400: BadRequest,
     403: Forbidden,
     404: NotFound,
@@ -41,15 +40,27 @@ registry.registerPath({
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/payments/webhook/{shopId}",
-  summary: "Webhook for payment provider notifications",
-  description: "Public endpoint for receiving and verifying payment status updates from providers like Paystack.",
-  tags: ["Checkout & Payment"],
-  parameters: [{ name: "shopId", in: "path", required: true, schema: { type: "number" } }],
+  method: "get",
+  path: "/payments",
+  summary: "Get a user's payments",
+  tags: ["Payments"],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   responses: {
-    200: { description: "Webhook received and acknowledged." },
-    400: { description: "Invalid payload." },
-    401: { description: "Invalid signature." },
+    200: PaymentPublicListResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/payments/admin",
+  summary: "Get all payments for admins",
+  tags: ["Payments"],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
+  responses: {
+    200: PaymentListResponse,
+    400: BadRequest,
+    500: ServerError,
   },
 });

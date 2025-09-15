@@ -6,7 +6,6 @@ import { authenticateUser, authenticateAdmin } from "../middleware/auth";
 router.get("/data", shops.getShopData);
 router.get("/styles", shops.getStyles);
 router.get("/site-data", shops.getSiteData);
-router.get("/rates", shops.getRates);
 
 // NEW: Public shop discovery routes
 router.get("/discover", shops.getActiveShops);
