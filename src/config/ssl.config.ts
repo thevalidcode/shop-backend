@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 import tls, { SecureContext } from "tls";
 import { prisma } from "./db.config";
 import { env as processENV } from "./env.config";
@@ -14,6 +15,9 @@ type SSLOptions = {
 
 const sslOptions: SSLOptions = {};
 
+const CADDY_CERTS_PATH =
+  "/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory";
+
 async function loadCertificates(): Promise<void> {
   const domains = await prisma.shop.findMany({
     where: { ssl: true },
@@ -27,18 +31,15 @@ async function loadCertificates(): Promise<void> {
     )
     .forEach((domain) => {
       if (env === "production") {
-        sslOptions[domain.uid] = {
-          cert: fs.readFileSync(
-            `/etc/ssl/${
-              domain.uid.includes("validpanel.com") ? "validpanel.com" : domain
-            }/fullchain.crt`
-          ),
-          key: fs.readFileSync(
-            `/etc/ssl/${
-              domain.uid.includes("validpanel.com") ? "validpanel.com" : domain
-            }/keyfile.key`
-          ),
-        };
+        const domainDir = path.join(CADDY_CERTS_PATH, domain.uid);
+        try {
+          sslOptions[domain.uid] = {
+            cert: fs.readFileSync(path.join(domainDir, `${domain.uid}.crt`)),
+            key: fs.readFileSync(path.join(domainDir, `${domain.uid}.key`)),
+          };
+        } catch (e) {
+          console.warn(`Could not load certs for ${domain.uid}: ${e}`);
+        }
       }
     });
 }
@@ -54,24 +55,22 @@ async function SNICallback(
   let ctx = sslOptions[domain];
 
   if (!ctx) {
-    const shop = await prisma.shop.findUnique({
-      where: { uid: domain },
+    const result = await prisma.shop.findFirst({
+      where: { uid: domain, ssl: true },
+      select: { uid: true, ssl: true },
     });
 
-    if (shop?.ssl) {
-      ctx = {
-        cert: fs.readFileSync(
-          `/etc/ssl/${
-            domain.includes("validpanel.com") ? "validpanel.com" : domain
-          }/fullchain.crt`
-        ),
-        key: fs.readFileSync(
-          `/etc/ssl/${
-            domain.includes("validpanel.com") ? "validpanel.com" : domain
-          }/keyfile.key`
-        ),
-      };
-      sslOptions[domain] = ctx;
+    if (result?.ssl) {
+      const domainDir = path.join(CADDY_CERTS_PATH, domain);
+      try {
+        ctx = {
+          cert: fs.readFileSync(path.join(domainDir, `${domain}.crt`)),
+          key: fs.readFileSync(path.join(domainDir, `${domain}.key`)),
+        };
+        sslOptions[domain] = ctx;
+      } catch (e) {
+        return cb(new Error(`Failed loading certs for ${domain}: ${e}`));
+      }
     }
   }
 
