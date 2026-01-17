@@ -3,6 +3,8 @@ import { z } from "zod";
 import {
   CategoryCreateRequestSchema,
   CategoryUpdateRequestSchema,
+  DeleteCategoriesSchema,
+  DeleteCategorySchema,
 } from "../../schemas/category.schema";
 import {
   CategoryCreatedResponse,
@@ -16,6 +18,7 @@ import {
   Forbidden,
   SuccessResponse,
 } from "../responses/common.response";
+import { ShopIdSchema, UidSchema } from "../../schemas/common.schema";
 
 // GET /categories?shopId=123
 registry.registerPath({
@@ -23,15 +26,9 @@ registry.registerPath({
   path: "/categories",
   summary: "Get all categories",
   tags: ["Categories"],
-  parameters: [
-    {
-      name: "shopId",
-      in: "query",
-      required: true,
-      description: "Shop ID to filter categories",
-      schema: { type: "number" },
-    },
-  ],
+  request: {
+    query: ShopIdSchema,
+  },
   responses: {
     200: CategoryListResponse,
     400: BadRequest,
@@ -98,7 +95,7 @@ registry.registerPath({
     body: {
       content: {
         "application/json": {
-          schema: z.object({ uid: z.string() }),
+          schema: DeleteCategorySchema,
         },
       },
     },
@@ -122,7 +119,7 @@ registry.registerPath({
     body: {
       content: {
         "application/json": {
-          schema: z.object({ uids: z.array(z.string()) }),
+          schema: DeleteCategoriesSchema,
         },
       },
     },
@@ -135,26 +132,16 @@ registry.registerPath({
   },
 });
 
-// GET /categories/{categoryId}?shopId=123
+// GET /categories/{uid}?shopId=123
 registry.registerPath({
   method: "get",
-  path: "/categories/{categoryId}",
-  summary: "Get category by ID",
+  path: "/categories/{uid}",
+  summary: "Get category by UID",
   tags: ["Categories"],
-  parameters: [
-    {
-      name: "categoryId",
-      in: "path",
-      required: true,
-      schema: { type: "number" },
-    },
-    {
-      name: "shopId",
-      in: "query",
-      required: true,
-      schema: { type: "number" },
-    },
-  ],
+  request: {
+    query: ShopIdSchema,
+    params: UidSchema,
+  },
   responses: {
     200: CategoryObject,
     400: BadRequest,

@@ -3,7 +3,6 @@ import swaggerUi from "swagger-ui-express";
 import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
 import { registry } from "./paths/index.paths";
 import { API_VERSION } from "../version";
-import { openCors } from "../config/cors.config";
 import { env } from "../config/env.config";
 import * as swaggers from "../controllers/swagger.controllers";
 
@@ -29,7 +28,7 @@ const openApiDocument = generator.generateDocument({
   },
   servers: [
     {
-      url: `https://validpanel.com${env.BACKEND_PROXY_PATH}/api/v1`,
+      url: `https://api.validpanel.com/shop/backend/v1`,
       description: "Public testing server (use this to test endpoints)",
     },
     {
@@ -37,25 +36,25 @@ const openApiDocument = generator.generateDocument({
       description: "Public server (use this for auth endpoints)",
     },
     {
-      url: `https://{domain}${env.BACKEND_PROXY_PATH}/api/v1`,
+      url: `https://api.{domain}/v1`,
       description: "Custom shop domain (replace `{domain}` with your own)",
       variables: {
         domain: {
           default: "yourdomain.com",
-          description: "Your custom shop domain (e.g. `myreseller.com`)",
+          description: "Your custom shop domain (e.g. `mycollections.com`)",
         },
       },
     },
     {
-      url: `http://localhost:${env.PRIMARY_PORT}/api/v1`,
+      url: `http://localhost:${env.PRIMARY_PORT}/v1`,
       description: "Local development server",
     },
   ],
 });
 
-swaggerRouter.get("/login", openCors, swaggers.adminLogin);
-swaggerRouter.post("/login", openCors, swaggers.authenticateAdmin);
-swaggerRouter.post("/logout", openCors, swaggers.logoutAdmin);
+swaggerRouter.get("/login", swaggers.adminLogin);
+swaggerRouter.post("/login", swaggers.authenticateAdmin);
+swaggerRouter.post("/logout", swaggers.logoutAdmin);
 
 swaggerRouter.use(
   "/docs",

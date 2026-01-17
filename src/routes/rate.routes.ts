@@ -1,9 +1,9 @@
 import express from "express";
 const router = express.Router();
 import * as rates from "../controllers/rate.controllers";
-import { limittActions } from "../middleware/ratelimit/common.ratelimit";
+import { exchangeRateLimit } from "../middleware/ratelimit";
 
 // Public routes
-router.get("/", limittActions, rates.getCurrentRates);
+router.get("/", exchangeRateLimit, rates.getCurrentRates);
 
 export default router;

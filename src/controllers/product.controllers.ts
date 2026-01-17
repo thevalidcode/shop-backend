@@ -6,18 +6,16 @@ import {
   DeleteMultipleProductsInputSchema,
   ProductUpdateInputSchema,
   ProductCreateInputSchema,
+  ProductUidSchema,
 } from "../schemas/product.schema";
 import { v4 as uuidv4 } from "uuid";
-
-const getProductsSchema = z.object({
-  shopId: z.coerce.number(),
-});
+import { ShopIdSchema } from "../schemas/common.schema";
 
 export const getProducts = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = getProductsSchema.safeParse(req.query);
+  const parsed = ShopIdSchema.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
@@ -53,16 +51,12 @@ export const getProductsForAdmins = async (
   }
 };
 
-export const getProductByID = async (
+export const getProductByUID = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const paramsParsed = z
-    .object({ productId: z.coerce.number() })
-    .safeParse(req.params);
-  const queryParsed = z
-    .object({ shopId: z.coerce.number() })
-    .safeParse(req.query);
+  const paramsParsed = ProductUidSchema.safeParse(req.params);
+  const queryParsed = ShopIdSchema.safeParse(req.query);
 
   if (!paramsParsed.success) {
     res.status(400).json({ error: paramsParsed.error.flatten() });
@@ -74,11 +68,11 @@ export const getProductByID = async (
   }
 
   const { shopId } = queryParsed.data;
-  const { productId } = paramsParsed.data;
+  const { productUid } = paramsParsed.data;
 
   try {
     const product = await prisma.product.findFirst({
-      where: { id: productId, shopId, status: "ACTIVE" },
+      where: { uid: productUid, shopId, status: "ACTIVE" },
     });
     if (!product) {
       res.status(404).json({ error: "Product not found" });
@@ -90,23 +84,21 @@ export const getProductByID = async (
   }
 };
 
-export const getProductByIDFromAdmin = async (
+export const getProductByUIDFromAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = z
-    .object({ productId: z.coerce.number() })
-    .safeParse(req.params);
+  const parsed = ProductUidSchema.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { productId } = parsed.data;
+  const { productUid } = parsed.data;
   const { shopId } = req.auth!;
 
   try {
     const product = await prisma.product.findFirst({
-      where: { id: productId, shopId },
+      where: { uid: productUid, shopId },
     });
     if (!product) {
       res.status(404).json({ error: "Product not found" });
@@ -139,9 +131,13 @@ export const updateProduct = async (
       return;
     }
 
+    const { category, ...restData } = reqData;
     const updatedProduct = await prisma.product.update({
       where: { uid: reqData.uid },
-      data: reqData,
+      data: {
+        ...restData,
+        categoryUid: category,
+      },
     });
 
     res.status(200).json({
@@ -220,9 +216,11 @@ export const addProduct = async (
       });
       const newPosition = lastProduct ? lastProduct.position + 1 : 1;
 
+      const { category, ...productData } = parsed.data;
       const product = await tx.product.create({
         data: {
-          ...parsed.data,
+          ...productData,
+          categoryUid: category,
           uid: uuidv4(),
           shopId,
           shopScopedId: counter.productCounter,

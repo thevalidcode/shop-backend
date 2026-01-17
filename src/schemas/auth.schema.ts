@@ -3,6 +3,25 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
 
-export const blogIdSchema = z.object({
-  blogId: z.coerce.number(),
+export const RoleEnum = z.enum(["USER", "ADMIN"]);
+export type Role = z.infer<typeof RoleEnum>;
+
+export const RedirectToGoogleQuerySchema = z.object({
+  redirect: z.string().url(),
+  shopId: z.coerce.number(),
+  role: RoleEnum.optional().default("USER"),
 });
+
+export const GoogleCallbackQuerySchema = z.object({
+  code: z.coerce.string(),
+  state: z.coerce.string(),
+});
+
+export type RedirectToGoogleQuery = z.infer<typeof RedirectToGoogleQuerySchema>;
+export type GoogleCallbackQuery = z.infer<typeof GoogleCallbackQuerySchema>;
+
+export default {
+  RoleEnum,
+  RedirectToGoogleQuerySchema,
+  GoogleCallbackQuerySchema,
+};

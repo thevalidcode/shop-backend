@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { CategoryStatus } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
@@ -11,7 +12,7 @@ export const CategorySchema = z
     name: z.string(),
     slug: z.string(),
     description: z.string(),
-    status: z.string(),
+    status: z.nativeEnum(CategoryStatus),
     position: z.number(),
     imageUrl: z.string().url().nullable(),
     bannerUrl: z.string().url().nullable(),
@@ -40,7 +41,15 @@ export const CategoryUpdateRequestSchema = z.object({
   imageUrl: z.string().url().optional(),
   bannerUrl: z.string().url().optional(),
   iconUrl: z.string().url().optional(),
-  status: z.string().optional(),
+  status: z.nativeEnum(CategoryStatus).optional(),
   position: z.number().optional(),
   parentUid: z.string().optional(),
+});
+
+export const DeleteCategorySchema = z.object({
+  uid: z.string(),
+});
+
+export const DeleteCategoriesSchema = z.object({
+  uids: z.array(z.string()),
 });

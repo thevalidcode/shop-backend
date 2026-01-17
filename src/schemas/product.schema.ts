@@ -112,6 +112,10 @@ export const ProductUpdateInputSchema = z.object({
   discountValue: z.number().optional(),
 });
 
+export const ProductUidSchema = z.object({
+  productUid: z.string(),
+});
+
 export const DeleteProductInputSchema = z.object({
   uid: z.string(),
 });
@@ -119,3 +123,68 @@ export const DeleteProductInputSchema = z.object({
 export const DeleteMultipleProductsInputSchema = z.object({
   uids: z.array(z.string()),
 });
+
+// Product Query Schemas
+export const GetProductsBasicQuerySchema = z
+  .object({
+    shopId: z.coerce.number(),
+  })
+  .openapi("GetProductsBasicQuery");
+
+export const GetProductsQuerySchema = z
+  .object({
+    shopId: z.coerce.number(),
+    page: z.coerce.number().optional().default(1),
+    limit: z.coerce.number().optional().default(20),
+    search: z.string().optional(),
+    category: z.string().optional(),
+    minPrice: z.coerce.number().optional(),
+    maxPrice: z.coerce.number().optional(),
+    sortBy: z.string().optional().default("position"),
+    sortOrder: z.enum(["asc", "desc"]).optional().default("asc"),
+    isFeatured: z.enum(["true", "false"]).optional(),
+    brand: z.string().optional(),
+  })
+  .openapi("GetProductsQuery");
+
+export const GetProductBySlugSchema = z
+  .object({
+    slug: z.string().min(1),
+    shopId: z.coerce.number(),
+  })
+  .openapi("GetProductBySlug");
+
+export const ProductReviewCreateSchema = z
+  .object({
+    rating: z.number().min(1).max(5),
+    title: z.string().optional(),
+    comment: z.string().min(1),
+  })
+  .openapi("ProductReviewCreate");
+
+export const GetProductReviewsQuerySchema = z
+  .object({
+    page: z.coerce.number().optional().default(1),
+    limit: z.coerce.number().optional().default(10),
+  })
+  .openapi("GetProductReviewsQuery");
+
+export const GetFeaturedProductsQuerySchema = z
+  .object({
+    shopId: z.coerce.number(),
+    limit: z.coerce.number().optional().default(10),
+  })
+  .openapi("GetFeaturedProductsQuery");
+
+export const GetBestSellingQuerySchema = z
+  .object({
+    shopId: z.coerce.number(),
+    limit: z.coerce.number().optional().default(10),
+  })
+  .openapi("GetBestSellingQuery");
+
+export const GetRelatedProductsQuerySchema = z
+  .object({
+    limit: z.coerce.number().optional().default(6),
+  })
+  .openapi("GetRelatedProductsQuery");

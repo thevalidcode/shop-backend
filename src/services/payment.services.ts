@@ -5,6 +5,11 @@ import { initFlutterwavePayment } from "../providers/flutterwave.providers";
 import { initPaystackPayment } from "../providers/paystack.providers";
 import type { CreatePaymentInput } from "../schemas/payment.schema";
 import { TransactionType, User } from "../../prisma/generated";
+import {
+  FlutterwaveWebhookData,
+  PaystackWebhookData,
+} from "../schemas/webhook.schema";
+import type { Request } from "express";
 
 export const createPayment = async (user: User, input: CreatePaymentInput) => {
   const { platform, currency, orderUid, redirect_url } = input;
@@ -34,7 +39,7 @@ export const createPayment = async (user: User, input: CreatePaymentInput) => {
   if (!setting) throw new Error("Platform's settings missing");
 
   const paymentData = {
-    tx_ref: `sub_${orderUid}_${Date.now()}`,
+    tx_ref: order.uid,
     amount: order.totalAmount.toNumber(),
     currency,
     redirect_url,
@@ -48,6 +53,7 @@ export const createPayment = async (user: User, input: CreatePaymentInput) => {
     },
     meta: {
       orderUid: orderUid,
+      txRef: order.uid,
       userUid: user.uid,
       shopId: user.shopId,
       type: "CREDIT" as TransactionType,
@@ -59,10 +65,31 @@ export const createPayment = async (user: User, input: CreatePaymentInput) => {
   }
 
   const parsedSecretKey = {
-    encrypted_key: gateway.encryptedSecretKey,
+    encryptedSecretKey: gateway.encryptedSecretKey,
     iv: gateway.iv,
   };
+  await prisma.$transaction(async (tx) => {
+    const counter = await tx.shopCounter.update({
+      where: { shopId: user.shopId! },
+      data: {
+        paymentCounter: { increment: 1 },
+      },
+    });
 
+    await prisma.payment.create({
+      data: {
+        status: "PENDING",
+        uid: order.uid,
+        amount: order.totalAmount,
+        currency,
+        userUid: user.uid,
+        method: platform,
+        chargedAmount: order.totalAmount,
+        shopScopedId: counter.paymentCounter,
+        shopId: user.shopId!,
+      },
+    });
+  });
   switch (platform) {
     case "FLUTTERWAVE":
       return initFlutterwavePayment(paymentData, parsedSecretKey);
@@ -73,20 +100,36 @@ export const createPayment = async (user: User, input: CreatePaymentInput) => {
   }
 };
 
-const handleFlutterwaveSuccess = async (data: any, customer: any) => {
-  return await flutterwaveProvider.processSuccess(data, customer);
+const handleFlutterwaveSuccess = async (
+  req: Request,
+  data: FlutterwaveWebhookData,
+  customer: FlutterwaveWebhookData["data"]["customer"]
+) => {
+  return await flutterwaveProvider.processSuccess(req, data, customer);
 };
 
-const handleFlutterwaveFailure = async (data: any, customer: any) => {
-  return await flutterwaveProvider.processFailure(data, customer);
+const handleFlutterwaveFailure = async (
+  req: Request,
+  data: FlutterwaveWebhookData,
+  customer: FlutterwaveWebhookData["data"]["customer"]
+) => {
+  return await flutterwaveProvider.processFailure(req, data, customer);
 };
 
-const handlePaystackSuccess = async (data: any, customer: any) => {
-  return await paystackProvider.processSuccess(data, customer);
+const handlePaystackSuccess = async (
+  req: Request,
+  data: PaystackWebhookData,
+  customer: PaystackWebhookData["customer"]
+) => {
+  return await paystackProvider.processSuccess(req, data, customer);
 };
 
-const handlePaystackFailure = async (data: any, customer: any) => {
-  return await paystackProvider.processFailure(data, customer);
+const handlePaystackFailure = async (
+  req: Request,
+  data: PaystackWebhookData,
+  customer: PaystackWebhookData["customer"]
+) => {
+  return await paystackProvider.processFailure(req, data, customer);
 };
 
 export default {

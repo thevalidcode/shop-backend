@@ -4,6 +4,7 @@ import {
   PaymentCreateRequestSchema,
   PaymentUpdateRequestSchema,
 } from "../../schemas/paymentGateway.schema";
+import { UidSchema } from "../../schemas/common.schema";
 
 import {
   PaymentGatewayCreatedResponse,
@@ -55,14 +56,9 @@ registry.registerPath({
   summary: "Get Payment Gateway by UID for admins",
   security: [{ CookieAuth: [] }],
   tags: ["Payment Gateways"],
-  parameters: [
-    {
-      name: "uid",
-      in: "path",
-      required: true,
-      schema: { type: "string" },
-    },
-  ],
+  request: {
+    params: UidSchema,
+  },
   responses: {
     200: PaymentGatewayAdminsObject,
     400: BadRequest,
@@ -77,14 +73,9 @@ registry.registerPath({
   summary: "Get Payment Gateway by UID for users",
   security: [{ CookieAuth: [] }],
   tags: ["Payment Gateways"],
-  parameters: [
-    {
-      name: "uid",
-      in: "path",
-      required: true,
-      schema: { type: "string" },
-    },
-  ],
+  request: {
+    params: UidSchema,
+  },
   responses: {
     200: PaymentGatewayUsersObject,
     400: BadRequest,

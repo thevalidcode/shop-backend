@@ -1,47 +1,5 @@
 import { z } from "zod";
-import { UserSchema, UserPublicSchema } from "../../schemas/user.schema";
-
-export const UpdateSuccess = {
-  description: "User updated successfully",
-  content: {
-    "application/json": {
-      schema: z.object({
-        code: z.literal("update-success"),
-      }),
-    },
-  },
-};
-
-export const InvalidData = {
-  description: "Request is missing or has invalid fields",
-  content: {
-    "application/json": {
-      schema: z.object({
-        error: z.literal("No valid fields to update"),
-      }),
-    },
-  },
-};
-
-export const UsersListResponse = {
-  description: "List of users",
-  content: {
-    "application/json": {
-      schema: z.array(UserSchema),
-    },
-  },
-};
-
-export const UserObject = {
-  description: "Single user data",
-  content: {
-    "application/json": {
-      schema: z.object({
-        user: UserSchema,
-      }),
-    },
-  },
-};
+import { UserSchema } from "../../schemas/user.schema";
 
 export const LoginResponse = {
   description: "Login success response",
@@ -49,56 +7,115 @@ export const LoginResponse = {
     "application/json": {
       schema: z.object({
         success: z.literal("Logged in successfully"),
-        token: z.string(),
         role: z.string(),
-        user: UserPublicSchema,
+        user: UserSchema,
       }),
     },
   },
 };
 
-export const SuccessMessage = {
-  description: "Operation successful",
+export const CreateUserResponse = {
+  description: "User created successfully",
   content: {
     "application/json": {
       schema: z.object({
         success: z.literal("Created Successfully"),
-        token: z.string(),
-        user: UserPublicSchema,
+        user: z.object({
+          id: z.number(),
+          c: z.number(),
+          email: z.string().email(),
+          username: z.string(),
+        }),
       }),
     },
   },
 };
 
-export const AccessDenied = {
-  description: "Access denied for non-admins",
+export const GetUserResponse = {
+  description: "User data retrieved",
   content: {
     "application/json": {
       schema: z.object({
-        error: z.literal("Access denied. Admins only."),
-      }),
-    },
-  },
-};
-
-export const Unauthorized = {
-  description: "Authentication failed",
-  content: {
-    "application/json": {
-      schema: z.object({
-        error: z.string(),
-      }),
-    },
-  },
-};
-
-export const GoogleLoginResponse = {
-  description: "Successful login",
-  content: {
-    "application/json": {
-      schema: z.object({
-        token: z.string(),
         user: UserSchema,
+      }),
+    },
+  },
+};
+
+export const UsersListResponse = {
+  description: "List of all users",
+  content: {
+    "application/json": {
+      schema: z.array(UserSchema),
+    },
+  },
+};
+
+export const UpdateUserResponse = {
+  description: "User updated successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal("Successfully updated user"),
+        user: UserSchema,
+      }),
+    },
+  },
+};
+
+export const UpdateUserByAdminResponse = {
+  description: "User updated by admin successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal("Successfully updated user"),
+      }),
+    },
+  },
+};
+
+export const DeleteUserResponse = {
+  description: "User deleted successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal("Deleted Successfully"),
+      }),
+    },
+  },
+};
+
+export const VerifySessionResponse = {
+  description: "Session verified successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal("User authenticated successfully"),
+        user: UserSchema,
+      }),
+    },
+  },
+};
+
+export const ForgotPasswordResponse = {
+  description: "Password reset email sent",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal(
+          "A password reset link has been sent to your email."
+        ),
+      }),
+    },
+  },
+};
+
+export const ResetPasswordResponse = {
+  description: "Password reset successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal("Password updated successfully."),
       }),
     },
   },

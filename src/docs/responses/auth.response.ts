@@ -14,32 +14,3 @@ export const InvalidGoogleAuthResponse = {
     },
   },
 };
-
-export const SessionVerifiedResponse = {
-  description: "Session verified, cookies set, user authenticated.",
-  content: {
-    "application/json": {
-      schema: z.object({
-        role: z.enum(["admin", "user"]),
-      }),
-    },
-  },
-};
-
-export const InvalidSessionResponse = {
-  description: "Invalid or expired session code.",
-  content: {
-    "application/json": {
-      schema: z.object({ error: z.string() }),
-    },
-  },
-};
-
-export const UserInvalidSessionResponse = {
-  description: "User associated with session code not found.",
-  content: {
-    "application/json": {
-      schema: z.object({ error: z.string() }),
-    },
-  },
-};

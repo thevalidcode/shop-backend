@@ -10,12 +10,13 @@ import "./order.paths";
 import "./blog.paths";
 import "./faq.paths";
 import "./cart.paths";
-import "./checkout.paths";
 import "./payment.paths";
 import "./admin.paths";
 import "./paymentGateway.paths";
 import "./webhook.paths";
 import "./transaction.paths";
 import "./rate.paths";
+import "./support.paths";
+import "./billingInfo.paths";
 
 export { registry };

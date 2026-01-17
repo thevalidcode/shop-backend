@@ -2,31 +2,19 @@ import { z } from "zod";
 import { prisma } from "../config/db.config";
 import { v4 as uuidv4 } from "uuid";
 import type { Request, Response } from "express";
-
-const categoryIdSchema = z.object({
-  categoryId: z.coerce.number(),
-});
-
-const getCategoriesSchema = z.object({
-  shopId: z.coerce.number(),
-});
-
-const updateCategorySchema = z.object({
-  uid: z.string(),
-  name: z.string().optional(),
-  position: z.coerce.number().optional(),
-  description: z.string().optional(),
-});
-
-const deleteCategorySchema = z.object({
-  uid: z.string(),
-});
+import {
+  CategoryCreateRequestSchema,
+  CategoryUpdateRequestSchema,
+  DeleteCategoriesSchema,
+  DeleteCategorySchema,
+} from "../schemas/category.schema";
+import { ShopIdSchema, UidSchema } from "../schemas/common.schema";
 
 export const getCategories = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = getCategoriesSchema.safeParse(req.query);
+  const parsed = ShopIdSchema.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
@@ -44,12 +32,12 @@ export const getCategories = async (
   }
 };
 
-export const getCategoryByID = async (
+export const getCategoryByUID = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const paramsParsed = categoryIdSchema.safeParse(req.params);
-  const queryParsed = getCategoriesSchema.safeParse(req.query);
+  const paramsParsed = UidSchema.safeParse(req.params);
+  const queryParsed = ShopIdSchema.safeParse(req.query);
 
   if (!paramsParsed.success) {
     res.status(400).json({ error: paramsParsed.error.flatten() });
@@ -60,12 +48,12 @@ export const getCategoryByID = async (
     return;
   }
 
-  const { categoryId } = paramsParsed.data;
+  const { uid } = paramsParsed.data;
   const { shopId } = queryParsed.data;
 
   try {
     const category = await prisma.category.findFirst({
-      where: { id: categoryId, shopId },
+      where: { uid, shopId },
     });
     if (!category) {
       res.status(404).json({ error: "Category not found" });
@@ -81,7 +69,7 @@ export const updateCategory = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = updateCategorySchema.safeParse(req.body);
+  const parsed = CategoryUpdateRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
@@ -92,11 +80,11 @@ export const updateCategory = async (
 
   try {
     const categoryToUpdate = await prisma.category.findFirst({
-        where: { uid, shopId }
+      where: { uid, shopId },
     });
     if (!categoryToUpdate) {
-        res.status(404).json({ error: "Category not found in this shop." });
-        return;
+      res.status(404).json({ error: "Category not found in this shop." });
+      return;
     }
 
     const updatedCategory = await prisma.category.update({
@@ -104,9 +92,10 @@ export const updateCategory = async (
       data: parsed.data,
     });
 
-    res
-      .status(200)
-      .json({ success: "Category updated successfully.", category: updatedCategory });
+    res.status(200).json({
+      success: "Category updated successfully.",
+      category: updatedCategory,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -116,7 +105,7 @@ export const deleteCategory = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = deleteCategorySchema.safeParse(req.body);
+  const parsed = DeleteCategorySchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
@@ -140,7 +129,7 @@ export const deleteMultipleCategory = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = z.object({ uids: z.array(z.string()) }).safeParse(req.body);
+  const parsed = DeleteCategoriesSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
@@ -164,12 +153,7 @@ export const addCategory = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = z
-    .object({
-      name: z.string(),
-      description: z.string().optional(),
-    })
-    .safeParse(req.body);
+  const parsed = CategoryCreateRequestSchema.safeParse(req.body);
 
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -179,36 +163,38 @@ export const addCategory = async (
   const { shopId } = req.auth!;
 
   try {
-     const newCategory = await prisma.$transaction(async (tx) => {
-        const counter = await tx.shopCounter.update({
-            where: { shopId },
-            data: { categoryCounter: { increment: 1 } },
-        });
+    const newCategory = await prisma.$transaction(async (tx) => {
+      const counter = await tx.shopCounter.update({
+        where: { shopId },
+        data: { categoryCounter: { increment: 1 } },
+      });
 
-        const lastCategory = await tx.category.findFirst({
-            where: { shopId },
-            orderBy: { position: "desc" },
-        });
-        const newPosition = lastCategory ? lastCategory.position + 1 : 1;
+      const lastCategory = await tx.category.findFirst({
+        where: { shopId },
+        orderBy: { position: "desc" },
+      });
+      const newPosition = lastCategory ? lastCategory.position + 1 : 1;
 
-        const category = await tx.category.create({
-            data: {
-                shopScopedId: counter.categoryCounter,
-                uid: uuidv4(),
-                shopId,
-                slug: parsed.data.name.toLowerCase().replace(/\s+/g, "-"),
-                name: parsed.data.name,
-                description: parsed.data.description || "",
-                status: "Active",
-                position: newPosition,
-            },
-        });
-        return category;
+      const category = await tx.category.create({
+        data: {
+          shopScopedId: counter.categoryCounter,
+          uid: uuidv4(),
+          shopId,
+          slug: parsed.data.name.toLowerCase().replace(/\s+/g, "-"),
+          name: parsed.data.name,
+          description: parsed.data.description || "",
+          status: "ACTIVE",
+          position: newPosition,
+        },
+      });
+      return category;
     });
 
-    res.status(201).json({ success: "Category added successfully.", category: newCategory });
+    res
+      .status(201)
+      .json({ success: "Category added successfully.", category: newCategory });
   } catch (error: any) {
-    console.error("Failed to add category:", error)
+    console.error("Failed to add category:", error);
     res.status(500).json({ error: "Failed to add category." });
   }
 };

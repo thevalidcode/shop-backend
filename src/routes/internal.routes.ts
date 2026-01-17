@@ -1,18 +1,35 @@
 import express from "express";
 const router = express.Router();
-import * as orders from "../controllers/internal.controllers";
-import { authenticateInternalAdmin } from "../middleware/auth";
+import * as internals from "../controllers/internal.controllers";
 import {
-  limittActions,
-  limittAdd,
-} from "../middleware/ratelimit/common.ratelimit";
+  authenticateInternalAdmin,
+  authenticateInternalAnyone,
+} from "../middleware/auth";
 import { openCors } from "../config/cors.config";
 
 router.get(
   "/orders",
   openCors,
   authenticateInternalAdmin,
-  orders.getOrdersForInternalAdmins
+  internals.getOrdersForInternalAdmins
+);
+router.post(
+  "/shops",
+  openCors,
+  authenticateInternalAdmin,
+  internals.createShop
+);
+router.delete(
+  "/shops/:uid",
+  openCors,
+  authenticateInternalAnyone,
+  internals.deleteShop
+);
+router.patch(
+  "/shops/:uid",
+  openCors,
+  authenticateInternalAnyone,
+  internals.updateShop
 );
 
 export default router;

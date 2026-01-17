@@ -1,11 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "./generated"
+  provider      = "prisma-client-js"
+  output        = "./generated"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 /**
@@ -15,99 +15,146 @@ datasource db {
  */
 
 enum ShopStatus {
-  ACTIVE   @map("active")
-  CANCELED @map("canceled")
-  DISABLED @map("disabled")
-  EXPIRED  @map("expired")
+  ACTIVE
+  CANCELED
+  DISABLED
+  EXPIRED
 }
 
 enum UserStatus {
-  ACTIVE   @map("active")
-  INACTIVE @map("inactive")
-  BANNED   @map("banned")
+  ACTIVE
+  INACTIVE
+  BANNED
 }
 
 enum UserRole {
-  BASIC    @map("basic")
-  VIP      @map("vip")
-  RESELLER @map("reseller")
-  PARTNER  @map("partner")
+  BASIC
+  VIP
+  RESELLER
+  PARTNER
 }
 
 enum AdminStatus {
-  ACTIVE   @map("active")
-  INACTIVE @map("inactive")
-  BANNED   @map("banned")
+  ACTIVE
+  INACTIVE
+  BANNED
 }
 
 enum AdminRole {
-  SUPER           @map("super")
-  BASIC           @map("basic")
-  MANAGER         @map("manager")
-  SUPPORTSTAFF    @map("support_staff")
-  FINANCEOFFICER  @map("finance_officer")
-  SERVICEOPERATOR @map("service_operator")
+  SUPER
+  BASIC
+  MANAGER
+  SUPPORT_STAFF
+  FINANCE_OFFICER
+  SERVICE_OPERATOR
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum ProductStatus {
-  ACTIVE   @map("active")
-  DISABLED @map("disabled")
+  ACTIVE
+  DISABLED
 }
 
 enum OrderStatus {
-  PENDING    @map("Pending")
-  PROCESSING @map("Processing")
-  SHIPPED    @map("Shipped")
-  DELIVERED  @map("Delivered")
-  CANCELED   @map("Canceled")
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELED
+  REFUNDED
 }
 
 enum BlogStatus {
-  ACTIVE   @map("active")
-  INACTIVE @map("inactive")
+  ACTIVE
+  DISABLED
 }
 
 enum FaqStatus {
-  ACTIVE   @map("active")
-  INACTIVE @map("inactive")
+  ACTIVE
+  DISABLED
+}
+
+enum CategoryStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum PageStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PageType {
+  PRODUCTS
+  ORDERS
+  ORDER
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+  ABOUT_US
+  CONTACT_US
 }
 
 enum DiscountType {
-  PERCENTAGE @map("percentage")
-  FIXED      @map("fixed")
+  PERCENTAGE
+  FIXED
 }
 
 enum AffiliateMode {
-  PERCENTAGE @map("percentage")
-  FIXED      @map("fixed")
+  PERCENTAGE
+  FIXED
 }
 
-enum PaymentMethod {
-  MANUAL      @map("manual")
-  FLUTTERWAVE @map("flutterwave")
-  PAYSTACK    @map("paystack")
-}
-
-enum ContactStatus {
-  NEW      @map("new")
-  READ     @map("read")
-  ARCHIVED @map("archived")
-}
-
-enum TransactionType {
-  WALLET_CREDIT @map("wallet_credit")
-  WALLET_DEBIT  @map("wallet_debit")
+enum PaymentGatewayPlatform {
+  MANUAL
+  FLUTTERWAVE
+  PAYSTACK
+  REFERRAL
 }
 
 enum PaymentGatewayStatus {
-  ACTIVE   @map("active")
-  DISABLED @map("disabled")
+  ACTIVE
+  DISABLED
 }
 
 enum PaymentStatus {
-  PENDING @map("pending")
-  SUCCESS @map("success")
-  FAILED  @map("failed")
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum TransactionType {
+  ORDER_PAYMENT
+  REFERRAL_CREDIT
+  REFUND
+}
+
+enum EmailStatus {
+  SUCCESS
+  ERROR
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MessageSenderType {
+  USER
+  ADMIN
 }
 
 /**
@@ -117,60 +164,64 @@ enum PaymentStatus {
  */
 
 model Shop {
-  shopId      Int      @id @map("shop_id")
-  uid         String   @unique
-  ssl         Boolean  @default(false)
-  timestamp   DateTime @default(now())
-  name        String
+  shopId      Int        @id @map("shop_id")
+  uid         String     @unique // Shop domain e.g myshop.com
+  ssl         Boolean    @default(false)
+  timestamp   DateTime   @default(now())
+  status      ShopStatus
   description String?
+  expiresAt   DateTime?  @map("expires_at")
+  startedAt   DateTime?  @map("started_at")
+  features    Json
+  name        String
+  planId      Int        @map("plan_id")
 
-  // mirrored fields
-  plan      String
-  status    ShopStatus
-  expiresAt DateTime?  @map("expires_at")
-  features  Json
-
-  User             User[]
   Admin            Admin[]
-  Product          Product[]
-  Order            Order[]
   AdminEmail       AdminEmail[]
   AffiliateSetting AffiliateSetting[]
   Blog             Blog[]
+  BillingInfo      BillingInfo[]
+  Cart             Cart[]
   Category         Category[]
   DesignStyle      DesignStyle[]
   EmailLog         EmailLog[]
   EmailTemplate    EmailTemplate[]
   Faq              Faq[]
-  Setting          Setting[]
-  SessionCode      SessionCode[]
-  ContactMessage   ContactMessage[]
+  Order            Order[]
+  Page             Page[]
   PaymentGateway   PaymentGateway[]
-  Transaction      Transaction[]
-  shopCounter      ShopCounter?
   Payment          Payment[]
+  Product          Product[]
+  SessionCode      SessionCode[]
+  Setting          Setting[]
+  shopCounter      ShopCounter?
+  SupportTicket    SupportTicket[]
+  Transaction      Transaction[]
+  User             User[]
+  uploadLogs       UploadLog[]
 
   @@map("shops")
 }
 
 model ShopCounter {
-  shopId Int @id @map("shop_id")
-
+  shopId                Int @id @map("shop_id")
   productCounter        Int @default(0) @map("product_counter")
   orderCounter          Int @default(0) @map("order_counter")
+  cartCounter           Int @default(0) @map("cart_counter")
+  cartItemCounter       Int @default(0) @map("cart_item_counter")
   blogCounter           Int @default(0) @map("blog_counter")
   faqCounter            Int @default(0) @map("faq_counter")
+  pageCounter           Int @default(0) @map("page_counter")
   categoryCounter       Int @default(0) @map("category_counter")
   userCounter           Int @default(0) @map("user_counter")
   emailLogCounter       Int @default(0) @map("email_log_counter")
-  adminEmailCounter     Int @default(0) @map("admin_email_counter")
-  sessionCodeCounter    Int @default(0) @map("session_code_counter")
-  cartCounter           Int @default(0) @map("cart_counter")
-  cartItemCounter       Int @default(0) @map("cart_item_counter")
-  contactMessageCounter Int @default(0) @map("contact_message_counter")
+  emailTemplateCounter  Int @default(0) @map("email_template_counter")
   paymentGatewayCounter Int @default(0) @map("payment_gateway_counter")
-  TransactionCounter    Int @default(0) @map("wallet_transaction_counter")
+  supportTicketCounter  Int @default(0) @map("support_ticket_counter")
   paymentCounter        Int @default(0) @map("payment_counter")
+  transactionCounter    Int @default(0) @map("transaction_counter")
+  uploadLogCounter      Int @default(0) @map("upload_log_counter")
+  billingInfoCounter    Int @default(0) @map("billing_info_counter")
 
   shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
@@ -178,34 +229,38 @@ model ShopCounter {
 }
 
 model User {
-  id           Int        @id @default(autoincrement())
-  shopScopedId Int
-  refCode      Int?       @unique @default(autoincrement()) @map("ref_code")
-  uid          String     @unique
-  email        String
-  fullName     String
-  image        String?
-  password     String
-  username     String
-  apiKey       String     @unique @map("api_key")
-  role         UserRole   @default(BASIC)
-  status       UserStatus @default(ACTIVE)
-  shopId       Int        @map("shop_id")
-  shop         Shop       @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  balance      Decimal    @default(0.00) @db.Decimal(10, 2)
-  spent        Decimal    @default(0.00) @db.Decimal(10, 2)
-  timestamp    DateTime   @default(now())
-  lastSeen     DateTime   @default(now()) @map("last_seen")
-  currency     String     @default("USD")
+  id               Int        @id @default(autoincrement())
+  shopScopedId     Int        @map("shop_scoped_id")
+  refCode          Int?       @unique @default(autoincrement()) @map("ref_code")
+  uid              String     @unique
+  email            String
+  image            String?
+  password         String
+  username         String
+  apiKey           String     @unique @default(uuid()) @map("api_key")
+  shopId           Int        @map("shop_id")
+  spent            Decimal    @default(0.00) @db.Decimal(10, 2)
+  timestamp        DateTime   @default(now())
+  lastSeen         DateTime   @default(now()) @map("last_seen")
+  currency         String     @default("USD")
+  ref              Int?
+  role             UserRole   @default(BASIC)
+  status           UserStatus @default(ACTIVE)
+  fullName         String?    @map("full_name")
+  resetToken       String?    @map("reset_token")
+  resetTokenExpiry DateTime?  @map("reset_token_expiry")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
 
-  ref        Int?
-  referredBy User?  @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
-  referrals  User[] @relation("Referral")
-
-  cart         Cart?
-  transactions Transaction[]
-  Order        Order[]
-  Payment      Payment[]
+  BillingInfo   BillingInfo[]
+  Order         Order[]
+  Cart          Cart[]
+  Payment       Payment[]
+  SupportTicket SupportTicket[]
+  transactions  Transaction[]
+  reviews       ProductReview[]
+  referredBy    User?           @relation("Referral", fields: [ref], references: [refCode])
+  referrals     User[]          @relation("Referral")
+  shop          Shop            @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
   @@unique([shopId, shopScopedId])
   @@unique([email, shopId])
@@ -214,83 +269,178 @@ model User {
 }
 
 model Admin {
-  id        Int         @id @default(autoincrement())
-  uid       String      @unique
-  email     String
-  image     String?
-  password  String
-  username  String
-  apiKey    String      @unique @map("api_key")
-  role      AdminRole   @default(BASIC)
-  status    AdminStatus @default(ACTIVE)
-  shopId    Int         @map("shop_id")
-  shop      Shop        @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp DateTime    @default(now())
-  lastSeen  DateTime    @default(now()) @map("last_seen")
+  id                  Int         @id @default(autoincrement())
+  uid                 String      @unique
+  email               String
+  image               String?
+  password            String
+  username            String
+  apiKey              String      @map("api_key")
+  shopId              Int         @unique @map("shop_id")
+  timestamp           DateTime    @default(now())
+  lastSeen            DateTime    @default(now()) @map("last_seen")
+  role                AdminRole   @default(BASIC)
+  status              AdminStatus @default(ACTIVE)
+  fullName            String?     @map("full_name")
+  onboardingCompleted Boolean?    @default(false) @map("onboarding_completed")
+  resetToken          String?     @map("reset_token")
+  resetTokenExpiry    DateTime?   @map("reset_token_expiry")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
 
-  @@unique([email, shopId])
+  shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
   @@map("admins")
 }
 
 model Product {
-  id            Int           @id @default(autoincrement()) @map("id")
+  id            Int           @id @default(autoincrement())
   shopScopedId  Int           @map("shop_scoped_id")
-  uid           String        @unique
+  uid           String        @unique @default(uuid())
   name          String
   description   String?
-  category      String
+  categoryUid   String?       @map("category_uid")
   min           Int           @default(1)
-  max           Int           @default(1)
-  position      Int           @default(0)
+  max           Int           @default(100)
+  position      Int           @default(1)
   status        ProductStatus @default(ACTIVE)
   stock         Int           @default(0)
-  sku           String?
+  sku           String?       @unique
   imageUrl      String?       @map("image_url")
   galleryUrls   String[]      @map("gallery_urls")
   tags          String[]
   isFeatured    Boolean       @default(false) @map("is_featured")
   brand         String?
-  weight        Decimal?
+  weight        Decimal?      @db.Decimal(10, 2)
   dimensions    String?
-  price         Decimal       @default(0.00)
-  comparePrice  Decimal?      @map("compare_price")
+  price         Decimal       @default(0.00) @db.Decimal(10, 2)
+  comparePrice  Decimal?      @map("compare_price") @db.Decimal(10, 2)
   discountType  DiscountType? @map("discount_type")
-  discountValue Decimal?      @map("discount_value")
+  discountValue Decimal?      @map("discount_value") @db.Decimal(10, 2)
   slug          String
   shopId        Int           @map("shop_id")
-  timestamp     DateTime      @default(now())
 
-  shop       Shop        @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  cartItems  CartItem[]
+  // SEO fields
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  metaKeywords    String[] @map("meta_keywords")
+
+  // Advanced e-commerce features
+  averageRating Decimal? @default(0) @map("average_rating") @db.Decimal(3, 2)
+  totalReviews  Int      @default(0) @map("total_reviews")
+  totalSales    Int      @default(0) @map("total_sales")
+  viewCount     Int      @default(0) @map("view_count")
+
+  // Inventory management
+  lowStockThreshold Int?    @map("low_stock_threshold")
+  trackInventory    Boolean @default(true) @map("track_inventory")
+  allowBackorder    Boolean @default(false) @map("allow_backorder")
+
+  // Product attributes
+  color    String?
+  size     String?
+  material String?
+
+  timestamp DateTime @default(now())
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  shop       Shop             @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  category   Category?        @relation(fields: [categoryUid], references: [uid], onDelete: SetNull)
   orderItems OrderItem[]
+  cartItems  CartItem[]
+  reviews    ProductReview[]
+  images     ProductImage[]
+  variants   ProductVariant[]
 
   @@unique([shopId, shopScopedId])
   @@unique([slug, shopId])
   @@map("products")
 }
 
-model Order {
-  id                Int           @id @default(autoincrement()) @map("id")
-  shopScopedId      Int           @map("shop_scoped_id")
-  uid               String        @unique
-  orderRef          String        @unique @map("order_ref")
-  userUid           String        @map("user_uid")
-  totalAmount       Decimal       @map("total_amount") @db.Decimal(10, 2)
-  currency          String        @default("USD")
-  status            OrderStatus   @default(PENDING)
-  shippingAddress   String        @map("shipping_address")
-  billingAddress    String        @map("billing_address")
-  paymentMethod     PaymentMethod @map("payment_method")
-  paymentReference  String?       @map("payment_reference")
-  trackingNumber    String?       @map("tracking_number")
-  estimatedDelivery DateTime?     @map("estimated_delivery")
-  deliveredAt       DateTime?     @map("delivered_at")
-  timestamp         DateTime      @default(now())
-  shopId            Int           @map("shop_id")
+model ProductImage {
+  id         Int      @id @default(autoincrement())
+  uid        String   @unique @default(uuid())
+  productUid String   @map("product_uid")
+  imageUrl   String   @map("image_url")
+  altText    String?  @map("alt_text")
+  position   Int      @default(1)
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  timestamp  DateTime @default(now())
 
-  shop  Shop        @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  user  User        @relation(fields: [userUid], references: [uid], onDelete: Cascade)
-  items OrderItem[]
+  product Product @relation(fields: [productUid], references: [uid], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model ProductVariant {
+  id           Int      @id @default(autoincrement())
+  uid          String   @unique @default(uuid())
+  productUid   String   @map("product_uid")
+  name         String
+  sku          String?  @unique
+  price        Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @map("compare_price") @db.Decimal(10, 2)
+  stock        Int      @default(0)
+  imageUrl     String?  @map("image_url")
+
+  // Variant attributes
+  color    String?
+  size     String?
+  material String?
+  weight   Decimal? @db.Decimal(10, 2)
+
+  position  Int      @default(1)
+  isDefault Boolean  @default(false) @map("is_default")
+  timestamp DateTime @default(now())
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productUid], references: [uid], onDelete: Cascade)
+
+  @@map("product_variants")
+}
+
+model ProductReview {
+  id         Int          @id @default(autoincrement())
+  uid        String       @unique @default(uuid())
+  productUid String       @map("product_uid")
+  userUid    String       @map("user_uid")
+  rating     Int
+  title      String?
+  comment    String?
+  isVerified Boolean      @default(false) @map("is_verified")
+  status     ReviewStatus @default(PENDING)
+  timestamp  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productUid], references: [uid], onDelete: Cascade)
+  user    User    @relation(fields: [userUid], references: [uid], onDelete: Cascade)
+
+  @@map("product_reviews")
+}
+
+model Order {
+  id                Int         @id @default(autoincrement())
+  shopScopedId      Int         @map("shop_scoped_id")
+  uid               String      @unique @default(uuid())
+  orderRef          String      @unique @map("order_ref")
+  userUid           String      @map("user_uid")
+  totalAmount       Decimal     @map("total_amount") @db.Decimal(10, 2)
+  currency          String      @default("USD")
+  status            OrderStatus @default(PENDING)
+  billingInfoUid    String      @map("billing_info_uid")
+  paymentReference  String?     @map("payment_reference")
+  paymentMethod     String?     @map("payment_method")
+  trackingNumber    String?     @map("tracking_number")
+  estimatedDelivery DateTime?   @map("estimated_delivery")
+  deliveredAt       DateTime?   @map("delivered_at")
+  notes             String?
+  timestamp         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  shopId            Int         @map("shop_id")
+
+  shop        Shop        @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  user        User        @relation(fields: [userUid], references: [uid], onDelete: Cascade)
+  billingInfo BillingInfo @relation(fields: [billingInfoUid], references: [uid], onDelete: Restrict)
+  items       OrderItem[]
 
   @@unique([shopId, shopScopedId])
   @@map("orders")
@@ -298,52 +448,112 @@ model Order {
 
 model OrderItem {
   id                    Int     @id @default(autoincrement())
+  uid                   String  @unique @default(uuid())
   orderId               Int     @map("order_id")
-  productId             Int     @map("product_id")
+  productUid            String  @map("product_uid")
   quantity              Int
   priceAtTimeOfPurchase Decimal @map("price_at_time_of_purchase") @db.Decimal(10, 2)
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productUid], references: [uid], onDelete: Restrict)
 
   @@map("order_items")
 }
 
+model Cart {
+  id           Int    @id @default(autoincrement())
+  shopScopedId Int    @map("shop_scoped_id")
+  uid          String @unique @default(uuid())
+  userUid      String @map("user_uid")
+  shopId       Int    @map("shop_id")
+
+  shop  Shop       @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  user  User       @relation(fields: [userUid], references: [uid], onDelete: Cascade)
+  items CartItem[]
+
+  @@unique([userUid, shopId])
+  @@map("carts")
+}
+
+model CartItem {
+  id           Int    @id @default(autoincrement())
+  shopScopedId Int    @map("shop_scoped_id")
+  uid          String @unique @default(uuid())
+  cartId       Int    @map("cart_id")
+  productId    Int    @map("product_id")
+  quantity     Int
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("cart_items")
+}
+
+model BillingInfo {
+  id           Int      @id @default(autoincrement())
+  shopScopedId Int      @map("shop_scoped_id")
+  uid          String   @unique @default(uuid())
+  userUid      String   @map("user_uid")
+  shopId       Int      @map("shop_id")
+  fullName     String   @map("full_name")
+  email        String
+  phone        String
+  address      String
+  city         String
+  state        String
+  postalCode   String   @map("postal_code")
+  country      String
+  isDefault    Boolean  @default(false) @map("is_default")
+  timestamp    DateTime @default(now())
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userUid], references: [uid], onDelete: Cascade)
+  shop   Shop    @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([shopId, shopScopedId])
+  @@map("billing_info")
+}
+
 model Blog {
-  id           Int        @id @default(autoincrement()) @map("id")
+  id           Int        @id @default(autoincrement())
   shopScopedId Int        @map("shop_scoped_id")
   title        String
   content      String
-  description  String     @default("")
-  status       BlogStatus @default(ACTIVE)
   position     Int
   slug         String
-  uid          String     @unique
+  uid          String     @unique @default(uuid())
   shopId       Int        @map("shop_id")
+  coverImage   String     @default("") @map("cover_image")
+  status       BlogStatus @default(ACTIVE)
+  excerpt      String
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
   shop         Shop       @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp    DateTime   @default(now())
 
   @@unique([shopId, shopScopedId])
-  @@unique([slug, shopId])
   @@map("blogs")
 }
 
 model Category {
-  id           Int      @id @default(autoincrement()) @map("id")
-  shopScopedId Int      @map("shop_scoped_id")
-  uid          String   @unique
+  id           Int            @id @default(autoincrement())
+  shopScopedId Int            @map("shop_scoped_id")
   name         String
+  timestamp    DateTime       @default(now())
+  description  String         @default("")
+  position     Int
+  uid          String         @unique @default(uuid())
+  shopId       Int            @map("shop_id")
+  status       CategoryStatus @default(ACTIVE)
+  icon         String?
   slug         String
-  description  String   @default("")
-  imageUrl     String?  @map("image_url")
-  bannerUrl    String?  @map("banner_url")
-  iconUrl      String?  @map("icon_url")
-  status       String   @default("active")
-  position     Int      @default(1)
-  parentUid    String?  @map("parent_uid")
-  shopId       Int      @map("shop_id")
-  shop         Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp    DateTime @default(now())
+  imageUrl     String?        @map("image_url")
+  bannerUrl    String?        @map("banner_url")
+  parentUid    String?        @map("parent_uid")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  shop     Shop      @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  products Product[]
 
   @@unique([shopId, shopScopedId])
   @@unique([slug, shopId])
@@ -351,209 +561,55 @@ model Category {
 }
 
 model Faq {
-  id           Int       @id @default(autoincrement()) @map("id")
+  id           Int       @id @default(autoincrement())
   shopScopedId Int       @map("shop_scoped_id")
   question     String
   answer       String
-  status       FaqStatus @default(ACTIVE)
   position     Int
   slug         String
-  uid          String    @unique
+  uid          String    @unique @default(uuid())
   shopId       Int       @map("shop_id")
-  shop         Shop      @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
   timestamp    DateTime  @default(now())
+  status       FaqStatus @default(ACTIVE)
+  shop         Shop      @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
   @@unique([shopId, shopScopedId])
-  @@unique([slug, shopId])
   @@map("faqs")
 }
 
-model EmailLog {
-  id           Int      @id @default(autoincrement()) @map("id")
-  shopScopedId Int      @map("shop_scoped_id")
-  uid          String   @unique
-  sender       String
-  receiver     String
-  subject      String
-  html         String
-  status       String
-  messageId    String?  @map("message_id")
-  response     String?
-  shopId       Int      @map("shop_id")
-  shop         Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp    DateTime @default(now())
+model Page {
+  id           Int        @id @default(autoincrement())
+  shopScopedId Int        @map("shop_scoped_id")
+  uid          String     @unique @default(uuid())
+  title        String
+  content      String
+  description  String?
+  pageType     PageType   @map("page_type")
+  status       PageStatus @default(ACTIVE)
+  shopId       Int        @map("shop_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  shop         Shop       @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
   @@unique([shopId, shopScopedId])
-  @@map("email_logs")
-}
-
-model AdminEmail {
-  id           Int      @id @default(autoincrement())
-  uid          String   @unique
-  emails       String[]
-  shopId       Int      @map("shop_id")
-  shopScopedId Int // Added for shop-specific unique ID
-  shop         Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp    DateTime @default(now())
-
-  @@unique([shopId, shopScopedId])
-  @@map("admins_emails")
-}
-
-model AffiliateSetting {
-  id      Int           @id @default(autoincrement()) @map("id")
-  uid     String        @unique
-  percent Int
-  mode    AffiliateMode @default(PERCENTAGE)
-  shopId  Int           @map("shop_id")
-  shop    Shop          @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-
-  @@unique([shopId])
-  @@map("affiliate_settings")
-}
-
-model DesignStyle {
-  id     Int    @id @default(autoincrement()) @map("id")
-  uid    String @unique
-  shopId Int    @map("shop_id")
-  shop   Shop   @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  title  String
-  hex    String
-  schema Json
-
-  @@unique([shopId])
-  @@map("design_styles")
-}
-
-model EmailTemplate {
-  id        Int      @id @default(autoincrement()) @map("id")
-  uid       String   @unique
-  type      String
-  content   String
-  shopId    Int      @map("shop_id")
-  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  timestamp DateTime @default(now())
-
-  @@unique([type, shopId])
-  @@map("email_templates")
+  @@unique([shopId, pageType])
+  @@map("pages")
 }
 
 model Setting {
-  id                    Int     @id @default(autoincrement()) @map("id")
-  uid                   String  @unique
-  shopId                Int     @map("shop_id")
-  shop                  Shop    @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  shopName              String  @default("Shop")
-  shopDescription       String?
-  logoUrl               String? @map("logo_url")
-  faviconUrl            String? @map("favicon_url")
-  defaultClientCurrency String? @map("default_client_currency")
+  id                    Int      @id @default(autoincrement())
+  uid                   String   @unique @default(uuid())
+  shopId                Int      @unique @map("shop_id")
+  shopName              String   @default("My Shop") @map("shop_name")
+  shopDescription       String?  @map("shop_description")
+  logoUrl               String?  @map("logo_url")
+  faviconUrl            String?  @map("favicon_url")
+  defaultClientCurrency String?  @map("default_client_currency")
+  showBanner            Boolean? @default(true) @map("show_banner")
+  onboardingCompleted   Boolean? @default(false) @map("onboarding_completed")
+  shop                  Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
-  @@unique([shopId])
   @@map("settings")
-}
-
-model SessionCode {
-  code         String   @id
-  email        String
-  shopId       Int      @map("shop_id")
-  shopScopedId Int
-  shop         Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  expiresAt    DateTime @map("expires_at")
-  used         Boolean  @default(false)
-
-  @@unique([shopId, shopScopedId])
-  @@map("session_codes")
-}
-
-model Cart {
-  id           Int      @id @default(autoincrement())
-  uid          String   @unique @default(uuid())
-  shopId       Int      @map("shop_id")
-  shopScopedId Int
-  userUid      String   @unique @map("user_uid")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  user  User       @relation(fields: [userUid], references: [uid], onDelete: Cascade)
-  items CartItem[]
-
-  @@unique([shopId, shopScopedId])
-  @@map("carts")
-}
-
-model CartItem {
-  id           Int @id @default(autoincrement())
-  cartId       Int @map("cart_id")
-  productId    Int @map("product_id")
-  shopScopedId Int
-  quantity     Int
-
-  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([cartId, productId])
-  @@unique([cartId, shopScopedId])
-  @@map("cart_items")
-}
-
-model ContactMessage {
-  id           Int           @id @default(autoincrement())
-  uid          String        @unique @default(uuid())
-  shopId       Int           @map("shop_id")
-  shopScopedId Int
-  name         String
-  email        String
-  phone        String?
-  message      String
-  status       ContactStatus @default(NEW)
-  timestamp    DateTime      @default(now())
-
-  shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-
-  @@unique([shopId, shopScopedId])
-  @@map("contact_messages")
-}
-
-model PaymentGateway {
-  id                 Int                  @id @default(autoincrement())
-  uid                String               @unique @default(uuid())
-  shopId             Int                  @map("shop_id")
-  shopScopedId       Int
-  name               String
-  description        String?
-  encryptedSecretKey String?              @map("encrypted_secret_key")
-  iv                 String?
-  platform           PaymentMethod
-  status             PaymentGatewayStatus
-  signature          String?
-  image              String
-  position           Int                  @default(autoincrement())
-  createdAt          DateTime             @default(now()) @map("created_at")
-
-  shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-
-  @@unique([shopId, name])
-  @@unique([shopId, shopScopedId])
-  @@map("payment_gateways")
-}
-
-model Transaction {
-  id           Int             @id @default(autoincrement())
-  uid          String          @unique @default(uuid())
-  userUid      String          @map("user_uid")
-  shopId       Int             @map("shop_id")
-  shopScopedId Int
-  amount       Decimal         @db.Decimal(10, 2)
-  type         TransactionType
-  description  String
-  timestamp    DateTime        @default(now())
-
-  user User @relation(fields: [userUid], references: [uid], onDelete: Cascade)
-  shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-
-  @@unique([shopId, shopScopedId])
-  @@map("transactions")
 }
 
 model InternalApiSession {
@@ -567,22 +623,210 @@ model InternalApiSession {
   @@map("internal_api_sessions")
 }
 
-model Payment {
-  id            Int           @id @default(autoincrement())
-  uid           String        @unique @default(uuid())
-  userUid       String        @map("user_id")
-  currency      String
-  amount        Decimal       @db.Decimal(10, 2)
-  chargedAmount Decimal       @map("charged_amount") @db.Decimal(10, 2)
-  status        PaymentStatus
-  method        PaymentMethod
-  createdAt     DateTime      @default(now()) @map("created_at")
-  shopId        Int           @map("shop_id")
-  shopScopedId  Int
+model PaymentGateway {
+  id                 Int                    @id @default(autoincrement())
+  shopScopedId       Int                    @map("shop_scoped_id")
+  uid                String                 @unique @default(uuid())
+  name               String
+  description        String?
+  encryptedSecretKey String?                @map("encrypted_secret_key")
+  iv                 String?
+  image              String
+  createdAt          DateTime               @default(now()) @map("created_at")
+  shopId             Int                    @map("shop_id")
+  min                Decimal                @db.Decimal(10, 2)
+  max                Decimal                @db.Decimal(10, 2)
+  position           Int
+  status             PaymentGatewayStatus   @default(ACTIVE)
+  platform           PaymentGatewayPlatform @default(MANUAL)
+  signature          String?
+  webhookUrl         String?                @map("webhook_url")
+  feePercent         Int?                   @default(0) @map("fee_percent")
+  shop               Shop                   @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
-  user User @relation(fields: [userUid], references: [uid])
-  shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  @@unique([shopId, shopScopedId])
+  @@map("payment_gateways")
+}
+
+model SupportTicket {
+  id           Int             @id @default(autoincrement())
+  uid          String          @unique @default(uuid())
+  shopId       Int             @map("shop_id")
+  userUid      String          @map("user_uid")
+  shopScopedId Int             @map("shop_scoped_id")
+  subject      String
+  status       TicketStatus    @default(OPEN)
+  priority     TicketPriority  @default(MEDIUM)
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  description  String?
+  shop         Shop            @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  user         User            @relation(fields: [userUid], references: [uid], onDelete: Cascade)
+  messages     TicketMessage[] @relation("TicketMessages")
+
+  @@unique([shopId, shopScopedId])
+  @@index([shopId])
+  @@index([userUid])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id         Int               @id @default(autoincrement())
+  uid        String            @unique @default(uuid())
+  ticketUid  String            @map("ticket_uid")
+  senderUid  String            @map("sender_uid")
+  senderType MessageSenderType @map("sender_type")
+  message    String
+  createdAt  DateTime          @default(now()) @map("created_at")
+  ticket     SupportTicket     @relation("TicketMessages", fields: [ticketUid], references: [uid], onDelete: Cascade)
+
+  @@index([ticketUid])
+  @@index([senderUid])
+  @@map("ticket_messages")
+}
+
+model Transaction {
+  id           Int             @id @default(autoincrement())
+  shopScopedId Int             @map("shop_scoped_id")
+  uid          String          @unique @default(uuid())
+  amount       Decimal         @db.Decimal(10, 2)
+  timestamp    DateTime        @default(now())
+  currency     String          @default("USD")
+  userUid      String          @map("user_uid")
+  shopId       Int             @map("shop_id")
+  description  String
+  type         TransactionType
+  shop         Shop            @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  user         User            @relation(fields: [userUid], references: [uid], onDelete: Cascade)
+
+  @@unique([shopId, shopScopedId])
+  @@map("transactions")
+}
+
+model Payment {
+  id            Int                    @id @default(autoincrement())
+  uid           String                 @unique @default(uuid())
+  userUid       String                 @map("user_id")
+  currency      String
+  amount        Decimal                @db.Decimal(10, 2)
+  chargedAmount Decimal                @map("charged_amount") @db.Decimal(10, 2)
+  status        PaymentStatus
+  method        PaymentGatewayPlatform
+  createdAt     DateTime               @default(now()) @map("created_at")
+  shopId        Int                    @map("shop_id")
+  shopScopedId  Int                    @map("shop_scoped_id")
+  shop          Shop                   @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  user          User                   @relation(fields: [userUid], references: [uid], onDelete: Cascade)
 
   @@unique([shopId, shopScopedId])
   @@map("payments")
+}
+
+model EmailLog {
+  id           Int         @id @default(autoincrement())
+  shopScopedId Int         @map("shop_scoped_id")
+  uid          String      @unique @default(uuid())
+  sender       String
+  receiver     String
+  subject      String
+  html         String
+  status       EmailStatus
+  messageId    String?     @map("message_id")
+  response     String?
+  shopId       Int         @map("shop_id")
+  timestamp    DateTime    @default(now())
+  shop         Shop        @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
+  @@unique([shopId, shopScopedId])
+  @@map("email_logs")
+}
+
+model EmailTemplate {
+  id           Int      @id @default(autoincrement())
+  shopScopedId Int      @map("shop_scoped_id")
+  uid          String   @unique @default(uuid())
+  content      String // HTML template with {{variables}}
+  name         String? // human-readable name
+  shopId       Int      @map("shop_id")
+  subject      String // optional default subject
+  type         String // e.g., "PASSWORD_RESET", "WELCOME_USER", "ORDER_CONFIRMATION"
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  shop         Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
+  @@unique([shopId, shopScopedId])
+  @@map("email_templates")
+}
+
+model AdminEmail {
+  id        Int      @id @default(autoincrement())
+  uid       String   @unique @default(uuid())
+  emails    String[]
+  shopId    Int      @unique @map("shop_id")
+  timestamp DateTime @default(now())
+  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
+  @@map("admins_emails")
+}
+
+model AffiliateSetting {
+  id      Int           @id @default(autoincrement())
+  uid     String        @unique @default(uuid())
+  percent Int
+  mode    AffiliateMode @default(PERCENTAGE)
+  shopId  Int           @unique @map("shop_id")
+  shop    Shop          @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
+  @@map("affiliate_settings")
+}
+
+model DesignStyle {
+  id           Int     @id @default(autoincrement())
+  shopScopedId Int     @map("shop_scoped_id")
+  uid          String  @unique @default(uuid())
+  shopId       Int     @map("shop_id")
+  hex          String
+  schema       Json
+  name         String?
+  shop         Shop    @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
+  @@unique([shopId, shopScopedId])
+  @@map("design_styles")
+}
+
+model SessionCode {
+  code      String   @id
+  email     String
+  shopId    Int      @map("shop_id")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  shop      Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
+  @@map("session_codes")
+}
+
+model ExchangeRate {
+  id          Int      @id @default(autoincrement())
+  rates       Json
+  lastUpdated DateTime @default(now()) @map("last_updated")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("exchange_rates")
+}
+
+model UploadLog {
+  id           Int      @id @default(autoincrement())
+  shopScopedId Int      @map("shop_scoped_id")
+  uid          String   @unique @default(uuid())
+  size         Int
+  url          String
+  collection   String
+  filename     String
+  mimetype     String
+  shopId       Int      @map("shop_id")
+  timestamp    DateTime @default(now())
+  shop         Shop     @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+
+  @@unique([shopId, shopScopedId])
+  @@map("upload_logs")
 }

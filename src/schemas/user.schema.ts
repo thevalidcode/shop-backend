@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { UserRole, UserStatus } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
@@ -11,10 +12,9 @@ export const UserSchema = z
     email: z.string().email(),
     fullName: z.string(),
     username: z.string(),
-    password: z.string(),
-    status: z.string(),
+    status: z.nativeEnum(UserStatus),
     apiKey: z.string(),
-    role: z.string(),
+    role: z.nativeEnum(UserRole),
   })
   .openapi("User");
 
@@ -64,11 +64,8 @@ export const CreateUserInputSchema = z.object({
   username: z.string().describe("User username"),
   fullName: z.string().describe("User username"),
   password: z.string().describe("User password"),
-  shopDomain: z.string().min(1).describe("Shop domain to join"),
-  ref: z
-    .union([z.string(), z.number()])
-    .optional()
-    .describe("Optional referral ID"),
+  shopId: z.number().min(1).describe("Shop ID to join"),
+  ref: z.coerce.number().optional().describe("Optional referral ID"),
 });
 
 export const CreateUserResponseSchema = z.object({
@@ -77,8 +74,7 @@ export const CreateUserResponseSchema = z.object({
     id: z.number(),
     email: z.string(),
     username: z.string(),
-    shopDomain: z.string(),
-    shopUrl: z.string(),
+    shopScopedId: z.number(),
   }),
   message: z.string(),
 });
@@ -94,3 +90,40 @@ export const tokenPayloadSchema = z.object({
   shopId: z.number(),
   uid: z.string().uuid(),
 });
+
+export const UserAuthSchema = z.object({
+  shopId: z.coerce.number(),
+  uid: z.string(),
+  type: z.literal("user"),
+  user: UserSchema,
+});
+
+export const AdminAuthSchema = z.object({
+  shopId: z.coerce.number(),
+  uid: z.string(),
+  type: z.literal("admin"),
+});
+
+export const VerifySessionCodeBodySchema = z.object({
+  sessionCode: z.string().describe("Session code for authentication"),
+  shopId: z.coerce.number().describe("Shop ID"),
+});
+
+export const DeleteUserSchema = z.object({ uid: z.string() });
+export const DeleteUsersSchema = z.object({ uids: z.array(z.string()) });
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string(),
+  email: z.string().email(),
+  password: z.string(),
+});
+
+export const UpdateUserByAdminRequestSchema = UserUpdateRequestSchema.extend({
+  uid: z.string(),
+  email: z.string().email().optional(),
+  status: z.nativeEnum(UserStatus).optional(),
+}).strict();

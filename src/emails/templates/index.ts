@@ -1,45 +1,95 @@
-import { newFailedOrder, newOrder } from "./order";
-import { newFailedRefill, newRefill } from "./refill";
-import { newProduct } from "./product";
-import { newMessage, newSupport } from "./support";
-import { fundsAdded, newUser, verificationCode } from "./user";
-
-interface EmailTemplates {
-  [key: string]: ((v: any) => string) | undefined;
-}
-
-// Templates object
-const templates: EmailTemplates = {
-  verificationCode,
-  newUser,
+import {
+  LogoVars,
+  TemplateResult,
+  DesignColors,
+} from "../components/EmailLayout";
+import {
+  forgotPassword,
+  passwordChanged,
+  ForgotPasswordVars,
+} from "./user.templates";
+import {
+  adminForgotPassword,
+  adminPasswordChanged,
+  AdminForgotPasswordVars,
+} from "./admin.templates";
+import {
   newOrder,
   newFailedOrder,
+  NewOrderVars,
+  NewFailedOrderVars,
+} from "./order.templates";
+import {
   newRefill,
   newFailedRefill,
-  newProduct,
-  newSupport,
-  newMessage,
-  fundsAdded,
-};
+  NewRefillVars,
+  NewFailedRefillVars,
+} from "./refill.templates";
+import {
+  newService,
+  NewServiceVars,
+} from "./service.templates";
 
-type TemplateVariables = Record<string, any>;
+interface StoreSettings {
+  logoUrl: string;
+  shopName: string;
+  shopUrl: string;
+  designColors?: DesignColors;
+}
+
+// Map each template type string to the specific variable type it expects
+export interface EmailTemplateVars {
+  FORGOT_PASSWORD: ForgotPasswordVars;
+  PASSWORD_CHANGED: LogoVars;
+  ADMIN_FORGOT_PASSWORD: AdminForgotPasswordVars;
+  ADMIN_PASSWORD_CHANGED: LogoVars;
+  NEW_ORDER: NewOrderVars;
+  NEW_FAILED_ORDER: NewFailedOrderVars;
+  NEW_REFILL: NewRefillVars;
+  NEW_FAILED_REFILL: NewFailedRefillVars;
+  NEW_SERVICE: NewServiceVars;
+}
+
+// Typed templates for dev-time safety
+const typedTemplates: {
+  [K in keyof EmailTemplateVars]: (
+    vars: EmailTemplateVars[K],
+    shopSettings: StoreSettings
+  ) => TemplateResult;
+} = {
+  FORGOT_PASSWORD: forgotPassword,
+  PASSWORD_CHANGED: passwordChanged,
+  ADMIN_FORGOT_PASSWORD: adminForgotPassword,
+  ADMIN_PASSWORD_CHANGED: adminPasswordChanged,
+  NEW_ORDER: newOrder,
+  NEW_FAILED_ORDER: newFailedOrder,
+  NEW_REFILL: newRefill,
+  NEW_FAILED_REFILL: newFailedRefill,
+  NEW_SERVICE: newService,
+};
 
 /**
  * Retrieves and renders the email template for the specified type.
  *
- * @param type - The identifier for the template (e.g., 'welcome', 'resetPassword')
- * @param variables - A key-value map of variables to be injected into the template
- * @returns A rendered email template string
- * @throws If the template type is not found
+ * @param type - Template type as string
+ * @param variables - Variables specific to that template
+ * @param shopSettings - Store-specific settings (logo, name, url)
+ * @returns Rendered email HTML and subject
  */
-function getTemplate(type: string, variables: TemplateVariables): string {
-  const templateFn = templates[type];
-
+export function getTemplate<K extends keyof EmailTemplateVars>(
+  type: K,
+  variables: Record<string, any>,
+  shopSettings: StoreSettings
+): TemplateResult {
+  const templateFn = typedTemplates[type as keyof typeof typedTemplates] as
+    | ((
+        vars: Record<string, any>,
+        shopSettings: StoreSettings
+      ) => TemplateResult)
+    | undefined;
   if (!templateFn) {
     throw new Error(`Email template for type "${type}" not found.`);
   }
 
-  return templateFn(variables);
+  return templateFn(variables, shopSettings);
 }
-
-export { getTemplate };

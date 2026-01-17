@@ -1,61 +1,224 @@
-import { z } from "zod";
-import { prisma } from "../config/db.config";
 import type { Request, Response } from "express";
-import { CreateContactMessageSchema } from "../schemas/shop.schema";
-import { sendEmail } from "../emails";
-
-const storeIdQuerySchema = z.object({ domain: z.string().min(1) });
-const storeIdSchema = z.object({ shopId: z.coerce.number() });
+import { prisma } from "../config/db.config";
+import {
+  ShopGeneralDataRequestSchema,
+  shopIdSchema,
+  UpdateGeneralDataRequestSchema,
+  UpdateStylesRequestSchema,
+} from "../schemas/shop.schema";
+import { AdminAuthSchema } from "../schemas/admin.schema";
+import { coreApiRequest } from "../lib/apiClient";
+import { normalizeHost } from "../config/cors.config";
 
 export const getShopData = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = storeIdQuerySchema.safeParse(req.query);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
+  const domain =
+    normalizeHost(req.headers.origin ?? "") ||
+    normalizeHost(req.headers.host ?? "");
+
+  if (!domain) {
+    res.status(400).json({ error: "Domain is not recognized." });
     return;
   }
-  const { domain } = parsed.data;
 
   try {
     const shop = await prisma.shop.findUnique({
-      where: { uid: domain },
+      where: { uid: domain, status: "ACTIVE" },
       select: {
         shopId: true,
-        plan: true,
+        planId: true,
         timestamp: true,
+        features: true,
+        name: true,
+        description: true,
+        status: true,
       },
     });
     if (!shop) {
       res.status(404).json({ error: "Shop not found for the given domain" });
       return;
     }
-    res.json({
-      shopId: shop.shopId,
-      plan: shop.plan,
-      timestamp: shop.timestamp,
-    });
+
+    try {
+      const subscriptionPlan = await coreApiRequest<{
+        features: unknown;
+      }>({
+        endpoint: `/subscription-plans/${shop.planId}`,
+      });
+
+      // Check if features is a valid JSON object
+      if (
+        subscriptionPlan.features &&
+        typeof subscriptionPlan.features === "object"
+      ) {
+        // Update shop features in DB
+        await prisma.shop.update({
+          where: { shopId: shop.shopId },
+          data: { features: subscriptionPlan.features },
+        });
+
+        // Return shop with updated features
+        res.json({
+          ...shop,
+          features: subscriptionPlan.features,
+        });
+      } else {
+        // If subscription plan features are invalid, return existing shop features
+        res.json(shop);
+      }
+    } catch (apiError: any) {
+      // If API call fails, return existing shop features
+      console.warn(
+        "Warning: Failed to fetch subscription plan, using existing shop features:",
+        apiError.message
+      );
+      res.json(shop);
+    }
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("Error fetching shop data:", err);
+    res.status(500).json({ error: "Failed to fetch shop data." });
   }
 };
 
-export const getStyles = async (req: Request, res: Response): Promise<void> => {
-  const parsed = storeIdSchema.safeParse(req.query);
+export const getShopGeneralData = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const parsed = ShopGeneralDataRequestSchema.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+
   const { shopId } = parsed.data;
 
   try {
-    const style = await prisma.designStyle.findFirst({
+    const generalData = await prisma.setting.findFirst({
       where: { shopId },
     });
-    res.json(style);
+
+    if (!generalData) {
+      res
+        .status(404)
+        .json({ error: "General Settings not found for the given shop" });
+      return;
+    }
+
+    res.json(generalData);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("Error fetching shop general data:", err);
+    res.status(500).json({ error: "Failed to fetch shop general data." });
+  }
+};
+
+export const updateShopGeneralData = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
+  const bodyParsed = UpdateGeneralDataRequestSchema.safeParse(req.body);
+
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+  if (!bodyParsed.success) {
+    res.status(400).json({ error: bodyParsed.error.flatten() });
+    return;
+  }
+
+  const { shopId } = authParsed.data;
+  const bodyData = bodyParsed.data;
+
+  try {
+    await prisma.setting.upsert({
+      where: {
+        shopId,
+      },
+      create: {
+        ...bodyData,
+        shopId,
+      },
+      update: {
+        ...bodyData,
+      },
+    });
+
+    await prisma.shop.update({
+      where: {
+        shopId,
+      },
+      data: {
+        name: bodyData.shopName,
+        description: bodyData.shopDescription,
+      },
+    });
+
+    res.json({ success: "Successfully updated the data." });
+  } catch (err: any) {
+    console.error("Error updating shop general data:", err);
+    res.status(500).json({ error: "Failed to update shop general data." });
+  }
+};
+
+export const getStyles = async (req: Request, res: Response): Promise<void> => {
+  const parsed = shopIdSchema.safeParse(req.params);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const { shopId } = parsed.data;
+
+  try {
+    const style = await prisma.designStyle.findFirst({ where: { shopId } });
+
+    res.json(style || {});
+  } catch (err: any) {
+    console.error("Error fetching shop styles:", err);
+    res.status(500).json({ error: "Failed to fetch shop styles." });
+  }
+};
+
+export const updateShopStyles = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
+  const bodyParsed = UpdateStylesRequestSchema.safeParse(req.body);
+
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+  if (!bodyParsed.success) {
+    res.status(400).json({ error: bodyParsed.error.flatten() });
+    return;
+  }
+
+  const { shopId } = authParsed.data;
+  const bodyData = bodyParsed.data;
+
+  try {
+    const existing = await prisma.designStyle.findFirst({ where: { shopId } });
+
+    if (!existing) {
+      await prisma.designStyle.create({
+        data: { ...bodyData, shopId, shopScopedId: 1 },
+      });
+    } else {
+      await prisma.designStyle.update({
+        where: { id: existing.id },
+        data: bodyData,
+      });
+    }
+
+    res.json({ success: "Updated styles successfully." });
+  } catch (err: any) {
+    console.error("Error updating shop styles:", err);
+    res.status(500).json({ error: "Failed to update shop styles." });
   }
 };
 
@@ -63,229 +226,43 @@ export const getSiteData = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = storeIdSchema.safeParse(req.query);
+  const parsed = shopIdSchema.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+
   const { shopId } = parsed.data;
 
   try {
-    const siteData = await prisma.setting.findFirst({
+    const general = await prisma.setting.findFirst({ where: { shopId } });
+    res.json(general || {});
+  } catch (err: any) {
+    console.error("Error fetching site data:", err);
+    res.status(500).json({ error: "Failed to fetch site data." });
+  }
+};
+
+export const completeOnboarding = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const parsed = ShopGeneralDataRequestSchema.safeParse(req.params);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const { shopId } = parsed.data;
+
+  try {
+    const setting = await prisma.setting.update({
       where: { shopId },
+      data: { onboardingCompleted: true },
     });
-    res.json(siteData);
+
+    res.status(200).json({ success: "Onboarding completed", setting });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-export const getCurrentUser = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  if (!req.auth) {
-    res.status(401).json({ error: "Unauthorized: auth info missing" });
-    return;
-  }
-  const { uid, shopId } = req.auth;
-
-  try {
-    const user = await prisma.user.findFirst({
-      where: {
-        uid,
-        shopId,
-      },
-      select: {
-        password: false,
-        apiKey: false,
-        uid: true,
-        username: true,
-        role: true,
-        email: true,
-        timestamp: true,
-      },
-    });
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-    res.json(user);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// NEW: Get public shop info by domain or shopId
-export const getShopByIdentifier = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { identifier } = req.params; // Could be shopId or domain
-
-  try {
-    let shop;
-
-    // Try to find by shopId first (if it's a number)
-    if (!isNaN(Number(identifier))) {
-      shop = await prisma.shop.findFirst({
-        where: { shopId: Number(identifier) },
-        include: {
-          Setting: {
-            select: {
-              shopName: true,
-              logoUrl: true,
-              faviconUrl: true,
-              defaultClientCurrency: true,
-            },
-          },
-        },
-      });
-    }
-
-    // If not found and looks like a domain, try finding by UID or other identifier
-    if (!shop) {
-      shop = await prisma.shop.findFirst({
-        where: { uid: identifier },
-        include: {
-          Setting: {
-            select: {
-              shopName: true,
-              logoUrl: true,
-              faviconUrl: true,
-              defaultClientCurrency: true,
-            },
-          },
-        },
-      });
-    }
-
-    if (!shop) {
-      res.status(404).json({ error: "Shop not found" });
-      return;
-    }
-
-    res.status(200).json({
-      shopId: shop.shopId,
-      uid: shop.uid,
-      status: shop.status,
-      plan: shop.plan,
-      ssl: shop.ssl,
-      settings: shop.Setting[0] || null,
-    });
-  } catch (error: any) {
-    console.error("Error fetching shop:", error);
-    res.status(500).json({ error: "Failed to fetch shop information" });
-  }
-};
-
-// NEW: List all active shops (for discovery)
-export const getActiveShops = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const shops = await prisma.shop.findMany({
-      where: { status: "ACTIVE" },
-      include: {
-        Setting: {
-          select: {
-            shopName: true,
-            logoUrl: true,
-            defaultClientCurrency: true,
-          },
-        },
-      },
-      orderBy: { timestamp: "desc" },
-    });
-
-    const formattedShops = shops.map((shop) => ({
-      shopId: shop.shopId,
-      domain: shop.uid,
-      plan: shop.plan,
-      timestamp: shop.timestamp,
-      settings: shop.Setting[0] || null,
-    }));
-
-    res.status(200).json(formattedShops);
-  } catch (error: any) {
-    console.error("Error fetching shops:", error);
-    res.status(500).json({ error: "Failed to fetch shops" });
-  }
-};
-
-export const getCurrentAdmin = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  if (!req.auth) {
-    res.status(401).json({ error: "Unauthorized: auth info missing" });
-    return;
-  }
-  const { shopId, uid } = req.auth;
-
-  try {
-    const admin = await prisma.admin.findFirst({
-      where: {
-        uid,
-        shopId,
-      },
-      select: {
-        password: false,
-        apiKey: false,
-        uid: true,
-        username: true,
-        role: true,
-        email: true,
-        timestamp: true,
-      },
-    });
-    if (!admin) {
-      res.status(404).json({ error: "Admin not found" });
-      return;
-    }
-    res.json(admin);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-export const createContactMessage = async (req: Request, res: Response) => {
-  const validation = CreateContactMessageSchema.safeParse(req.body);
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
-    return;
-  }
-
-  const { name, email, phone, message, shopId } = validation.data;
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      const counter = await tx.shopCounter.update({
-        where: { shopId },
-        data: { contactMessageCounter: { increment: 1 } },
-      });
-      await tx.contactMessage.create({
-        data: {
-          name,
-          shopScopedId: counter.contactMessageCounter,
-          email,
-          phone,
-          message,
-          shopId,
-        },
-      });
-    });
-    // Notify admin via email
-    await sendEmail(
-      undefined,
-      "newSupport", // We can reuse the "newSupport" template for this
-      { user: name, subject: "New Contact Form Submission", message },
-      shopId
-    );
-
-    res.status(201).json({ success: "Message sent successfully." });
-  } catch (error: any) {
-    res.status(500).json({ error: "Could not send message." });
+    res.status(500).json({ error: "Failed to update onboarding status" });
   }
 };

@@ -1,17 +1,20 @@
 import express from "express";
 const router = express.Router();
 import * as users from "../controllers/user.controllers";
-import { authenticateUser, authenticateAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateUser } from "../middleware/auth";
+import { userRateLimit, userModifyRateLimit } from "../middleware/ratelimit";
 
-router.get("/", authenticateUser, users.getUsers);
-router.post("/me", users.me);
-router.post("/", users.createUser);
-router.post("/verify-session", authenticateUser, users.verifySession);
-router.patch("/:uid", authenticateAdmin, users.updateUserByAdmin);
-router.delete("/:uid", authenticateAdmin, users.deleteUserByAdmin);
-// router.get("/:uid",authenticate, users.getUserByUid);
-// router.patch("/", authenticate, users.updateUser);
-// router.delete("/", authenticate, users.deleteUser);
-// router.delete("/multiple", authenticate, users.deleteUsers);
+router.get("/", authenticateAdmin, userRateLimit, users.getUsers);
+router.post("/me", userRateLimit, users.me);
+router.post("/verify-session", userRateLimit, users.verifySession);
+router.post("/reset-password", userModifyRateLimit, users.resetPassword);
+router.post("/forgot-password", userModifyRateLimit, users.forgotPassword);
+router.post("/", userModifyRateLimit, users.createUser);
+router.get("/:uid", authenticateUser, userRateLimit, users.getUserByUid);
+
+router.patch("/", authenticateUser, userModifyRateLimit, users.updateUser);
+router.patch("/admin", authenticateAdmin, userModifyRateLimit, users.updateUserByAdmin);
+router.delete("/", authenticateAdmin, userModifyRateLimit, users.deleteUser);
+router.delete("/multiple", authenticateAdmin, userModifyRateLimit, users.deleteUsers);
 
 export default router;

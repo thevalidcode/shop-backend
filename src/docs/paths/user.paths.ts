@@ -1,33 +1,57 @@
 import { registry } from "../components/registry";
-import { z } from "zod";
 import {
-  AuthenticateUserResponseSchema,
   AuthenticateUserSchema,
   CreateUserInputSchema,
-  CreateUserResponseSchema,
   UserUpdateRequestSchema,
-  UserPublicSchema,
+  UpdateUserByAdminRequestSchema,
+  VerifySessionCodeBodySchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  DeleteUserSchema,
+  DeleteUsersSchema,
 } from "../../schemas/user.schema";
+import { UidSchema } from "../../schemas/common.schema";
 
 import {
-  UpdateSuccess,
-  InvalidData,
+  LoginResponse,
+  CreateUserResponse,
+  GetUserResponse,
   UsersListResponse,
+  UpdateUserResponse,
+  UpdateUserByAdminResponse,
+  DeleteUserResponse,
+  VerifySessionResponse,
+  ForgotPasswordResponse,
+  ResetPasswordResponse,
 } from "../responses/user.response";
 
 import {
   BadRequest,
   Forbidden,
   ServerError,
-  SuccessResponse,
+  NotFound,
 } from "../responses/common.response";
 
-// Authenticate user
+// GET /users - Get all users (admin only)
+registry.registerPath({
+  method: "get",
+  path: "/users",
+  summary: "Get all users (admin only)",
+  tags: ["User"],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
+  responses: {
+    200: UsersListResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// POST /users/me - User login
 registry.registerPath({
   method: "post",
   path: "/users/me",
-  summary: "Authenticate user",
-  tags: ["Users"],
+  summary: "User login",
+  tags: ["User"],
   request: {
     body: {
       content: {
@@ -38,82 +62,87 @@ registry.registerPath({
     },
   },
   responses: {
-    200: {
-      description: "Authenticated user session object",
+    200: LoginResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// POST /users/verify-session - Verify session code
+registry.registerPath({
+  method: "post",
+  path: "/users/verify-session",
+  summary: "Verify user session code",
+  tags: ["User"],
+  request: {
+    body: {
       content: {
         "application/json": {
-          schema: AuthenticateUserResponseSchema,
+          schema: VerifySessionCodeBodySchema,
         },
       },
     },
+  },
+  responses: {
+    200: VerifySessionResponse,
+    400: BadRequest,
+    404: NotFound,
+    500: ServerError,
+  },
+});
+
+// POST /users/reset-password - Reset password
+registry.registerPath({
+  method: "post",
+  path: "/users/reset-password",
+  summary: "Reset user password with token",
+  tags: ["User"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: resetPasswordSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: ResetPasswordResponse,
     400: BadRequest,
     500: ServerError,
   },
 });
 
-// Get all users (admin)
+// POST /users/forgot-password - Forgot password
 registry.registerPath({
-  method: "get",
-  path: "/users",
-  summary: "Get all users",
-  tags: ["Users"],
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  responses: {
-    200: UsersListResponse,
-    403: Forbidden,
-    500: ServerError,
-  },
-});
-
-// Get single user by UID
-registry.registerPath({
-  method: "get",
-  path: "/users/{uid}",
-  summary: "Get user by UID",
-  tags: ["Users"],
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  parameters: [
-    {
-      name: "uid",
-      in: "path",
-      required: true,
-      schema: { type: "string" },
-    },
-  ],
-  responses: {
-    200: {
-      description: "Public-facing user profile",
+  method: "post",
+  path: "/users/forgot-password",
+  summary: "Request user password reset",
+  tags: ["User"],
+  request: {
+    body: {
       content: {
         "application/json": {
-          schema: UserPublicSchema,
+          schema: forgotPasswordSchema,
         },
       },
     },
-    403: Forbidden,
+  },
+  responses: {
+    200: ForgotPasswordResponse,
+    400: BadRequest,
+    404: NotFound,
     500: ServerError,
   },
 });
 
-// Create user
+// POST /user - Create user
 registry.registerPath({
   method: "post",
-  path: "/users",
-  summary: "Register as Customer for a Specific Shop",
-  description:
-    "Register a new customer account for a specific shop.\n\n" +
-    "### 🏪 Shop-Specific Registration:\n" +
-    "- Users register for a specific shop using the shop domain\n" +
-    "- Each user account is tied to one shop\n" +
-    "- Shop must exist and be active\n\n" +
-    "### 🔍 Prerequisites:\n" +
-    "- Use `/shop/discover` to find available shops\n" +
-    "- Use `/shop/info/{domain}` to verify shop exists\n" +
-    "- Check shop is active before registration\n\n" +
-    "### ✅ On Success:\n" +
-    "- Creates customer account for the specified shop\n" +
-    "- Sets authentication cookies\n" +
-    "- Returns shop URL and account details",
-  tags: ["Users"],
+  path: "/user",
+  summary: "Create new user account",
+  tags: ["User"],
   request: {
     body: {
       content: {
@@ -124,35 +153,36 @@ registry.registerPath({
     },
   },
   responses: {
-    201: {
-      description: "Customer account created successfully",
-      content: {
-        "application/json": {
-          schema: CreateUserResponseSchema,
-        },
-      },
-    },
+    200: CreateUserResponse,
     400: BadRequest,
-    404: {
-      description: "Shop not found or inactive",
-      content: {
-        "application/json": {
-          schema: z.object({
-            error: z.string(),
-          }),
-        },
-      },
-    },
     500: ServerError,
   },
 });
 
-// Update user
+// GET /users/:uid - Get user by UID
+registry.registerPath({
+  method: "get",
+  path: "/users/{uid}",
+  summary: "Get user by UID",
+  tags: ["User"],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
+  request: {
+    params: UidSchema,
+  },
+  responses: {
+    200: GetUserResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// PATCH /user - Update user (self)
 registry.registerPath({
   method: "patch",
-  path: "/users",
-  summary: "Update user info",
-  tags: ["Users"],
+  path: "/user",
+  summary: "Update user profile (authenticated user)",
+  tags: ["User"],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
@@ -163,60 +193,77 @@ registry.registerPath({
     },
   },
   responses: {
-    200: UpdateSuccess,
-    400: InvalidData,
+    200: UpdateUserResponse,
+    400: BadRequest,
     500: ServerError,
   },
 });
 
-// Delete single user
+// PATCH /users/admin - Update user by admin
 registry.registerPath({
-  method: "delete",
-  path: "/users",
-  summary: "Delete a single user",
-  tags: ["Users"],
+  method: "patch",
+  path: "/users/admin",
+  summary: "Update user by admin",
+  tags: ["User"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
         "application/json": {
-          schema: z.object({
-            uid: z.string(),
-          }),
+          schema: UpdateUserByAdminRequestSchema,
         },
       },
     },
   },
   responses: {
-    200: SuccessResponse,
+    200: UpdateUserByAdminResponse,
     400: BadRequest,
-    403: Forbidden,
     500: ServerError,
   },
 });
 
-// Delete multiple users
+// DELETE /user - Delete user
+registry.registerPath({
+  method: "delete",
+  path: "/user",
+  summary: "Delete a single user",
+  tags: ["User"],
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: DeleteUserSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: DeleteUserResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// DELETE /users/multiple - Delete multiple users
 registry.registerPath({
   method: "delete",
   path: "/users/multiple",
   summary: "Delete multiple users",
-  tags: ["Users"],
+  tags: ["User"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     body: {
       content: {
         "application/json": {
-          schema: z.object({
-            uids: z.array(z.string()),
-          }),
+          schema: DeleteUsersSchema,
         },
       },
     },
   },
   responses: {
-    200: SuccessResponse,
+    200: DeleteUserResponse,
     400: BadRequest,
-    403: Forbidden,
     500: ServerError,
   },
 });

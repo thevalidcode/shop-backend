@@ -1,695 +1,337 @@
-import { env } from "../config/env.config";
-import type { Request, Response } from "express";
 import { prisma } from "../config/db.config";
-import { randomUUID } from "crypto";
-import { Decimal } from "@prisma/client/runtime/library";
-import {
-  CreatePaymentGatewaySchema,
-  UpdatePaymentGatewaySchema,
-  ModifyWalletBalanceSchema,
-  UpdateContactMessageSchema,
-  registerAdminAndShopSchema,
-} from "../schemas/admin.schema";
-import {
-  UpdateGeneralSettingsSchema,
-  UpdateDesignSettingsSchema,
-} from "../schemas/shop.schema";
-import { encryptKey } from "../utils/encrypt";
-import bcrypt from "bcrypt";
+import { env } from "../config/env.config";
 import jwt from "jsonwebtoken";
-import { randomBytes } from "crypto";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
+import type { Request, Response } from "express";
+import {
+  AdminUpdateRequestSchema,
+  AuthenticateAdminSchema,
+  forgotPasswordAdminSchema,
+  resetPasswordAdminSchema,
+} from "../schemas/admin.schema";
+import { sendUserEmail } from "../emails";
+import { ShopIdSchema } from "../schemas/common.schema";
+import { VerifySessionCodeBodySchema } from "../schemas/user.schema";
+import { normalizeHost } from "../config/cors.config";
 
-export const registerAdminAndShop = async (
+export const authenticateAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const validation = registerAdminAndShopSchema.safeParse(req.body);
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
+  const parsed = AuthenticateAdminSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
 
-  const {
-    email,
-    username,
-    password,
-    shopName,
-    shopDomain,
-    shopDescription,
-    plan,
-    features,
-  } = validation.data;
+  const domain =
+    normalizeHost(req.headers.origin ?? "") ||
+    normalizeHost(req.headers.host ?? "");
+
+  if (!domain) {
+    res.status(400).json({ error: "Domain is not recognized." });
+    return;
+  }
+
+  const { email, password, shopId } = parsed.data;
 
   try {
-    // Check if admin already exists globally
-    const existingAdmin = await prisma.admin.findFirst({
-      where: { email },
-    });
-
-    if (existingAdmin) {
-      res
-        .status(400)
-        .json({ error: "An admin account with this email already exists." });
+    const account = await prisma.admin.findFirst({ where: { email, shopId } });
+    if (!account) {
+      res.status(400).json({ error: "Incorrect login details" });
       return;
     }
 
-    // Check if shop domain is already taken
-    const existingShop = await prisma.shop.findFirst({
-      where: { uid: shopDomain },
-    });
-
-    if (existingShop) {
-      res.status(400).json({
-        error:
-          "This shop domain is already taken. Please choose a different one.",
-      });
+    if (account.status === "BANNED") {
+      res.status(403).json({ error: "You’ve been banned. Contact support." });
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const isMatch = await bcrypt.compare(password, account.password);
+    if (!isMatch) {
+      res.status(400).json({ error: "Incorrect login details" });
+      return;
+    }
 
-    // Create shop and admin in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Get the next available shopId
-      const lastShop = await tx.shop.findFirst({
-        orderBy: { shopId: "desc" },
-        select: { shopId: true },
-      });
-      const nextShopId = lastShop ? lastShop.shopId + 1 : 1;
+    const role = account.role;
 
-      // Create new shop with chosen domain
-      const shop = await tx.shop.create({
-        data: {
-          shopId: nextShopId,
-          uid: shopDomain, // Use chosen domain instead of random UUID
-          ssl: false,
-          plan,
-          features,
-          name: shopName,
-          status: "ACTIVE",
-        },
-      });
-
-      // Initialize shop counter
-      await tx.shopCounter.create({
-        data: {
-          shopId: shop.shopId,
-          productCounter: 0,
-          orderCounter: 0,
-          blogCounter: 0,
-          faqCounter: 0,
-          categoryCounter: 0,
-          userCounter: 0,
-          emailLogCounter: 0,
-        },
-      });
-
-      // Create admin for the new shop
-      const admin = await tx.admin.create({
-        data: {
-          uid: randomUUID(),
-          email,
-          username,
-          password: hashedPassword,
-          apiKey: randomUUID(),
-          role: "BASIC",
-          status: "ACTIVE",
-          shopId: shop.shopId,
-        },
-      });
-
-      // Create shop general settings
-      await tx.setting.create({
-        data: {
-          uid: randomUUID(),
-          shopId: shop.shopId,
-          shopName: shopName || "My Shop",
-          shopDescription: shopDescription || "My Shop",
-          defaultClientCurrency: "NGN",
-        },
-      });
-
-      return { shop, admin };
-    });
-
-    // Generate JWT token for immediate login
     const token = jwt.sign(
-      {
-        email: result.admin.email,
-        shopId: result.shop.shopId,
-        apiKey: result.admin.apiKey,
-        role: "admin",
-      },
+      { uid: account.uid, shopId, apiKey: account.apiKey },
       env.JWT_SECRET,
-      { expiresIn: "7d" }
+      {
+        expiresIn: "7d",
+      }
     );
+    const csrfToken = crypto.randomBytes(32).toString("hex");
 
-    const csrfToken = randomBytes(32).toString("hex");
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none" as const,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-
-    res.cookie("auth_token", token, cookieOptions);
-    res.cookie("csrf_token", csrfToken, { ...cookieOptions, httpOnly: false });
-
-    res.status(201).json({
-      success: "Shop and admin account created successfully!",
-      shop: {
-        shopId: result.shop.shopId,
-        domain: result.shop.uid,
-        name: shopName,
-        url: `https://${result.shop.uid}`, // This would be your actual platform domain
-        status: result.shop.status,
-        plan: result.shop.plan,
-      },
-      admin: {
-        uid: result.admin.uid,
-        email: result.admin.email,
-        username: result.admin.username,
-        role: result.admin.role,
-      },
-      nextSteps: [
-        "Set up your payment gateways in the admin panel",
-        "Add your first products",
-        "Customize your shop appearance",
-        `Share your shop URL: https://${result.shop.uid}`,
-      ],
+    res.cookie("csrf_token", csrfToken, {
+      httpOnly: false,
+      secure: env.NODE_ENV === "production",
+      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
     });
-  } catch (error: any) {
-    console.error("Admin registration failed:", error);
-    res.status(500).json({ error: "Failed to create admin account and shop." });
+
+    res.cookie("auth_token", token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
+    });
+
+    const { password: _, resetToken, resetTokenExpiry, ...safeAdmin } = account;
+    res.status(200).json({
+      success: "Logged in successfully",
+      role,
+      admin: safeAdmin,
+    });
+  } catch (err: any) {
+    console.log(err);
+    res.status(500).json({ error: "Login failed " + err.message });
   }
 };
 
-// NEW: Check domain availability
-export const checkDomainAvailability = async (
+export const updateAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { domain } = req.params;
+  const parsed = AdminUpdateRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { uid, shopId } = req.auth!;
 
-  // Validate domain format
-  const domainRegex = /^[a-z0-9-]+$/;
-  if (
-    !domain ||
-    domain.length < 3 ||
-    domain.length > 30 ||
-    !domainRegex.test(domain)
-  ) {
-    res.status(400).json({
-      available: false,
-      error:
-        "Domain must be 3-30 characters long and contain only lowercase letters, numbers, and hyphens",
+  try {
+    const admin = await prisma.admin.update({
+      where: { uid, shopId },
+      data: parsed.data,
     });
+    const { password: _, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
+    res
+      .status(200)
+      .json({ success: "Successfully updated admin", admin: safeAdmin });
+  } catch {
+    res.status(500).json({ error: "Failed to update admin" });
+  }
+};
+
+export const completeOnboarding = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { uid, shopId } = req.auth!;
+
+  try {
+    const admin = await prisma.admin.update({
+      where: { uid, shopId },
+      data: { onboardingCompleted: true },
+    });
+
+    const { password: _, ...safeAdmin } = admin;
+    res.status(200).json({ success: "Onboarding completed", admin: safeAdmin });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to update onboarding status" });
+  }
+};
+
+export const forgotPasswordAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const input = forgotPasswordAdminSchema.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: input.error.flatten() });
     return;
   }
 
+  const { email } = input.data;
+  const parsed = ShopIdSchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { shopId } = parsed.data;
+
   try {
-    const existingShop = await prisma.shop.findFirst({
-      where: { uid: domain },
+    // Find admin by email
+    const admin = await prisma.admin.findFirst({ where: { email, shopId } });
+    if (!admin) {
+      res.status(404).json({ error: "Admin with this email not found." });
+      return;
+    }
+
+    // Generate reset token and expiry
+    const resetToken = uuidv4();
+    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    // Save token to admin record
+    await prisma.admin.update({
+      where: { id: admin.id, shopId },
+      data: { resetToken, resetTokenExpiry },
+    });
+
+    // Send password reset email
+    await sendUserEmail(shopId, admin.email, "ADMIN_FORGOT_PASSWORD", {
+      email: admin.email,
+      token: resetToken,
     });
 
     res.status(200).json({
-      domain,
-      available: !existingShop,
-      message: existingShop
-        ? "This domain is already taken"
-        : "Domain is available!",
-      suggestedUrl: `https://${domain}.yourplatform.com`,
+      success: "A password reset link has been sent to your email.",
     });
-  } catch (error: any) {
-    console.error("Error checking domain availability:", error);
-    res.status(500).json({ error: "Failed to check domain availability" });
+  } catch (err: any) {
+    res
+      .status(500)
+      .json({ error: "Failed to process password reset." + err.message });
   }
 };
 
-export const updateGeneralSettings = async (
+export const resetPasswordAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { shopId } = req.auth!;
-  const validation = UpdateGeneralSettingsSchema.safeParse(req.body);
-
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
+  const input = resetPasswordAdminSchema.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: input.error.flatten() });
     return;
   }
 
-  try {
-    const settings = await prisma.setting.upsert({
-      where: { shopId },
-      update: validation.data,
-      create: {
-        ...validation.data,
-        shopId,
-        uid: randomUUID(),
-      },
-    });
-    res.status(200).json(settings);
-  } catch (error: any) {
-    console.error("Error updating general settings:", error);
-    res.status(500).json({ error: "Failed to update general settings." });
-  }
-};
-
-export const updateDesignSettings = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  const validation = UpdateDesignSettingsSchema.safeParse(req.body);
-
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
+  const { password, token, email } = input.data;
+  const parsed = ShopIdSchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-
-  const updateData = validation.data;
-
-  if (Object.keys(updateData).length === 0) {
-    res.status(400).json({ error: "No fields to update provided." });
-    return;
-  }
+  const { shopId } = parsed.data;
 
   try {
-    const existingSettings = await prisma.designStyle.findUnique({
-      where: { shopId },
+    const admin = await prisma.admin.findFirst({
+      where: { email, shopId },
     });
 
-    if (existingSettings) {
-      const updatedSettings = await prisma.designStyle.update({
-        where: { shopId },
-        data: updateData,
-      });
-      res.status(200).json(updatedSettings);
-    } else {
-      const { title, hex, schema } = updateData;
-      if (title === undefined || hex === undefined || schema === undefined) {
-        res.status(400).json({
-          error:
-            "When creating design settings for the first time, 'title', 'hex', and 'schema' fields are all required.",
-        });
-        return;
-      }
-
-      const newSettings = await prisma.designStyle.create({
-        data: {
-          uid: randomUUID(),
-          shopId,
-          title,
-          hex,
-          schema,
-        },
-      });
-      res.status(201).json(newSettings);
-    }
-  } catch (error: any) {
-    console.error("Error updating design settings:", error);
-    res.status(500).json({ error: "Failed to update design settings." });
-  }
-};
-
-export const getPaymentGateways = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  try {
-    const gateways = await prisma.paymentGateway.findMany({
-      where: { shopId },
-      select: {
-        uid: true,
-        name: true,
-        image: true,
-        status: true,
-      },
-    });
-    const safeGateways = gateways.map((g) => ({
-      ...g,
-      secretKey: "••••••••••••••••",
-    }));
-    res.status(200).json(safeGateways);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch payment gateways." });
-  }
-};
-
-export const createPaymentGateway = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  const validation = CreatePaymentGatewaySchema.safeParse(req.body);
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
-    return;
-  }
-
-  const { name, image, secretKey, platform } = validation.data;
-  const { encryptedKey, iv } = encryptKey(secretKey);
-
-  try {
-    const newGateway = await prisma.$transaction(async (tx) => {
-      const counter = await tx.shopCounter.update({
-        where: { shopId: shopId },
-        data: { paymentGatewayCounter: { increment: 1 } },
-      });
-      const data = await tx.paymentGateway.create({
-        data: {
-          uid: randomUUID(),
-          shopId,
-          shopScopedId: counter.paymentGatewayCounter,
-          name,
-          encryptedSecretKey: encryptedKey,
-          iv,
-          platform,
-          image,
-          status: "ACTIVE",
-        },
-      });
-
-      return data;
-    });
-    const { encryptedSecretKey, iv: _, ...safeGateway } = newGateway;
-    res.status(201).json(safeGateway);
-  } catch (error) {
-    res.status(500).json({
-      error:
-        "Failed to create payment gateway. A gateway with this name might already exist.",
-    });
-  }
-};
-
-export const updatePaymentGateway = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  const { uid } = req.params;
-  const validation = UpdatePaymentGatewaySchema.safeParse(req.body);
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
-    return;
-  }
-
-  const { name, secretKey, status } = validation.data;
-
-  const updateData: any = { name, status };
-
-  if (secretKey) {
-    const { encryptedKey, iv } = encryptKey(secretKey);
-    updateData.encryptedSecretKey = encryptedKey;
-    updateData.iv = iv;
-  }
-
-  try {
-    const result = await prisma.paymentGateway.updateMany({
-      where: { uid, shopId },
-      data: updateData,
-    });
-
-    if (result.count === 0) {
-      res.status(404).json({ error: "Payment gateway not found." });
-      return;
-    }
-    res.status(200).json({ success: "Gateway updated successfully." });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update payment gateway." });
-  }
-};
-
-export const deletePaymentGateway = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  const { uid } = req.params;
-
-  try {
-    const result = await prisma.paymentGateway.deleteMany({
-      where: { uid, shopId },
-    });
-
-    if (result.count === 0) {
-      res.status(404).json({ error: "Payment gateway not found." });
+    if (!admin) {
+      res.status(400).json({ error: "Admin not found." });
       return;
     }
 
-    res.status(200).json({ success: "Payment gateway deleted successfully." });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete payment gateway." });
-  }
-};
-
-/**
- * @desc    Add funds to a user's wallet.
- * @route   POST /api/v1/admin/users/:userUid/wallet/credit
- * @access  Private (Admin)
- */
-export const creditUserWallet = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  const { userUid } = req.params;
-
-  const validation = ModifyWalletBalanceSchema.safeParse(req.body);
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
-    return;
-  }
-
-  const { amount, description } = validation.data;
-  const decimalAmount = new Decimal(amount);
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      const updatedUser = await tx.user.updateMany({
-        where: {
-          uid: userUid,
-          shopId: shopId,
-        },
-        data: {
-          balance: {
-            increment: decimalAmount,
-          },
-        },
-      });
-
-      if (updatedUser.count === 0) {
-        throw new Error("UserNotFound");
-      }
-      const counter = await tx.shopCounter.update({
-        where: { shopId: shopId },
-        data: { TransactionCounter: { increment: 1 } },
-      });
-
-      await tx.transaction.create({
-        data: {
-          userUid,
-          shopId,
-          amount: decimalAmount,
-          shopScopedId: counter.TransactionCounter,
-          description,
-          type: "WALLET_CREDIT",
-        },
-      });
-    });
-
-    res.status(200).json({ success: "Wallet credited successfully." });
-  } catch (error: any) {
-    if (error.message === "UserNotFound") {
-      res.status(404).json({ error: "User not found in this shop." });
+    if (!admin.resetToken || admin.resetToken !== token) {
+      res.status(400).json({ error: "Invalid reset token." });
       return;
     }
 
-    console.error("Error crediting user wallet:", error);
-    res.status(500).json({
-      error: "Transaction failed. The user's balance was not updated.",
-    });
-  }
-};
-
-export const debitUserWallet = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  const { userUid } = req.params;
-  const validation = ModifyWalletBalanceSchema.safeParse(req.body);
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
-    return;
-  }
-
-  const { amount, description } = validation.data;
-  const decimalAmount = new Decimal(amount);
-
-  try {
-    const user = await prisma.user.findFirst({
-      where: { uid: userUid, shopId },
-    });
-    if (!user) {
-      res.status(404).json({ error: "User not found." });
+    if (
+      !admin.resetTokenExpiry ||
+      new Date(admin.resetTokenExpiry) < new Date()
+    ) {
+      res.status(400).json({ error: "Token expired." });
       return;
     }
 
-    if (user.balance.lessThan(decimalAmount)) {
-      res.status(400).json({ error: "Insufficient balance." });
-      return;
-    }
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { uid: userUid },
-        data: {
-          balance: { decrement: decimalAmount },
-          spent: { increment: decimalAmount },
-        },
-      });
-      const counter = await tx.shopCounter.update({
-        where: { shopId: shopId },
-        data: { TransactionCounter: { increment: 1 } },
-      });
-      await tx.transaction.create({
-        data: {
-          userUid,
-          shopId,
-          shopScopedId: counter.TransactionCounter,
-          amount: decimalAmount,
-          description,
-          type: "WALLET_DEBIT",
-        },
-      });
-    });
-
-    res.status(200).json({ success: "Wallet debited successfully." });
-  } catch (error) {
-    res.status(500).json({ error: "Transaction failed." });
-  }
-};
-
-export const getWalletHistory = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  const { userUid } = req.params;
-  try {
-    const transactions = await prisma.transaction.findMany({
-      where: { userUid, shopId },
-      orderBy: { timestamp: "desc" },
-    });
-    res.status(200).json(transactions);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch wallet history." });
-  }
-};
-
-export const getReferrals = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  try {
-    const referrers = await prisma.user.findMany({
-      where: {
-        shopId,
-        referrals: { some: {} },
-      },
-      select: {
-        uid: true,
-        username: true,
-        email: true,
-        referrals: {
-          select: {
-            uid: true,
-            username: true,
-            email: true,
-            timestamp: true,
-          },
-        },
-      },
-    });
-    res.status(200).json(referrers);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch referral data." });
-  }
-};
-
-export const getContactMessages = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  // ... no changes needed here ...
-  const { shopId } = req.auth!;
-  try {
-    const messages = await prisma.contactMessage.findMany({
-      where: { shopId },
-      orderBy: { timestamp: "desc" },
-    });
-    res.status(200).json(messages);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch contact messages." });
-  }
-};
-
-export const updateContactMessageStatus = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  const { uid } = req.params;
-  const validation = UpdateContactMessageSchema.safeParse(req.body);
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
-    return;
-  }
-
-  try {
-    const result = await prisma.contactMessage.updateMany({
-      where: { uid, shopId },
-      data: { status: validation.data.status },
-    });
-
-    if (result.count === 0) {
-      res.status(404).json({ error: "Message not found." });
-      return;
-    }
-
-    res.status(200).json({ success: "Message status updated." });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update message status." });
-  }
-};
-
-export const deleteContactMessage = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { shopId } = req.auth!;
-  const { uid } = req.params;
-
-  try {
-    const result = await prisma.contactMessage.deleteMany({
-      where: {
-        uid,
-        shopId, // Ensures an admin can only delete messages from their own shop
+    await prisma.admin.update({
+      where: { id: admin.id, shopId },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null,
       },
     });
 
-    if (result.count === 0) {
-      res.status(404).json({ error: "Contact message not found." });
-      return;
-    }
-
-    res.status(200).json({ success: "Contact message deleted successfully." });
-  } catch (error: any) {
-    console.error("Failed to delete contact message:", error);
-    res.status(500).json({ error: "Failed to delete contact message." });
+    // Send password changed email
+    await sendUserEmail(shopId, admin.email, "ADMIN_PASSWORD_CHANGED");
+    res.status(200).json({ success: "Password updated successfully." });
+  } catch (err: any) {
+    res
+      .status(500)
+      .json({ error: "Failed to update password: " + err.message });
   }
+};
+
+export const verifySession = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const parsed = VerifySessionCodeBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request body" });
+    return;
+  }
+
+  const domain =
+    normalizeHost(req.headers.origin ?? "") ||
+    normalizeHost(req.headers.host ?? "");
+
+  if (!domain) {
+    res.status(400).json({ error: "Domain is not recognized." });
+    return;
+  }
+
+  const { sessionCode, shopId } = parsed.data;
+
+  const session = await prisma.sessionCode.findUnique({
+    where: { code: sessionCode, shopId },
+  });
+
+  if (!session || session.used || new Date(session.expiresAt) < new Date()) {
+    res.status(400).json({ error: "Session code expired or invalid" });
+    return;
+  }
+
+  let account: any = null;
+  account = await prisma.admin.findFirst({
+    where: { email: session.email, shopId: session.shopId },
+  });
+  if (!account) {
+    res.status(404).json({ error: "Admin not found" });
+    return;
+  }
+
+  const admin = account;
+
+  if (!admin) {
+    res.status(404).json({
+      error: "Admin not found",
+    });
+    return;
+  }
+
+  await prisma.sessionCode.update({
+    where: { code: sessionCode },
+    data: { used: true },
+  });
+
+  const token = jwt.sign(
+    { uid: admin.uid, shopId, apiKey: admin.apiKey },
+    env.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    }
+  );
+  const csrfToken = crypto.randomBytes(32).toString("hex");
+
+  res.cookie("csrf_token", csrfToken, {
+    httpOnly: false,
+    secure: env.NODE_ENV === "production",
+    sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
+  });
+
+  res.cookie("auth_token", token, {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+    sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
+  });
+  const { password: _, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
+
+  res
+    .status(200)
+    .json({ success: "Admin authenticated successfully", admin: safeAdmin });
 };

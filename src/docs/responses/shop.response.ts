@@ -2,8 +2,8 @@ import { AdminSchema } from "../../schemas/admin.schema";
 import {
   ShopDataSchema,
   DesignStylesSchema,
-  SiteDataSchema,
   ExchangeRatesSchema,
+  ShopGeneralDataResponseSchema,
 } from "../../schemas/shop.schema";
 import { UserPublicSchema } from "../../schemas/user.schema";
 import { z } from "zod";
@@ -26,11 +26,11 @@ export const DesignStylesResponse = {
   },
 };
 
-export const SiteDataResponse = {
-  description: "General site data",
+export const GeneralDataResponse = {
+  description: "General Data lookup result",
   content: {
     "application/json": {
-      schema: SiteDataSchema,
+      schema: ShopGeneralDataResponseSchema,
     },
   },
 };
@@ -44,30 +44,24 @@ export const ExchangeRatesResponse = {
   },
 };
 
-export const CurrentUserResponse = {
-  description: "Current user record",
-  content: {
-    "application/json": {
-      schema: UserPublicSchema,
-    },
-  },
-};
-
-export const CurrentAdminResponse = {
-  description: "Current admin record",
-  content: {
-    "application/json": {
-      schema: AdminSchema,
-    },
-  },
-};
-
 export const NotFound = {
   description: "Resource not found",
   content: {
     "application/json": {
       schema: z.object({
         error: z.string().describe("Error message"),
+      }),
+    },
+  },
+};
+
+export const OnboardingCompletedResponse = {
+  description: "Onboarding completed successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal("Onboarding completed"),
+        setting: ShopGeneralDataResponseSchema,
       }),
     },
   },

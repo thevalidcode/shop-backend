@@ -92,7 +92,7 @@ export const addBlog = async (req: Request, res: Response): Promise<void> => {
                 title: parsed.data.title,
                 slug: parsed.data.title.toLowerCase().replace(/\s+/g, "-"),
                 content: parsed.data.content,
-                description: parsed.data.description || "",
+                excerpt: parsed.data.excerpt || "",
                 status: "ACTIVE",
                 position: newPosition,
                 shopId,

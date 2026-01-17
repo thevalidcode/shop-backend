@@ -1,24 +1,86 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { ShopStatus } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
+// Convert features type to Zod schema
+export const SubscriptionPlanFeaturesSchema = z.object({
+  // Capacity limits
+  stores: z.number(),
+  products: z.number().nullable(), // null = unlimited
+  staff_accounts: z.number(),
+  payment_gateways: z.number(),
+  available_templates: z.number(),
+
+  // Core capabilities
+  analytics: z.boolean(),
+  api_access: z.boolean(),
+  ai_features: z.boolean(),
+  priority_support: z.boolean(),
+
+  // Shop customization
+  custom_branding: z.boolean(),
+  custom_domain: z.boolean(),
+  free_ssl: z.boolean(),
+  hide_platform_banner: z.boolean(),
+  custom_templates: z.boolean(),
+
+  // Product & order management
+  unlimited_products: z.boolean(),
+  social_store_order_sync: z.boolean(),
+  social_store_service_sync: z.boolean(),
+
+  // Communication features (store-level)
+  store_email_notifications: z.boolean(),
+  store_custom_emails: z.boolean(),
+  store_newsletters: z.boolean(),
+});
+
+export type SubscriptionPlanFeatures = z.infer<
+  typeof SubscriptionPlanFeaturesSchema
+>;
+
 export const ShopDataSchema = z
   .object({
-    shopId: z.number().describe("Unique identifier for the shop"),
-    plan: z.string().describe("The plan associated with the shop"),
-    status: z.enum(["active", "disabled"]).describe("The status of the shop"),
-    timestamp: z.string().describe("Timestamp when the shop was created"),
+    storeId: z.number().describe("Unique identifier for the store"),
+    planId: z.number().describe("The plan id associated with the store"),
+    features: SubscriptionPlanFeaturesSchema.describe(
+      "Key‑value map of store features"
+    ),
+    status: z.nativeEnum(ShopStatus).describe("The status of the store"),
+    timestamp: z.string().describe("Timestamp when the store was created"),
+    name: z.string().describe("Name of the store"),
+    description: z.string().describe("Description of the store"),
   })
-  .openapi("ShopData");
+  .openapi("Shop");
 
-export const SiteDataSchema = z
+export const ShopGeneralDataRequestSchema = z.object({
+  shopId: z.coerce.number().describe("Unique identifier for the shop"),
+});
+
+export const ShopGeneralDataResponseSchema = z
   .object({
-    logoUrl: z.string().url().describe("Logo URL for the site"),
-    title: z.string().describe("Site title"),
-    description: z.string().describe("Site description"),
+    shopId: z.coerce.number(),
+    logoUrl: z.string().url(),
+    faviconUrl: z.string().url(),
+    shopName: z.string(),
+    showBanner: z.boolean(),
+    onboardingCompleted: z.boolean(),
+    shopDescription: z.string(),
+    defaultClientCurrency: z.string().length(3).toUpperCase(),
   })
-  .openapi("SiteData");
+  .strict()
+  .openapi("General");
+
+export const UpdateGeneralDataRequestSchema = z.object({
+  logoUrl: z.string().url().optional().or(z.literal("")),
+  faviconUrl: z.string().url().optional().or(z.literal("")),
+  shopName: z.string().optional(),
+  showBanner: z.boolean().optional(),
+  shopDescription: z.string().optional(),
+  defaultClientCurrency: z.string().length(3).toUpperCase().optional(),
+});
 
 export const ExchangeRatesSchema = z
   .record(z.number())
@@ -27,8 +89,7 @@ export const ExchangeRatesSchema = z
 
 export const DesignStylesSchema = z
   .object({
-    id: z.number().describe("Style ID"),
-    title: z.string().describe("Design title"),
+    name: z.string().describe("Color name"),
     hex: z.string().describe("Color hex"),
     schema: z.object({
       [":root"]: z.record(z.string()).describe("Light mode variables"),
@@ -37,56 +98,15 @@ export const DesignStylesSchema = z
   })
   .openapi("DesignStyles");
 
-  export const CreateContactMessageSchema = z.object({
-    name: z.string().min(2, "Name is required."),
-    email: z.string().email("Invalid email address."),
-    phone: z.string().optional(),
-    message: z.string().min(10, "Message must be at least 10 characters long."),
-    shopId: z.number().int(),
-  })
-  .openapi("CreateContactMessage");
-
-  export const UpdateGeneralSettingsSchema = z.object({
-    title: z.string().min(1).optional(),
-    logoUrl: z.string().url().optional(),
-    faviconUrl: z.string().url().optional(),
-    defaultClientCurrency: z.string().length(3).optional(),
-  }).partial();
-  
-  export const UpdateDesignSettingsSchema = z.object({
-    title: z.string().min(1),
-    hex: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color format."),
+export const UpdateStylesRequestSchema = z
+  .object({
+    name: z.string().describe("Color name"),
+    hex: z.string().describe("Color hex"),
     schema: z.object({
-      ":root": z.record(z.string()),
-      ".dark": z.record(z.string()),
+      [":root"]: z.record(z.string()).describe("Light mode variables"),
+      [".dark"]: z.record(z.string()).describe("Dark mode variables"),
     }),
-  }).partial();
+  })
+  .strict();
 
-  // NEW: Shop Discovery Schemas
-  export const ShopDiscoverySchema = z.object({
-    shopId: z.number(),
-    domain: z.string(),
-    plan: z.string(),
-    timestamp: z.string(),
-    settings: z.object({
-      title: z.string(),
-      logoUrl: z.string().nullable(),
-      defaultClientCurrency: z.string().nullable(),
-    }).nullable(),
-  });
-
-  export const ShopsListResponseSchema = z.array(ShopDiscoverySchema);
-
-  export const ShopInfoResponseSchema = z.object({
-    shopId: z.number(),
-    uid: z.string(),
-    status: z.string(),
-    plan: z.string(),
-    ssl: z.boolean(),
-    settings: z.object({
-      title: z.string(),
-      logoUrl: z.string().nullable(),
-      faviconUrl: z.string().nullable(),
-      defaultClientCurrency: z.string().nullable(),
-    }).nullable(),
-  });
+export const shopIdSchema = z.object({ shopId: z.coerce.number() });

@@ -1,39 +1,19 @@
 import express from "express";
-import * as adminController from "../controllers/admin.controllers";
+import * as admins from "../controllers/admin.controllers";
 import { authenticateAdmin } from "../middleware/auth";
-
+import { adminRateLimit, adminModifyRateLimit } from "../middleware/ratelimit";
 const router = express.Router();
 
-// Apply authentication to ALL routes in this file
-router.use(authenticateAdmin);
-
-router.post("/register", adminController.registerAdminAndShop);
-router.get("/check-domain/:domain", adminController.checkDomainAvailability);
-
-// Settings Routes
-router.patch("/settings/general", adminController.updateGeneralSettings);
-router.patch("/settings/design", adminController.updateDesignSettings);
-
-// Payment Setup Routes
-router.get("/payment-gateways", adminController.getPaymentGateways);
-router.post("/payment-gateways", adminController.createPaymentGateway);
-router.patch("/payment-gateways/:uid", adminController.updatePaymentGateway);
-router.delete("/payment-gateways/:uid", adminController.deletePaymentGateway);
-
-// Wallet Management Routes
-router.get("/users/:userUid/wallet-history", adminController.getWalletHistory);
-router.post("/users/:userUid/wallet/credit", adminController.creditUserWallet);
-router.post("/users/:userUid/wallet/debit", adminController.debitUserWallet);
-
-// Referral Management Routes
-router.get("/referrals", adminController.getReferrals);
-
-// Contact Message Management
-router.get("/contact-messages", adminController.getContactMessages);
-router.patch(
-  "/contact-messages/:uid",
-  adminController.updateContactMessageStatus
+router.post("/me", adminRateLimit, admins.authenticateAdmin);
+router.patch("/", authenticateAdmin, adminModifyRateLimit, admins.updateAdmin);
+router.post("/verify-session", adminRateLimit, admins.verifySession);
+router.put(
+  "/onboarding-completed",
+  authenticateAdmin,
+  adminModifyRateLimit,
+  admins.completeOnboarding
 );
-router.delete("/contact-messages/:uid", adminController.deleteContactMessage);
+router.post("/forgot-password", adminModifyRateLimit, admins.forgotPasswordAdmin);
+router.post("/reset-password", adminModifyRateLimit, admins.resetPasswordAdmin);
 
 export default router;

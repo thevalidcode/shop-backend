@@ -10,7 +10,7 @@ export const blogIdSchema = z.object({
 export const createBlogSchema = z.object({
   title: z.string().min(1),
   content: z.string().min(1),
-  description: z.string().optional(),
+  excerpt: z.string().optional(),
 });
 
 export const BlogSchema = z
@@ -22,7 +22,7 @@ export const BlogSchema = z
     slug: z.string().min(1),
     status: z.boolean(),
     position: z.coerce.number(),
-    description: z.string().optional(),
+    excerpt: z.string().optional(),
   })
   .openapi("Blog");
 
@@ -31,7 +31,7 @@ export const updateBlogSchema = z.object({
   title: z.string().min(1),
   content: z.string().min(1),
   slug: z.string().min(1),
-  description: z.string().optional(),
+  excerpt: z.string().optional(),
 });
 
 export const deleteBlogSchema = z.object({

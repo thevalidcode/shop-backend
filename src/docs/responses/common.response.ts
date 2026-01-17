@@ -41,6 +41,17 @@ export const BadRequest = {
   },
 };
 
+export const Unauthorized = {
+  description: "Unauthorized - Authentication required",
+  content: {
+    "application/json": {
+      schema: z.object({
+        error: z.string().describe("Error message for unauthenticated request"),
+      }),
+    },
+  },
+};
+
 export const Forbidden = {
   description: "Unauthorized access due to role or permission",
   content: {
@@ -58,6 +69,17 @@ export const ServerError = {
     "application/json": {
       schema: z.object({
         error: z.literal("Something went wrong. Please try again later."),
+      }),
+    },
+  },
+};
+
+export const NotFound = {
+  description: "Resource not found",
+  content: {
+    "application/json": {
+      schema: z.object({
+        error: z.string().describe("Error message for not found resource"),
       }),
     },
   },

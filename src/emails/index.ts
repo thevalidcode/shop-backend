@@ -1,14 +1,46 @@
 import nodemailer from "nodemailer";
 import { prisma } from "../config/db.config";
-import { getTemplate } from "./templates";
-import { v4 as uuidv4 } from "uuid";
+import { EmailTemplateVars, getTemplate } from "./templates";
+import {
+  extractColorsFromSchema,
+  DesignColors,
+} from "./components/EmailLayout";
+import { parse as parseDomain } from "tldts";
 
+interface DispatchEmailParams {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  shopId: number;
+}
+
+interface StoreSettings {
+  logoUrl: string;
+  shopName: string;
+  shopUrl: string;
+  domain: string;
+  faviconUrl: string;
+  adminEmail: string;
+  designColors?: DesignColors;
+  features: {
+    store_email_notifications: boolean;
+    store_custom_emails: boolean;
+  };
+}
+
+// ----------------------------
+// Transporter Setup
+// ----------------------------
 const transporter = nodemailer.createTransport({
   sendmail: true,
   newline: "unix",
   path: "/usr/sbin/sendmail",
 });
 
+// ----------------------------
+// Utility: Interpolation
+// ----------------------------
 function interpolate(template: string, variables: Record<string, any>): string {
   return template.replace(
     /\{\{(.*?)\}\}/g,
@@ -16,165 +48,268 @@ function interpolate(template: string, variables: Record<string, any>): string {
   );
 }
 
-async function loadGeneralSettings(shopId: number) {
-  return prisma.setting.findFirst({
+// ----------------------------
+// Load Store-Specific Settings
+// ----------------------------
+async function loadStoreSettings(shopId: number): Promise<StoreSettings> {
+  const setting = await prisma.setting.findUnique({
+    where: { shopId },
+    include: { shop: true },
+  });
+
+  const admin = await prisma.admin.findUnique({
     where: { shopId },
   });
-}
 
-async function loadAdminEmails(shopId: number): Promise<string[]> {
-  const records = await prisma.adminEmail.findMany({
+  if (!setting || !admin) {
+    throw new Error(`Settings or admin not found for this shop`);
+  }
+
+  const shopUrl = setting.shop.ssl
+    ? `https://${setting.shop.uid}`
+    : `http://${setting.shop.uid}`;
+
+  const parsed = parseDomain(setting.shop.uid);
+  const domain = parsed.domain || setting.shop.uid;
+
+  // Extract features from shop
+  const features = (setting.shop.features as any) || {};
+  const shopEmailNotifications = features.store_email_notifications ?? false;
+  const shopCustomEmails = features.store_custom_emails ?? false;
+
+  // Check if email notifications are enabled for this shop
+  if (!shopEmailNotifications) {
+    throw new Error(`Email notifications are disabled for this shop`);
+  }
+
+  // Fetch design styles for the shop
+  const designStyle = await prisma.designStyle.findFirst({
     where: { shopId },
-    select: { emails: true },
-  });
-  return records.map((r) => r.emails).flat();
-}
-
-async function buildEmailTemplate(
-  type: string,
-  data: Record<string, any>,
-  logoUrl: string,
-  shopId: number
-): Promise<{ subject: string; html: string }> {
-  const template = await prisma.emailTemplate.findFirst({
-    where: {
-      shopId,
-      type,
-    },
   });
 
-  const variables = { logo: logoUrl || "", ...data };
-  const htmlFromDb = interpolate(template?.content || "", variables);
-  const fallbackHtml = getTemplate(type as any, variables);
-
-  const subject =
-    type
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (s) => s.toUpperCase())
-      .trim() + " Notification";
+  // Extract colors from design schema if available
+  let designColors: DesignColors | undefined;
+  if (designStyle && designStyle.schema) {
+    try {
+      designColors = extractColorsFromSchema(designStyle.schema);
+    } catch (error) {
+      console.error(`Failed to extract colors for this shop`, error);
+      // designColors will remain undefined, templates will use defaults
+    }
+  }
 
   return {
-    subject,
-    html: htmlFromDb || fallbackHtml,
+    logoUrl: setting.logoUrl || "",
+    shopName: setting.shopName || "My Store",
+    shopUrl,
+    domain,
+    faviconUrl: setting.faviconUrl || "",
+    designColors,
+    adminEmail: admin.email,
+    features: {
+      store_email_notifications: shopEmailNotifications,
+      store_custom_emails: shopCustomEmails,
+    },
   };
 }
 
+// ----------------------------
+// Build Email Template
+// ----------------------------
+export async function buildEmailTemplate(
+  type: keyof EmailTemplateVars,
+  data: Record<string, any>,
+  shopSettings: StoreSettings,
+  shopId: number
+): Promise<{ subject: string; html: string }> {
+  const template = await prisma.emailTemplate.findFirst({
+    where: { type, shopId },
+  });
+
+  const variables = {
+    logo: shopSettings.logoUrl,
+    shopName: shopSettings.shopName,
+    shopUrl: shopSettings.shopUrl,
+    domain: shopSettings.domain,
+    ...data,
+  };
+
+  const htmlFromDb = template ? interpolate(template.content, variables) : "";
+  const fallback = getTemplate(type, variables, shopSettings);
+  const newSubject = template?.subject || fallback.subject;
+
+  return {
+    subject: newSubject,
+    html: htmlFromDb || fallback.html,
+  };
+}
+
+// ----------------------------
+// Dispatch Email & Log
+// ----------------------------
 async function dispatchEmail({
   from,
   to,
   subject,
   html,
   shopId,
-}: {
-  from: string;
-  to: string;
-  subject: string;
-  html: string;
-  shopId: number;
-}): Promise<boolean> {
+}: DispatchEmailParams): Promise<boolean> {
   try {
     const result = await transporter.sendMail({ from, to, subject, html });
 
-    // Use a transaction to atomically get the next ID and create the log
-    await prisma.$transaction(async (tx) => {
-      const counter = await tx.shopCounter.update({
-        where: { shopId },
-        data: { emailLogCounter: { increment: 1 } },
-      });
+    // Get the shop counter for this shop
+    const counter = await prisma.shopCounter.findUnique({
+      where: { shopId },
+    });
 
-      await tx.emailLog.create({
-        data: {
-          shopScopedId: counter.emailLogCounter,
-          sender: from,
-          receiver: to,
-          subject,
-          html,
-          status: "success",
-          timestamp: new Date(),
-          messageId: result.messageId,
-          response: result.response,
-          shopId,
-          uid: uuidv4(),
-        },
-      });
+    if (!counter) {
+      throw new Error(`Store counter not found for this shop`);
+    }
+
+    // Increment and get new counter value
+    const updatedCounter = await prisma.shopCounter.update({
+      where: { shopId },
+      data: { emailLogCounter: { increment: 1 } },
+    });
+
+    await prisma.emailLog.create({
+      data: {
+        shopScopedId: updatedCounter.emailLogCounter,
+        sender: from,
+        receiver: to,
+        subject,
+        html,
+        status: "SUCCESS",
+        messageId: result.messageId,
+        response: result.response,
+        shopId,
+        timestamp: new Date(),
+      },
     });
 
     return true;
   } catch (err: any) {
-    // Logging the error should also be atomic
-    await prisma.$transaction(async (tx) => {
-        const counter = await tx.shopCounter.update({
-            where: { shopId },
-            data: { emailLogCounter: { increment: 1 } },
+    // Try to log error even if counter increment failed
+    try {
+      const counter = await prisma.shopCounter.findUnique({
+        where: { shopId },
+      });
+
+      if (counter) {
+        const updatedCounter = await prisma.shopCounter.update({
+          where: { shopId },
+          data: { emailLogCounter: { increment: 1 } },
         });
 
-        await tx.emailLog.create({
-            data: {
-                shopScopedId: counter.emailLogCounter,
-                sender: from,
-                receiver: to,
-                subject,
-                html,
-                status: "error",
-                timestamp: new Date(),
-                response: err.message,
-                shopId,
-                uid: uuidv4(),
-            },
+        await prisma.emailLog.create({
+          data: {
+            shopScopedId: updatedCounter.emailLogCounter,
+            sender: from,
+            receiver: to,
+            subject,
+            html,
+            status: "ERROR",
+            response: err.message,
+            shopId,
+            timestamp: new Date(),
+          },
         });
-    });
+      }
+    } catch (logErr) {
+      console.error(`Failed to log email error:`, logErr);
+    }
+
+    console.error(`Failed to send email to ${to}:`, err.message);
     return false;
   }
 }
 
-export async function sendEmail(
-  from = '"Valid Panel" <contact@validpanel.com>',
-  type: string,
-  data: Record<string, any>,
-  shopId: number
+// ----------------------------
+// Send Email to Admins
+// ----------------------------
+export async function sendEmailToAdmins(
+  shopId: number,
+  type: keyof EmailTemplateVars,
+  data: Record<string, any> = {}
 ): Promise<void> {
   try {
-    if (type === "newOrder" && data.price <= 0) return;
-
-    const [general, recipients] = await Promise.all([
-      loadGeneralSettings(shopId),
-      loadAdminEmails(shopId),
-    ]);
-
+    const shopSettings = await loadStoreSettings(shopId);
     const { subject, html } = await buildEmailTemplate(
       type,
       data,
-      general?.logoUrl || "",
+      shopSettings,
       shopId
     );
 
-    await Promise.all(
-      recipients.map((to) =>
-        dispatchEmail({ from, to, subject, html, shopId })
-      )
-    );
+    // Get admin emails for this shop
+    const adminEmails = await prisma.adminEmail.findFirst({
+      where: { shopId },
+    });
+
+    // Determine sender email based on shop_custom_emails feature
+    const from = shopSettings.features.store_custom_emails
+      ? `"${shopSettings.shopName}" <noreply@${shopSettings.domain}>`
+      : `"${shopSettings.shopName}" <social-media-shop@validpanel.com>`;
+
+    const recipients = adminEmails?.emails || [];
+
+    if (recipients.length === 0) {
+      console.warn(`No admin emails configured for shop ID: ${shopId}`);
+      return;
+    }
+
+    // Send to all admin emails
+    for (const to of recipients) {
+      await dispatchEmail({ from, to, subject, html, shopId });
+    }
   } catch (err: any) {
-    console.error({ error: err.message });
+    throw err;
   }
 }
 
+// ----------------------------
+// Send Email to a User
+// ----------------------------
 export async function sendUserEmail(
-  from = '"Shop" <notifications@validpanel.com>',
+  shopId: number,
   to: string,
+  type: keyof EmailTemplateVars,
+  data: Record<string, any> = {}
+): Promise<void> {
+  try {
+    const shopSettings = await loadStoreSettings(shopId);
+    const { subject, html } = await buildEmailTemplate(
+      type,
+      data,
+      shopSettings,
+      shopId
+    );
+
+    // Determine sender email based on shop_custom_emails feature
+    const from = shopSettings.features.store_custom_emails
+      ? `"${shopSettings.shopName}" <noreply@${shopSettings.domain}>`
+      : `"${shopSettings.shopName}" <social-media-shop@validpanel.com>`;
+
+    await dispatchEmail({ from, to, subject, html, shopId });
+  } catch (err: any) {
+    throw err;
+  }
+}
+
+// ----------------------------
+// Backward Compatible: Send Email
+// (Used by providers for admin notifications)
+// ----------------------------
+export async function sendEmail(
+  to: string | undefined,
   type: string,
   data: Record<string, any>,
   shopId: number
 ): Promise<void> {
-  try {
-    const general = await loadGeneralSettings(shopId);
-    const { subject, html } = await buildEmailTemplate(
-      type,
-      data,
-      general?.logoUrl || "",
-      shopId
-    );
-    await dispatchEmail({ from, to, subject, html, shopId });
-  } catch (err: any) {
-    console.error({ error: err.message });
+  // If no recipient specified, send to admins
+  if (!to) {
+    await sendEmailToAdmins(shopId, type as keyof EmailTemplateVars, data);
+  } else {
+    await sendUserEmail(shopId, to, type as keyof EmailTemplateVars, data);
   }
 }

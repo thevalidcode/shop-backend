@@ -4,7 +4,9 @@ import {
   updateFAQSchema,
   deleteFAQSchema,
   deleteMultipleFAQsSchema,
+  faqIdSchema,
 } from "../../schemas/faq.schema";
+import { ShopIdSchema } from "../../schemas/common.schema";
 
 import {
   FAQCreatedResponse,
@@ -25,15 +27,9 @@ registry.registerPath({
   path: "/faqs",
   summary: "Get all FAQs",
   tags: ["FAQs"],
-  parameters: [
-    {
-      name: "shopId",
-      in: "query",
-      required: true,
-      description: "Shop ID to filter FAQs",
-      schema: { type: "number" },
-    },
-  ],
+  request: {
+    query: ShopIdSchema,
+  },
   responses: {
     200: FAQListResponse,
     400: BadRequest,
@@ -47,20 +43,10 @@ registry.registerPath({
   path: "/faqs/{faqId}",
   summary: "Get FAQ by ID",
   tags: ["FAQs"],
-  parameters: [
-    {
-      name: "faqId",
-      in: "path",
-      required: true,
-      schema: { type: "number" },
-    },
-    {
-      name: "shopId",
-      in: "query",
-      required: true,
-      schema: { type: "number" },
-    },
-  ],
+  request: {
+    params: faqIdSchema,
+    query: ShopIdSchema,
+  },
   responses: {
     200: FAQObject,
     400: BadRequest,

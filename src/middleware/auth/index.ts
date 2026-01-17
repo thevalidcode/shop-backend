@@ -16,15 +16,13 @@ export const authenticateUser = async (
     if (!payload) return;
 
     const { shopId, uid } = payload;
-
     const user = await prisma.user.findFirst({ where: { shopId, uid } });
     if (!user) {
-      res.status(401).json({ error: "Invalid or expired token" });
+      res.status(401).json({ error: "User not found." });
       return;
     }
 
-    const { password, ...safeUser } = user;
-
+    const { password, resetToken, resetTokenExpiry, ...safeUser } = user;
     req.auth = {
       shopId,
       uid,
@@ -34,6 +32,7 @@ export const authenticateUser = async (
 
     next();
   } catch (err: any) {
+    console.log(err);
     res.status(401).json({ error: "Invalid or expired token" });
   }
 };
@@ -44,20 +43,34 @@ export const authenticateAdmin = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const payload =
-      verifyBrowserAuth(req, res) || verifyInternalUserAuth(req, res);
-    if (!payload) return;
+    const hasBrowserToken = Boolean(req.cookies?.auth_token);
+    const hasAuthHeader = Boolean(req.headers["authorization"]);
+
+    const payload = hasBrowserToken
+      ? verifyBrowserAuth(req, res)
+      : hasAuthHeader
+      ? verifyInternalUserAuth(req, res)
+      : null;
+
+    if (!payload) {
+      if (!hasBrowserToken && !hasAuthHeader) {
+        res.status(401).json({ error: "Missing authentication token" });
+      }
+      return;
+    }
 
     const { shopId, uid } = payload;
 
     const admin = await prisma.admin.findFirst({ where: { shopId, uid } });
     if (!admin) {
-      res.status(401).json({ error: "Invalid or expired token" });
+      res.status(401).json({ error: "Admin not found." });
       return;
     }
 
-    const { password, ...safeAdmin } = admin;
+    admin.timestamp = new Date(admin.timestamp);
+    admin.lastSeen = new Date(admin.lastSeen);
 
+    const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
     req.auth = {
       shopId,
       uid,
@@ -79,17 +92,6 @@ export const authenticateInternalAdmin = async (
   try {
     const payload = verifyInternalAdminAuth(req, res);
     if (!payload) return;
-
-    const shop = await prisma.shop.findFirst({
-      where: { uid: "validpanel.com" },
-    });
-    if (!shop) {
-      res
-        .status(401)
-        .json({ error: "The main shop (validpanel.com) can't be found" });
-      return;
-    }
-
     next();
   } catch (err: any) {
     res.status(401).json({ error: "Invalid or expired token" });
@@ -101,9 +103,21 @@ export const authenticateAnyone = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const payload =
-    verifyBrowserAuth(req, res) || verifyInternalUserAuth(req, res);
-  if (!payload) return;
+  const hasBrowserToken = Boolean(req.cookies?.auth_token);
+  const hasAuthHeader = Boolean(req.headers["authorization"]);
+
+  const payload = hasBrowserToken
+    ? verifyBrowserAuth(req, res)
+    : hasAuthHeader
+    ? verifyInternalUserAuth(req, res)
+    : null;
+
+  if (!payload) {
+    if (!hasBrowserToken && !hasAuthHeader) {
+      res.status(401).json({ error: "Missing authentication token" });
+    }
+    return;
+  }
 
   const { shopId, uid } = payload;
 
@@ -116,42 +130,70 @@ export const authenticateAnyone = async (
     const account = admin || user;
 
     if (!account) {
-      res.status(401).json({ error: "Invalid or expired token" });
+      res.status(401).json({ error: "No admin or user found" });
       return;
     }
 
-    if (admin) {
-      req.auth = {
-        type: "admin",
-        shopId,
-        uid,
-        user: {
-          id: admin.id,
-          email: admin.email,
-          role: admin.role,
-          uid: admin.uid,
-          apiKey: admin.apiKey,
-          status: admin.status,
-        },
-      };
-    } else if (user) {
+    if (user) {
+      const { password, resetToken, resetTokenExpiry, ...safeUser } = user;
       req.auth = {
         type: "user",
         shopId,
         uid,
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          status: user.status,
-          apiKey: user.apiKey,
-          balance: user.balance,
-        },
+        user: safeUser,
       };
     }
-
+    if (admin) {
+      const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
+      req.auth = {
+        type: "admin",
+        shopId,
+        uid,
+        user: safeAdmin,
+      };
+    }
     next();
   } catch (err: any) {
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
+};
+
+export const authenticateInternalAnyone = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // 1. Try internal admin (service-level trust)
+    const adminPayload = verifyInternalAdminAuth(req, res);
+    if (adminPayload) {
+      next();
+      return;
+    }
+
+    // 2. Try internal user (shop-scoped identity)
+    const userPayload = verifyInternalUserAuth(req, res);
+    if (!userPayload) return;
+
+    const { uid, shopId } = userPayload;
+
+    const admin = await prisma.admin.findFirst({ where: { uid, shopId } });
+
+    if (!admin) {
+      res.status(401).json({ error: "No admin or user found" });
+      return;
+    }
+    const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
+
+    req.auth = {
+      type: "admin",
+      uid,
+      shopId,
+      user: safeAdmin,
+    };
+
+    next();
+  } catch {
     res.status(401).json({ error: "Invalid or expired token" });
   }
 };

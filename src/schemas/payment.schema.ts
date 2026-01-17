@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { Payment, PaymentMethod, PaymentStatus } from "../../prisma/generated";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Payment, PaymentStatus, PaymentGatewayPlatform } from "../../prisma/generated";
+import { Decimal } from "@prisma/client/runtime/client";
 
 extendZodWithOpenApi(z);
 
 export const InitializePaymentSchema = z.object({
-  platform: z.nativeEnum(PaymentMethod),
+  platform: z.nativeEnum(PaymentGatewayPlatform),
   orderUid: z.string(),
   currency: z.string().length(3),
   redirect_url: z.string().url(),
@@ -21,7 +21,7 @@ export const PaymentPublicSchema = z.object({
   chargedAmount: z.custom<Decimal>(),
   createdAt: z.coerce.date(),
   status: z.nativeEnum(PaymentStatus),
-  method: z.nativeEnum(PaymentMethod),
+  method: z.nativeEnum(PaymentGatewayPlatform),
   shopId: z.number(),
   shopScopedId: z.number(),
 });

@@ -4,6 +4,8 @@ import {
   updateBlogSchema,
   deleteBlogSchema,
   deleteMultipleBlogsSchema,
+  blogIdSchema,
+  getBlogsSchema,
 } from "../../schemas/blog.schema";
 
 import {
@@ -25,15 +27,9 @@ registry.registerPath({
   path: "/blogs",
   summary: "Get all blogs",
   tags: ["Blogs"],
-  parameters: [
-    {
-      name: "shopId",
-      in: "query",
-      required: true,
-      description: "Shop ID to filter blogs",
-      schema: { type: "number" },
-    },
-  ],
+  request: {
+    query: getBlogsSchema,
+  },
   responses: {
     200: BlogListResponse,
     400: BadRequest,
@@ -47,20 +43,10 @@ registry.registerPath({
   path: "/blogs/{blogId}",
   summary: "Get blog by ID",
   tags: ["Blogs"],
-  parameters: [
-    {
-      name: "blogId",
-      in: "path",
-      required: true,
-      schema: { type: "number" },
-    },
-    {
-      name: "shopId",
-      in: "query",
-      required: true,
-      schema: { type: "number" },
-    },
-  ],
+  request: {
+    params: blogIdSchema,
+    query: getBlogsSchema,
+  },
   responses: {
     200: BlogObject,
     400: BadRequest,

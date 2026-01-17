@@ -1,24 +1,21 @@
 import express from "express";
 import * as paymentGateways from "../controllers/paymentGateway.controllers";
 import { authenticateAdmin, authenticateUser } from "../middleware/auth";
-import {
-  limittAdd,
-  limittActions,
-} from "../middleware/ratelimit/common.ratelimit";
+import { paymentGatewayRateLimit, paymentGatewayModifyRateLimit } from "../middleware/ratelimit";
 
 const router = express.Router();
 
 router.get(
   "/",
   authenticateUser,
-  limittActions,
+  paymentGatewayRateLimit,
   paymentGateways.getPaymentGatewaysForUser
 );
 
 router.get(
   "/:uid",
   authenticateUser,
-  limittActions,
+  paymentGatewayRateLimit,
   paymentGateways.getPaymentGatewayByUidForUser
 );
 
@@ -31,35 +28,35 @@ router.get(
 router.patch(
   "/",
   authenticateAdmin,
-  limittActions,
+  paymentGatewayModifyRateLimit,
   paymentGateways.updatePaymentGateway
 );
 
 router.delete(
   "/",
   authenticateAdmin,
-  limittActions,
+  paymentGatewayModifyRateLimit,
   paymentGateways.deletePaymentGateway
 );
 
 router.post(
   "/",
   authenticateAdmin,
-  limittAdd,
+  paymentGatewayModifyRateLimit,
   paymentGateways.addPaymentGateway
 );
 
 router.get(
   "/admin",
   authenticateAdmin,
-  limittActions,
+  paymentGatewayRateLimit,
   paymentGateways.getPaymentGateways
 );
 
 router.get(
   "/admin/:uid",
   authenticateAdmin,
-  limittActions,
+  paymentGatewayRateLimit,
   paymentGateways.getPaymentGatewayByUid
 );
 export default router;

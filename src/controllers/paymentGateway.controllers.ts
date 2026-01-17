@@ -187,6 +187,11 @@ export const addPaymentGateway = async (
         where: { shopId },
         data: { paymentGatewayCounter: { increment: 1 } },
       });
+
+      const shop = await tx.shop.findFirst({
+        where: { shopId },
+      });
+
       const paymentData: Prisma.PaymentGatewayCreateInput = {
         uid: uuidv4(),
         name: reqData.name,
@@ -195,6 +200,9 @@ export const addPaymentGateway = async (
         description: reqData.description,
         image: reqData.image,
         platform: reqData.platform,
+        position: counter.paymentGatewayCounter,
+        min: 1,
+        max: 1,
         status: "ACTIVE",
         signature: crypto.randomBytes(32).toString("hex"),
         encryptedSecretKey: undefined,
@@ -205,6 +213,9 @@ export const addPaymentGateway = async (
         const encrypted_key = encryptKey(reqData.secretKey);
         paymentData.encryptedSecretKey = encrypted_key.encryptedKey;
         paymentData.iv = encrypted_key.iv;
+        paymentData.webhookUrl = `https://api.${
+          shop?.uid //The domain name
+        }/v1/webhooks/${reqData.platform.toLowerCase()}`;
       }
 
       const payment = await tx.paymentGateway.create({

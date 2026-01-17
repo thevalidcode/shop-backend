@@ -1,193 +1,379 @@
 import { registry } from "../components/registry";
 import {
-  OrderCreatedResponse,
-  OrderUpdatedResponse,
-  OrderListResponse,
-  OrderSingleResponseForUser,
-  OrderCreatedListResponse,
-  OrderPublicListResponse,
-  OrderSingleResponseForAdmin,
-} from "../responses/order.response";
-import {
-  BadRequest,
-  ServerError,
-  Forbidden,
-  SuccessResponse,
-} from "../responses/common.response";
-import {
-  bulkCreateSchema,
-  bulkStatusUpdateSchema,
-  updateOrderSchema,
+  UpdateOrderSchema,
+  BulkStatusUpdateSchema,
+  GetOrdersByStatusSchema,
+  OrderUidSchema,
 } from "../../schemas/order.schema";
+import {
+  GetOrdersResponseSchema,
+  GetOrdersAdminResponseSchema,
+  OrderResponseSchema,
+  OrderAdminResponseSchema,
+  UpdateOrderResponseSchema,
+  DeleteOrderResponseSchema,
+  BulkUpdateResponseSchema,
+  OrderErrorResponseSchema,
+  OrderValidationErrorResponseSchema,
+} from "../responses/order.response";
 
-// GET /orders
+/**
+ * USER ORDER ENDPOINTS
+ */
+
+// GET /orders (User)
 registry.registerPath({
   method: "get",
   path: "/orders",
-  summary: "Get all user's orders",
   tags: ["Orders"],
+  summary: "Get user's orders",
+  description: "Retrieve all orders for the authenticated user with items and billing info",
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   responses: {
-    200: OrderPublicListResponse,
-    400: BadRequest,
-    500: ServerError,
+    200: {
+      description: "Orders retrieved successfully",
+      content: {
+        "application/json": {
+          schema: GetOrdersResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Authentication error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
   },
 });
 
-registry.registerPath({
-  method: "get",
-  path: "/orders/admin/all",
-  summary: "Get all orders for admins",
-  tags: ["Orders"],
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  responses: {
-    200: OrderListResponse,
-    400: BadRequest,
-    500: ServerError,
-  },
-});
-
-// GET /orders/:orderUid
+// GET /orders/:orderUid (User)
 registry.registerPath({
   method: "get",
   path: "/orders/{orderUid}",
-  summary: "Get a order for user by uid",
   tags: ["Orders"],
+  summary: "Get single order",
+  description: "Retrieve detailed information about a specific order including items and billing info",
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  parameters: [
-    {
-      name: "orderUid",
-      in: "path",
-      required: true,
-      schema: { type: "string" },
-    },
-  ],
-  responses: {
-    200: OrderSingleResponseForUser,
-    400: BadRequest,
-    500: ServerError,
-  },
-});
-
-// GET /orders/admin/:orderUid
-registry.registerPath({
-  method: "get",
-  path: "/orders/admin/{orderUid}",
-  summary: "Get a order for admins by uid",
-  tags: ["Orders"],
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  parameters: [
-    {
-      name: "orderUid",
-      in: "path",
-      required: true,
-      schema: { type: "string" },
-    },
-  ],
-  responses: {
-    200: OrderSingleResponseForAdmin,
-    400: BadRequest,
-    500: ServerError,
-  },
-});
-
-// PATCH /orders/{orderUid} (Admin)
-registry.registerPath({
-  method: "patch",
-  path: "/orders/admin/{orderUid}",
-  summary: "Update a order",
-  tags: ["Orders"],
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  parameters: [
-    {
-      name: "orderUid",
-      in: "path",
-      required: true,
-      schema: { type: "string" },
-    },
-  ],
   request: {
-    body: {
+    params: OrderUidSchema,
+  },
+  responses: {
+    200: {
+      description: "Order retrieved successfully",
       content: {
         "application/json": {
-          schema: updateOrderSchema,
+          schema: OrderResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Validation error",
+      content: {
+        "application/json": {
+          schema: OrderValidationErrorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Order not found",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
         },
       },
     },
   },
-  responses: {
-    200: OrderUpdatedResponse,
-    400: BadRequest,
-    403: Forbidden,
-    500: ServerError,
-  },
 });
 
-// DELETE /orders/:orderUid (Admin)
-registry.registerPath({
-  method: "delete",
-  path: "/orders/admin",
-  summary: "Delete a single order",
-  tags: ["Orders"],
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  parameters: [
-    {
-      name: "orderUid",
-      in: "path",
-      required: true,
-      schema: { type: "string" },
-    },
-  ],
-  responses: {
-    200: SuccessResponse,
-    400: BadRequest,
-    403: Forbidden,
-    500: ServerError,
-  },
-});
-
-// GET /orders/status/:status
+// GET /orders/status/:status (User)
 registry.registerPath({
   method: "get",
   path: "/orders/status/{status}",
-  summary: "Get all orders for admin or user orders by status",
   tags: ["Orders"],
+  summary: "Get orders by status",
+  description: "Retrieve user's orders filtered by status (PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED)",
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  parameters: [
-    {
-      name: "status",
-      in: "path",
-      required: true,
-      schema: { type: "string" },
-    },
-  ],
+  request: {
+    params: GetOrdersByStatusSchema,
+  },
   responses: {
-    200: OrderListResponse,
-    400: BadRequest,
-    500: ServerError,
+    200: {
+      description: "Orders retrieved successfully",
+      content: {
+        "application/json": {
+          schema: GetOrdersResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Validation error",
+      content: {
+        "application/json": {
+          schema: OrderValidationErrorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
   },
 });
 
-// PATCH /orders/bulk/status (Admin)
+/**
+ * ADMIN ORDER ENDPOINTS
+ */
+
+// GET /admin/orders (Admin)
 registry.registerPath({
-  method: "patch",
-  path: "/orders/admin/bulk/status",
-  summary: "Update bulk order status",
-  tags: ["Orders"],
+  method: "get",
+  path: "/admin/orders",
+  tags: ["Admin - Orders"],
+  summary: "Get all orders (Admin)",
+  description: "Retrieve all orders in the shop with user info, items, and billing details",
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  request: {
-    body: {
+  responses: {
+    200: {
+      description: "Orders retrieved successfully",
       content: {
         "application/json": {
-          schema: bulkStatusUpdateSchema,
+          schema: GetOrdersAdminResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Authentication error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// GET /admin/orders/:orderUid (Admin)
+registry.registerPath({
+  method: "get",
+  path: "/admin/orders/{orderUid}",
+  tags: ["Admin - Orders"],
+  summary: "Get single order (Admin)",
+  description: "Retrieve detailed order information with full user data, items, and billing info",
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
+  request: {
+    params: OrderUidSchema,
+  },
+  responses: {
+    200: {
+      description: "Order retrieved successfully",
+      content: {
+        "application/json": {
+          schema: OrderAdminResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Validation error",
+      content: {
+        "application/json": {
+          schema: OrderValidationErrorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Order not found",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// PATCH /admin/orders/:orderUid (Admin)
+registry.registerPath({
+  method: "patch",
+  path: "/admin/orders/{orderUid}",
+  tags: ["Admin - Orders"],
+  summary: "Update order (Admin)",
+  description: "Update order details such as status or notes. Common flow: PENDING → PROCESSING → SHIPPED → DELIVERED",
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
+  request: {
+    params: OrderUidSchema,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: UpdateOrderSchema,
         },
       },
     },
   },
   responses: {
-    200: SuccessResponse,
-    400: BadRequest,
-    403: Forbidden,
-    500: ServerError,
+    200: {
+      description: "Order updated successfully",
+      content: {
+        "application/json": {
+          schema: UpdateOrderResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Validation error",
+      content: {
+        "application/json": {
+          schema: OrderValidationErrorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Order not found",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// DELETE /admin/orders/:orderUid (Admin)
+registry.registerPath({
+  method: "delete",
+  path: "/admin/orders/{orderUid}",
+  tags: ["Admin - Orders"],
+  summary: "Delete order (Admin)",
+  description: "Permanently delete an order. Note: Consider using status='CANCELLED' instead for record keeping",
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
+  request: {
+    params: OrderUidSchema,
+  },
+  responses: {
+    200: {
+      description: "Order deleted successfully",
+      content: {
+        "application/json": {
+          schema: DeleteOrderResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Validation error",
+      content: {
+        "application/json": {
+          schema: OrderValidationErrorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Order not found",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+// POST /admin/orders/bulk-update (Admin)
+registry.registerPath({
+  method: "post",
+  path: "/admin/orders/bulk-update",
+  tags: ["Admin - Orders"],
+  summary: "Bulk update orders (Admin)",
+  description: "Update status for multiple orders at once. Maximum 100 orders per request",
+  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: BulkStatusUpdateSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Bulk update successful",
+      content: {
+        "application/json": {
+          schema: BulkUpdateResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Validation error",
+      content: {
+        "application/json": {
+          schema: OrderValidationErrorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: OrderErrorResponseSchema,
+        },
+      },
+    },
   },
 });

@@ -8,7 +8,6 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
   PRIMARY_PORT: z.coerce.number().default(7030),
-  SECONDARY_PORT: z.coerce.number().default(5020),
   DATABASE_URL: z.string().url(),
   MASTER_KEY: z
     .string()
@@ -19,8 +18,12 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(1),
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
-  BACKEND_PROXY_PATH: z.string().optional(),
   CORE_SERVICE_SECRET: z.string(),
+  AWS_S3_BUCKET: z.string(),
+  AWS_REGION: z.string(),
+  AWS_SECRET_ACCESS_KEY: z.string(),
+  AWS_ACCESS_KEY_ID: z.string(),
+  CORE_PLATFORM_BACKEND_URL: z.string().url(),
 });
 
 export const env = envSchema.parse(process.env);

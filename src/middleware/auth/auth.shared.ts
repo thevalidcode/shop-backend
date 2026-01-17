@@ -2,13 +2,8 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.config";
 import { tokenPayloadSchema } from "../../schemas/user.schema";
-import { Decimal } from "@prisma/client/runtime/library";
-import {
-  UserRole,
-  UserStatus,
-  AdminRole,
-  AdminStatus,
-} from "../../../prisma/generated";
+import { Decimal } from "@prisma/client/runtime/client";
+import { User, Admin } from "../../../prisma/generated";
 import {
   internalTokenPayloadSchema,
   internalAdminTokenPayloadSchema,
@@ -21,27 +16,14 @@ declare module "express" {
           type: "user";
           shopId: number;
           uid: string;
-          user: {
-            id: number;
-            email: string;
-            role: UserRole;
-            status: UserStatus;
-            apiKey: string;
-            balance: Decimal;
-          };
+          user: Partial<User>;
         }
       | {
           type: "admin";
           shopId: number;
           uid: string;
-          user: {
-            email: string;
-            id: number;
-            role: AdminRole;
-            uid: string;
-            apiKey: string;
-            status: AdminStatus;
-          };
+
+          user: Partial<Admin>;
         };
   }
 }

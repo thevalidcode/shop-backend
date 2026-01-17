@@ -1,41 +1,71 @@
-import { z } from "zod";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { Request, Response } from "express";
-import { sendEmail } from "../emails";
-import { env } from "../config/env.config";
 import { prisma } from "../config/db.config";
-import { randomBytes } from "crypto";
+import { env } from "../config/env.config";
 import {
-  UserUpdateRequestSchema,
+  AuthenticateUserSchema,
+  UserAuthSchema,
   CreateUserInputSchema,
+  DeleteUserSchema,
+  DeleteUsersSchema,
+  UpdateUserByAdminRequestSchema,
+  UserUpdateRequestSchema,
+  resetPasswordSchema,
+  forgotPasswordSchema,
+  VerifySessionCodeBodySchema,
 } from "../schemas/user.schema";
+import crypto from "crypto";
+import { Prisma } from "../../prisma/generated";
+import { AdminAuthSchema } from "../schemas/admin.schema";
+import { sendUserEmail } from "../emails";
+import { ShopIdSchema, UidSchema } from "../schemas/common.schema";
+import { normalizeHost } from "../config/cors.config";
 
-const meQuerySchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-  shopId: z.coerce.number(),
-});
+async function getNextStoreScopedId(
+  shopId: number,
+  tx: Prisma.TransactionClient
+): Promise<number> {
+  const counter = await tx.shopCounter.upsert({
+    where: { shopId },
+    update: { userCounter: { increment: 1 } },
+    create: { shopId, userCounter: 1 },
+  });
+
+  return counter.userCounter;
+}
 
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
-  const { shopId } = req.auth!;
+  const parsed = AdminAuthSchema.safeParse(req.auth);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { shopId } = parsed.data;
 
   try {
     const allUsers = await prisma.user.findMany({
       where: { shopId },
+      orderBy: { shopScopedId: "desc" },
       select: {
         id: true,
         uid: true,
         email: true,
         username: true,
-        role: true,
-        timestamp: true,
         status: true,
+        fullName: true,
+        image: true,
+        refCode: true,
+        ref: true,
+        timestamp: true,
+        updatedAt: true,
+        currency: true,
+        shopScopedId: true,
       },
     });
     res.status(200).json(allUsers);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to fetch users" });
   }
 };
@@ -49,118 +79,116 @@ export const createUser = async (
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { shopDomain, email, fullName, username, ref, password } = parsed.data;
+  const domain =
+    normalizeHost(req.headers.origin ?? "") ||
+    normalizeHost(req.headers.host ?? "");
+
+  if (!domain) {
+    res.status(400).json({ error: "Domain is not recognized." });
+    return;
+  }
+
+  const { shopId, email, username, ref, password } = parsed.data;
 
   try {
-    // Find shop by domain
-    const shop = await prisma.shop.findFirst({
-      where: { uid: shopDomain },
-      select: { shopId: true, status: true, uid: true },
-    });
-
-    if (!shop) {
-      res
-        .status(404)
-        .json({ error: "Shop not found. Please check the shop domain." });
-      return;
-    }
-
-    if (shop.status !== "ACTIVE") {
-      res.status(400).json({ error: "This shop is not currently active." });
-      return;
-    }
-
-    const existing = await prisma.user.findFirst({
-      where: {
-        shopId: shop.shopId,
-        OR: [{ email }, { username }],
-      },
-    });
-
-    if (existing) {
-      const error =
-        existing.email === email
-          ? "Email already exists"
-          : "Username already exists";
-      res.status(400).send({ error });
-      return;
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = await prisma.$transaction(async (tx) => {
-      const counter = await tx.shopCounter.update({
-        where: { shopId: shop.shopId },
-        data: { userCounter: { increment: 1 } },
+    await prisma.$transaction(async (tx) => {
+      const emailExists = await tx.user.findFirst({
+        where: { email, shopId },
+      });
+      const usernameExists = await tx.user.findFirst({
+        where: { username, shopId },
       });
 
-      return tx.user.create({
+      if (emailExists) {
+        res.status(400).send({ error: "Email already exists" });
+        return;
+      }
+      if (usernameExists) {
+        res.status(400).send({ error: "Username already exists" });
+        return;
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const shopScopedId = await getNextStoreScopedId(shopId, tx);
+
+      const newUser = await tx.user.create({
         data: {
-          shopId: shop.shopId,
+          shopId,
+          shopScopedId,
           email,
           username,
-          fullName,
           password: hashedPassword,
           uid: uuidv4(),
           apiKey: uuidv4(),
-          shopScopedId: counter.userCounter,
-          ref: ref ? Number(ref) : undefined,
+          ref,
+        },
+      });
+
+      if (ref) {
+        await tx.user.update({
+          where: { refCode: ref },
+          data: { referrals: { connect: { id: newUser.id } } },
+        });
+      }
+
+      const token = jwt.sign(
+        { uid: newUser.uid, shopId, apiKey: newUser.apiKey },
+        env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      const csrfToken = crypto.randomBytes(32).toString("hex");
+
+      res.cookie("csrf_token", csrfToken, {
+        httpOnly: false,
+        secure: env.NODE_ENV === "production",
+        sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
+      });
+
+      res.cookie("auth_token", token, {
+        httpOnly: true,
+        secure: env.NODE_ENV === "production",
+        sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
+      });
+
+      res.status(200).send({
+        success: "Created Successfully",
+        user: {
+          id: newUser.id,
+          c: newUser.shopScopedId,
+          email: newUser.email,
+          username: newUser.username,
         },
       });
     });
-
-    const token = jwt.sign(
-      { email, shopId: shop.shopId, apiKey: newUser.apiKey, role: "user" },
-      env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-    const csrfToken = randomBytes(32).toString("hex");
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true, // Always true for SameSite=None
-      sameSite: "none" as const, // Must be 'none' for cross-site requests
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-
-    res.cookie("auth_token", token, cookieOptions);
-    res.cookie("csrf_token", csrfToken, { ...cookieOptions, httpOnly: false });
-
-    await sendEmail(undefined, "newUser", { ...newUser }, shop.shopId);
-
-    res.status(201).send({
-      success: "User account created successfully!",
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        username: newUser.username,
-        shopDomain: shopDomain,
-        shopUrl: `https://${shopDomain}.yourplatform.com`,
-      },
-      message: `Welcome to ${shopDomain}! You can now start shopping.`,
-    });
   } catch (error: any) {
-    console.error("User creation failed:", error);
-    res.status(500).send({ error: "Could not create user." });
+    res.status(500).send({ error: error.message });
   }
 };
 
 export const me = async (req: Request, res: Response): Promise<void> => {
-  const parsed = meQuerySchema.safeParse(req.body);
+  const parsed = AuthenticateUserSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+  const domain =
+    normalizeHost(req.headers.origin ?? "") ||
+    normalizeHost(req.headers.host ?? "");
+
+  if (!domain) {
+    res.status(400).json({ error: "Domain is not recognized." });
+    return;
+  }
+
   const { email, password, shopId } = parsed.data;
 
   try {
-    const account =
-      (await prisma.user.findFirst({
-        where: { email, shopId },
-      })) ||
-      (await prisma.admin.findFirst({
-        where: { email, shopId },
-      }));
+    const account = await prisma.user.findFirst({ where: { email, shopId } });
 
     if (!account) {
       res.status(400).json({ error: "Incorrect login details" });
@@ -168,9 +196,7 @@ export const me = async (req: Request, res: Response): Promise<void> => {
     }
 
     if ("status" in account && account.status === "BANNED") {
-      res
-        .status(403)
-        .json({ error: "You’ve been banned from this site. Contact support." });
+      res.status(403).json({ error: "You’ve been banned. Contact support." });
       return;
     }
 
@@ -183,31 +209,82 @@ export const me = async (req: Request, res: Response): Promise<void> => {
     const apiKey = account.apiKey || uuidv4();
     const role = account.role;
 
-    const token = jwt.sign({ email, shopId, apiKey, role }, env.JWT_SECRET, {
-      expiresIn: "7d",
+    const token = jwt.sign(
+      { uid: account.uid, shopId, apiKey },
+      env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+    const csrfToken = crypto.randomBytes(32).toString("hex");
+
+    res.cookie("csrf_token", csrfToken, {
+      httpOnly: false,
+      secure: env.NODE_ENV === "production",
+      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
     });
 
-    const csrfToken = randomBytes(32).toString("hex");
-
-    const cookieOptions = {
+    res.cookie("auth_token", token, {
       httpOnly: true,
-      secure: true, // Always true for SameSite=None
-      sameSite: "none" as const, // Must be 'none' for cross-site requests
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
+      secure: env.NODE_ENV === "production",
+      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
+    });
 
-    res.cookie("auth_token", token, cookieOptions);
-    res.cookie("csrf_token", csrfToken, { ...cookieOptions, httpOnly: false });
-
-    const { password: _, apiKey: __, ...safeAccount } = account;
+    const { password: _, resetToken, resetTokenExpiry, ...safeUser } = account;
     res.status(200).json({
       success: "Logged in successfully",
       role,
-      user: safeAccount,
+      user: safeUser,
     });
   } catch (err: any) {
-    console.error("Login failed:", err);
-    res.status(500).json({ error: "Login failed due to a server error." });
+    res.status(500).json({ error: "Login failed " + err.message });
+  }
+};
+
+export const getUserByUid = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const paramsSchema = UidSchema.safeParse(req.params);
+  const parsed = UserAuthSchema.safeParse(req.auth);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  if (!paramsSchema.success) {
+    res.status(400).json({ error: paramsSchema.error.flatten() });
+    return;
+  }
+  const { shopId } = parsed.data;
+  const { uid } = paramsSchema.data;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { uid, shopId },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        username: true,
+        status: true,
+        fullName: true,
+        image: true,
+        refCode: true,
+        ref: true,
+        timestamp: true,
+        updatedAt: true,
+        currency: true,
+        shopScopedId: true,
+      },
+    });
+    res.status(200).send({ user });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch user" });
   }
 };
 
@@ -215,58 +292,288 @@ export const verifySession = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { role } = req.auth?.user!;
-
-  try {
-    res.status(200).send({ role });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to verify user session" });
-  }
-};
-
-export const updateUserByAdmin = async (req: Request, res: Response) => {
-  const { uid } = req.params;
-  const { shopId } = req.auth!;
-
-  const validation = UserUpdateRequestSchema.safeParse(req.body);
-  if (!validation.success) {
-    res.status(400).json({ error: validation.error.flatten() });
+  const parsed = VerifySessionCodeBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request body" });
     return;
   }
 
-  try {
-    const updatedUser = await prisma.user.updateMany({
-      where: { uid, shopId }, // Ensures admin can only update users in their own shop
-      data: validation.data,
+  const { sessionCode, shopId } = parsed.data;
+
+  const session = await prisma.sessionCode.findUnique({
+    where: { code: sessionCode, shopId },
+  });
+
+  if (!session || session.used || new Date(session.expiresAt) < new Date()) {
+    res.status(400).json({ error: "Session code expired or invalid" });
+    return;
+  }
+
+  const domain =
+    normalizeHost(req.headers.origin ?? "") ||
+    normalizeHost(req.headers.host ?? "");
+
+  if (!domain) {
+    res.status(400).json({ error: "Domain is not recognized." });
+    return;
+  }
+
+  let account: any = null;
+
+  account = await prisma.user.findFirst({
+    where: { email: session.email, shopId: session.shopId },
+  });
+  if (!account) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const user = account;
+
+  if (!user) {
+    res.status(404).json({
+      error: "User not found",
     });
+    return;
+  }
 
-    if (updatedUser.count === 0) {
-      res.status(404).json({ error: "User not found in this shop." });
-      return;
+  await prisma.sessionCode.update({
+    where: { code: sessionCode },
+    data: { used: true },
+  });
+
+  const token = jwt.sign(
+    { uid: user.uid, shopId, apiKey: user.apiKey },
+    env.JWT_SECRET,
+    {
+      expiresIn: "7d",
     }
+  );
+  const csrfToken = crypto.randomBytes(32).toString("hex");
 
-    res.status(200).json({ success: "User updated successfully." });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to update user." });
+  res.cookie("csrf_token", csrfToken, {
+    httpOnly: false,
+    secure: env.NODE_ENV === "production",
+    sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
+  });
+
+  res.cookie("auth_token", token, {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+    sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
+  });
+
+  const { password: _, resetToken, resetTokenExpiry, ...safeUser } = user;
+
+  res
+    .status(200)
+    .json({ success: "User authenticated successfully", user: safeUser });
+};
+
+export const deleteUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const parsed = DeleteUserSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    await prisma.user.delete({ where: { uid: parsed.data.uid } });
+    res.status(200).send({ success: "Deleted Successfully" });
+  } catch {
+    res.status(500).json({ error: "Failed to delete user" });
   }
 };
 
-export const deleteUserByAdmin = async (req: Request, res: Response) => {
-  const { uid } = req.params;
-  const { shopId } = req.auth!;
+export const deleteUsers = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const parsed = DeleteUsersSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    await prisma.user.deleteMany({ where: { uid: { in: parsed.data.uids } } });
+    res.status(200).send({ success: "Deleted Successfully" });
+  } catch {
+    res.status(500).json({ error: "Failed to delete users" });
+  }
+};
+
+export const updateUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const parsed = UserUpdateRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { uid } = req.auth!;
 
   try {
-    const deletedUser = await prisma.user.deleteMany({
-      where: { uid, shopId },
+    const user = await prisma.user.update({
+      where: { uid: uid },
+      data: {
+        ...parsed.data,
+      },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        username: true,
+        status: true,
+        fullName: true,
+        image: true,
+        refCode: true,
+        ref: true,
+        timestamp: true,
+        updatedAt: true,
+        currency: true,
+        shopScopedId: true,
+      },
+    });
+    res.status(200).json({ success: "Successfully updated user", user });
+  } catch {
+    res.status(500).json({ error: "Failed to update user" });
+  }
+};
+
+export const updateUserByAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const parsed = UpdateUserByAdminRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const { uid } = parsed.data;
+
+  try {
+    await prisma.user.update({
+      where: { uid: uid },
+      data: { ...parsed.data },
     });
 
-    if (deletedUser.count === 0) {
-      res.status(404).json({ error: "User not found in this shop." });
+    res.status(200).json({ success: "Successfully updated user" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to update user" });
+    console.log(error.message);
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  const input = forgotPasswordSchema.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: input.error.flatten() });
+    return;
+  }
+  const parsed = ShopIdSchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { shopId } = parsed.data;
+  const { email } = input.data;
+  try {
+    // Find user by email
+    const user = await prisma.user.findFirst({ where: { email, shopId } });
+    if (!user) {
+      res.status(404).json({ error: "User with this email not found." });
       return;
     }
 
-    res.status(200).json({ success: "User deleted successfully." });
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to delete user." });
+    // Generate reset token and expiry
+    const resetToken = uuidv4();
+    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    // Save token to user record
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetToken, resetTokenExpiry },
+    });
+
+    // Send password reset email
+    await sendUserEmail(shopId, user.email, "FORGOT_PASSWORD", {
+      email: user.email,
+      token: resetToken,
+    });
+
+    res.status(200).json({
+      success: "A password reset link has been sent to your email.",
+    });
+  } catch (err: any) {
+    res
+      .status(500)
+      .json({ error: "Failed to process password reset." + err.message });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const input = resetPasswordSchema.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: input.error.flatten() });
+    return;
+  }
+
+  const { password, token, email } = input.data;
+
+  const parsed = ShopIdSchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { shopId } = parsed.data;
+  try {
+    const user = await prisma.user.findFirst({
+      where: { email, shopId },
+    });
+
+    if (!user) {
+      res.status(400).json({ error: "User not found." });
+      return;
+    }
+
+    if (!user.resetToken || user.resetToken !== token) {
+      res.status(400).json({ error: "Invalid reset token." });
+      return;
+    }
+
+    if (
+      !user.resetTokenExpiry ||
+      new Date(user.resetTokenExpiry) < new Date()
+    ) {
+      res.status(400).json({ error: "Token expired." });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+    });
+
+    // Send password changed email
+    await sendUserEmail(shopId, user.email, "PASSWORD_CHANGED");
+    res.status(200).json({ success: "Password updated successfully." });
+  } catch (err: any) {
+    res
+      .status(500)
+      .json({ error: "Failed to update password: " + err.message });
   }
 };

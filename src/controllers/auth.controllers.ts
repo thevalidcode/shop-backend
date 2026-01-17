@@ -1,34 +1,45 @@
-import jwt from "jsonwebtoken";
 import { prisma } from "../config/db.config";
 import { v4 as uuidv4 } from "uuid";
 import type { Request, Response } from "express";
 import { verifyGoogleIdToken } from "../helpers/googleverify";
 import axios from "axios";
-import { randomBytes } from "crypto";
 import bcrypt from "bcrypt";
 import { env } from "../config/env.config";
+import {
+  GoogleCallbackQuerySchema,
+  RedirectToGoogleQuerySchema,
+  RoleEnum,
+} from "../schemas/auth.schema";
 
 const isValidShopDomain = async (url: string): Promise<boolean> => {
-  const match = url.match(/^https?:\/\/([^/]+)/i);
-  if (!match) return false;
-  const domain = match[1];
-  const shop = await prisma.shop.findUnique({ where: { uid: domain } });
-  return !!shop;
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    const domain = hostname.split(":")[0];
+    const shop = await prisma.shop.findUnique({ where: { uid: domain } });
+    return !!shop;
+  } catch {
+    return false;
+  }
 };
 
 export const redirectToGoogle = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { redirect, shopId } = req.query;
-
-  if (!redirect || !shopId) {
-    res.status(400).send("Missing redirect or shopId");
+  const parsed = RedirectToGoogleQuerySchema.safeParse(req.query as any);
+  if (!parsed.success) {
+    res.status(400).send("Missing or invalid redirect/shopId");
     return;
   }
 
+  const { redirect, shopId, role } = parsed.data;
+
   const state = encodeURIComponent(
-    JSON.stringify({ redirect, shopId: Number(shopId) })
+    JSON.stringify({
+      redirect,
+      shopId: Number(shopId),
+      role: role,
+    })
   );
 
   const authUrl =
@@ -48,18 +59,20 @@ export const googleCallback = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { code, state } = req.query;
-
-  if (!code || !state) {
+  const parsedQuery = GoogleCallbackQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
     res.status(400).send("Missing code or state");
     return;
   }
 
-  let redirectDomain: string, shopId: number;
+  const { code, state } = parsedQuery.data;
+
+  let redirectDomain: string, shopId: number, role: string;
   try {
     const parsed = JSON.parse(decodeURIComponent(state as string));
     redirectDomain = parsed.redirect;
     shopId = parseInt(parsed.shopId);
+    role = parsed.role;
   } catch {
     res.status(400).send("Invalid state");
     return;
@@ -72,17 +85,60 @@ export const googleCallback = async (
   }
 
   try {
-    const tokenRes = await axios.post("https://oauth2.googleapis.com/token", {
-      code,
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: "https://auth.validpanel.com/api/auth/shop/callback/google",
-      grant_type: "authorization_code",
-    });
+    const params = new URLSearchParams();
+    params.append("code", String(code));
+    params.append("client_id", env.GOOGLE_CLIENT_ID);
+    params.append("client_secret", env.GOOGLE_CLIENT_SECRET);
+    params.append(
+      "redirect_uri",
+      "https://auth.validpanel.com/api/auth/shop/callback/google"
+    );
+    params.append("grant_type", "authorization_code");
+
+    const tokenRes = await axios.post(
+      "https://oauth2.googleapis.com/token",
+      params.toString(),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    );
 
     const { id_token } = tokenRes.data;
+    if (!id_token) throw new Error("No id_token returned from Google");
     const googleUser = await verifyGoogleIdToken(id_token);
 
+    if (!googleUser || !googleUser.email) {
+      res.status(400).send("Google user info missing email");
+      return;
+    }
+
+    // For ADMIN role, check admin model; do NOT auto-create admins
+    if (role === RoleEnum.enum.ADMIN) {
+      const admin = await prisma.admin.findFirst({
+        where: { email: googleUser.email, shopId },
+      });
+      if (!admin) {
+        res.status(404).send("Admin not found");
+        return;
+      }
+
+      // use admin as the authenticated account for session creation
+      const sessionCode = uuidv4();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+      await prisma.sessionCode.create({
+        data: {
+          code: sessionCode,
+          email: admin.email,
+          shopId,
+          expiresAt,
+          used: false,
+        },
+      });
+
+      res.redirect(`${redirectDomain}?session_code=${sessionCode}`);
+      return;
+    }
+
+    // Default: USER flow (same as before)
     let user = await prisma.user.findFirst({
       where: { email: googleUser.email, shopId },
     });
@@ -97,11 +153,11 @@ export const googleCallback = async (
         return tx.user.create({
           data: {
             shopScopedId: counter.userCounter,
-            fullName: googleUser.name,
             email: googleUser.email,
             username:
-              googleUser.name.replace(/\s/g, "").toLowerCase() +
-              counter.userCounter,
+              (googleUser.name
+                ? googleUser.name.replace(/\s/g, "").toLowerCase()
+                : googleUser.email.split("@")[0]) + counter.userCounter,
             image: googleUser.picture,
             password: await bcrypt.hash(Date.now().toString(), 10),
             apiKey: uuidv4(),
@@ -115,22 +171,16 @@ export const googleCallback = async (
     }
 
     const sessionCode = uuidv4();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-    const counter = await prisma.$transaction(async (tx) => {
-      const counter = await tx.shopCounter.update({
-        where: { shopId },
-        data: { sessionCodeCounter: { increment: 1 } },
-      });
-      await tx.sessionCode.create({
-        data: {
-          code: sessionCode,
-          email: user.email,
-          shopScopedId: counter.sessionCodeCounter,
-          shopId,
-          expiresAt,
-          used: false,
-        },
-      });
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    await prisma.sessionCode.create({
+      data: {
+        code: sessionCode,
+        email: user.email,
+        shopId,
+        expiresAt,
+        used: false,
+      },
     });
 
     res.redirect(`${redirectDomain}?session_code=${sessionCode}`);
@@ -138,67 +188,4 @@ export const googleCallback = async (
     console.error("Google OAuth callback failed:", err);
     res.status(500).send("OAuth failed due to a server error.");
   }
-};
-
-export const verifySessionCode = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { sessionCode } = req.body;
-
-  if (!sessionCode || typeof sessionCode !== "string") {
-    res.status(400).json({ error: "Invalid session code" });
-    return;
-  }
-
-  const session = await prisma.sessionCode.findUnique({
-    where: { code: sessionCode },
-  });
-
-  if (!session || session.used || session.expiresAt < new Date()) {
-    res.status(400).json({ error: "Session code expired or invalid" });
-    return;
-  }
-
-  const user = await prisma.user.findFirst({
-    where: { email: session.email, shopId: session.shopId },
-  });
-
-  if (!user) {
-    res.status(404).json({ error: "User not found" });
-    return;
-  }
-
-  await prisma.sessionCode.update({
-    where: { code: sessionCode },
-    data: { used: true },
-  });
-
-  const token = jwt.sign(
-    {
-      email: user.email,
-      shopId: user.shopId,
-      apiKey: user.apiKey,
-      role: user.role,
-    },
-    env.JWT_SECRET,
-    { expiresIn: "7d" }
-  );
-  const csrfToken = randomBytes(32).toString("hex");
-
-  res.cookie("csrf_token", csrfToken, {
-    httpOnly: false,
-    secure: env.NODE_ENV === "production",
-    sameSite: "none",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-
-  res.cookie("auth_token", token, {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "none",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-
-  res.status(200).json({ role: user.role });
 };
