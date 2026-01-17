@@ -137,10 +137,10 @@ registry.registerPath({
   },
 });
 
-// POST /user - Create user
+// POST /users - Create user
 registry.registerPath({
   method: "post",
-  path: "/user",
+  path: "/users",
   summary: "Create new user account",
   tags: ["User"],
   request: {
@@ -159,7 +159,7 @@ registry.registerPath({
   },
 });
 
-// GET /users/:uid - Get user by UID
+// GET /users/{uid} - Get user by UID
 registry.registerPath({
   method: "get",
   path: "/users/{uid}",
@@ -176,10 +176,10 @@ registry.registerPath({
   },
 });
 
-// PATCH /user - Update user (self)
+// PATCH /users - Update user (self)
 registry.registerPath({
   method: "patch",
-  path: "/user",
+  path: "/users",
   summary: "Update user profile (authenticated user)",
   tags: ["User"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
@@ -222,10 +222,10 @@ registry.registerPath({
   },
 });
 
-// DELETE /user - Delete user
+// DELETE /users - Delete user
 registry.registerPath({
   method: "delete",
-  path: "/user",
+  path: "/users",
   summary: "Delete a single user",
   tags: ["User"],
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
