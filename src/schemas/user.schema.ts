@@ -12,26 +12,20 @@ export const UserSchema = z
     email: z.string().email(),
     fullName: z.string(),
     username: z.string(),
+    phone: z.string(),
+    shopId: z.coerce.number(),
     status: z.nativeEnum(UserStatus),
     apiKey: z.string(),
     role: z.nativeEnum(UserRole),
   })
   .openapi("User");
 
-export const AuthSchema = z.object({
-  shopId: z.coerce.number(),
-  email: z.string().email(),
-  uid: z.string(),
-  apiKey: z.string(),
-  role: z.string(),
-  user: UserSchema,
-});
-
 export const UserPublicSchema = z
   .object({
     id: z.string(),
     shopScopedId: z.number(),
     email: z.string().email(),
+    phone: z.string(),
     username: z.string(),
     fullName: z.string(),
   })
@@ -39,6 +33,7 @@ export const UserPublicSchema = z
 
 export const UserUpdateRequestSchema = z.object({
   uid: z.string().describe("User UID"),
+  phone: z.string().optional().nullable().describe("User phone number"),
   username: z.string().describe("Username").optional(),
   fullName: z.string().describe("Full name").optional(),
 });
@@ -61,8 +56,8 @@ export const AuthenticateUserResponseSchema = z.object({
 
 export const CreateUserInputSchema = z.object({
   email: z.string().email().describe("User email"),
-  username: z.string().describe("User username"),
-  fullName: z.string().describe("User username"),
+  fullName: z.string().describe("User full name"),
+  phone: z.string().optional().nullable().describe("User phone number"),
   password: z.string().describe("User password"),
   shopId: z.number().min(1).describe("Shop ID to join"),
   ref: z.coerce.number().optional().describe("Optional referral ID"),
@@ -88,7 +83,7 @@ export const GoogleAuthRequestSchema = z
 
 export const tokenPayloadSchema = z.object({
   shopId: z.number(),
-  uid: z.string().uuid(),
+  uid: z.string(),
 });
 
 export const UserAuthSchema = z.object({
@@ -96,12 +91,6 @@ export const UserAuthSchema = z.object({
   uid: z.string(),
   type: z.literal("user"),
   user: UserSchema,
-});
-
-export const AdminAuthSchema = z.object({
-  shopId: z.coerce.number(),
-  uid: z.string(),
-  type: z.literal("admin"),
 });
 
 export const VerifySessionCodeBodySchema = z.object({

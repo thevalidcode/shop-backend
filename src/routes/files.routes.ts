@@ -19,6 +19,15 @@ router.post(
   upload.single("image"),
   uploads.uploadImage
 );
+
+router.post(
+  "/images",
+  authenticateAnyone,
+  limitUploads,
+  upload.array("images", 10),
+  uploads.uploadMultipleImages
+);
+
 router.get("/image/logs", authenticateAdmin, uploads.getPreviousImages);
 
 export default router;

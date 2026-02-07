@@ -17,7 +17,8 @@ export const createBillingInfo = async (req: Request, res: Response) => {
     return;
   }
 
-  const { user } = authParsed.data;
+  const { user, shopId } = authParsed.data;
+  user.shopId = shopId;
 
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });

@@ -2,6 +2,9 @@
 import { colorToHex } from "../utils/colorUtils";
 import { DEFAULT_EMAIL_COLORS } from "../constants/defaultColors";
 
+// Re-export DEFAULT_EMAIL_COLORS for use in templates
+export { DEFAULT_EMAIL_COLORS };
+
 export interface DesignColors {
   primary: string;
   primaryForeground: string;

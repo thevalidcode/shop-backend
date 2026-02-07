@@ -7,12 +7,11 @@ export const collection = z
     "blogs",
     "faqs",
     "general",
-    "services",
+    "products",
     "categories",
-    "providers",
     "users",
     "admins",
-    "store",
+    "shop",
     "payment-gateways",
   ])
   .describe("Collection of the image uploaded");
@@ -35,4 +34,8 @@ export const FileSchema = z.object({
   originalname: z.string().min(1),
   mimetype: z.string().regex(/^image\/(jpeg|png|gif|webp)$/),
   size: z.number().max(5 * 1024 * 1024), // Max 5MB
+});
+
+export const UploadMultipleImagesRequest = z.object({
+  collection,
 });

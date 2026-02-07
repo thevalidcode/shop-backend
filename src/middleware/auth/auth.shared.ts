@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.config";
 import { tokenPayloadSchema } from "../../schemas/user.schema";
-import { Decimal } from "@prisma/client/runtime/client";
 import { User, Admin } from "../../../prisma/generated";
 import {
   internalTokenPayloadSchema,
@@ -54,7 +53,6 @@ export const verifyBrowserAuth = (req: Request, res: Response) => {
       res.status(401).json({ error: parsed.error.flatten() });
       return null;
     }
-
     return parsed.data;
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });
@@ -74,11 +72,11 @@ const serviceSecrets: Record<string, string> = {
  * 🔒 Internal User Authentication
  *
  * Used when the **core platform** or another service
- * makes requests on behalf of a specific **user** to a specific **store**.
+ * makes requests on behalf of a specific **user** to a specific **shop**.
  *
- * That user on the core platform is an admin to a specific store.
+ * That user on the core platform is an admin to a specific shop.
  *
- * Payload requires: `{ serviceKey, type: "system", uid, storeId }`
+ * Payload requires: `{ serviceKey, type: "system", uid, shopId }`
  */
 export const verifyInternalUserAuth = (req: Request, res: Response) => {
   const authHeader = req.headers["authorization"] as string;
@@ -110,7 +108,7 @@ export const verifyInternalUserAuth = (req: Request, res: Response) => {
       return null;
     }
 
-    return parsed.data; // { serviceKey, type, uid, storeId }
+    return parsed.data; // { serviceKey, type, uid, shopId }
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });
     return null;
@@ -121,10 +119,10 @@ export const verifyInternalUserAuth = (req: Request, res: Response) => {
  * 🔑 Internal Admin Authentication
  *
  * Used when **admins** of the core platform
- * need to fetch or manage **all stores** at once.
+ * need to fetch or manage **all shops** at once.
  *
  * Payload requires: `{ serviceKey, type: "system" }`
- * No `uid` or `storeId` is needed.
+ * No `uid` or `shopId` is needed.
  */
 export const verifyInternalAdminAuth = (req: Request, res: Response) => {
   const authHeader = req.headers["authorization"] as string;

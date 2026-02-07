@@ -147,6 +147,11 @@ export async function buildEmailTemplate(
 // ----------------------------
 // Dispatch Email & Log
 // ----------------------------
+// Check if we're in production before sending emails
+function shouldSendEmail(): boolean {
+  return process.env.NODE_ENV === 'production';
+}
+
 async function dispatchEmail({
   from,
   to,
@@ -232,6 +237,12 @@ export async function sendEmailToAdmins(
   type: keyof EmailTemplateVars,
   data: Record<string, any> = {}
 ): Promise<void> {
+  // Only send emails in production environment
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[DEV] Would send admin email of type "${type}" to shop ${shopId}`);
+    return;
+  }
+
   try {
     const shopSettings = await loadStoreSettings(shopId);
     const { subject, html } = await buildEmailTemplate(
@@ -276,6 +287,12 @@ export async function sendUserEmail(
   type: keyof EmailTemplateVars,
   data: Record<string, any> = {}
 ): Promise<void> {
+  // Only send emails in production environment
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[DEV] Would send email of type "${type}" to ${to} for shop ${shopId}`);
+    return;
+  }
+
   try {
     const shopSettings = await loadStoreSettings(shopId);
     const { subject, html } = await buildEmailTemplate(

@@ -14,7 +14,6 @@ export const PaymentGatewayAdminsSchema = z.object({
   shopScopedId: z.number(),
   uid: z.string(),
   name: z.string(),
-  image: z.string().url(),
   description: z.string().nullable(),
   position: z.number(),
   createdAt: z.coerce.date(),
@@ -29,7 +28,6 @@ export const PaymentGatewayAdminsSchema = z.object({
 export const PaymentGatewayUsersSchema = z.object({
   id: z.number(),
   name: z.string(),
-  image: z.string().url(),
   description: z.string().optional(),
   min: z.number(),
   max: z.number(),
@@ -42,7 +40,6 @@ export const PaymentCreateRequestSchema = z.object({
   name: z.string(),
   secretKey: z.string().optional(),
   description: z.string().optional(),
-  image: z.string(),
 });
 
 export const PaymentUpdateRequestSchema = z.object({

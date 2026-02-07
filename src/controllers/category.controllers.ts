@@ -12,7 +12,7 @@ import { ShopIdSchema, UidSchema } from "../schemas/common.schema";
 
 export const getCategories = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = ShopIdSchema.safeParse(req.query);
   if (!parsed.success) {
@@ -34,7 +34,7 @@ export const getCategories = async (
 
 export const getCategoryByUID = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const paramsParsed = UidSchema.safeParse(req.params);
   const queryParsed = ShopIdSchema.safeParse(req.query);
@@ -67,7 +67,7 @@ export const getCategoryByUID = async (
 
 export const updateCategory = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = CategoryUpdateRequestSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -79,9 +79,10 @@ export const updateCategory = async (
   const { shopId } = req.auth!;
 
   try {
-    const categoryToUpdate = await prisma.category.findFirst({
+    const categoryToUpdate = await prisma.category.findUnique({
       where: { uid, shopId },
     });
+    
     if (!categoryToUpdate) {
       res.status(404).json({ error: "Category not found in this shop." });
       return;
@@ -103,7 +104,7 @@ export const updateCategory = async (
 
 export const deleteCategory = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = DeleteCategorySchema.safeParse(req.body);
   if (!parsed.success) {
@@ -127,7 +128,7 @@ export const deleteCategory = async (
 
 export const deleteMultipleCategory = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = DeleteCategoriesSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -151,7 +152,7 @@ export const deleteMultipleCategory = async (
 
 export const addCategory = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = CategoryCreateRequestSchema.safeParse(req.body);
 

@@ -8,6 +8,7 @@ import {
   productModifyRateLimit,
   productBulkRateLimit,
 } from "../middleware/ratelimit";
+import { checkProductLimit } from "../middleware/features";
 
 // Public routes - Enhanced
 router.get("/search", productRateLimit, productsEnhanced.getProductsPublic);
@@ -51,8 +52,7 @@ router.get(
 // Admin-only routes
 router.post(
   "/",
-  authenticateAdmin,
-  productModifyRateLimit,
+  authenticateAdmin,  checkProductLimit,  productModifyRateLimit,
   products.addProduct
 );
 router.get(

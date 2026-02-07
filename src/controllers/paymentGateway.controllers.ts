@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../config/db.config";
 import { encryptKey } from "../utils/encrypt";
-import { AuthSchema } from "../schemas/user.schema";
+import { UserAuthSchema } from "../schemas/user.schema";
 import {
   DeletePaymentGatewaySchema,
   GetPaymentGatewayByIdSchema,
@@ -11,12 +11,13 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import { Prisma } from "../../prisma/generated";
+import { AdminAuthSchema } from "../schemas/admin.schema";
 
 export const getPaymentGateways = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
 
   if (!authParsed.success) {
     res.status(400).json({ error: authParsed.error.flatten() });
@@ -30,7 +31,6 @@ export const getPaymentGateways = async (
         platform: true,
         name: true,
         uid: true,
-        image: true,
         description: true,
         status: true,
       },
@@ -45,9 +45,9 @@ export const getPaymentGateways = async (
 
 export const getPaymentGatewayByUid = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
   const paramsParsed = GetPaymentGatewayByIdSchema.safeParse(req.params);
 
   if (!authParsed.success || !paramsParsed.success) {
@@ -72,7 +72,6 @@ export const getPaymentGatewayByUid = async (
         platform: true,
         name: true,
         uid: true,
-        image: true,
         description: true,
         status: true,
       },
@@ -86,9 +85,9 @@ export const getPaymentGatewayByUid = async (
 
 export const getPaymentGatewaysForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = UserAuthSchema.safeParse(req.auth);
 
   if (!authParsed.success) {
     res.status(400).json({ error: authParsed.error.flatten() });
@@ -103,7 +102,6 @@ export const getPaymentGatewaysForUser = async (
         platform: true,
         name: true,
         uid: true,
-        image: true,
         description: true,
         position: true,
       },
@@ -118,9 +116,9 @@ export const getPaymentGatewaysForUser = async (
 
 export const getPaymentGatewayByUidForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = UserAuthSchema.safeParse(req.auth);
   const paramsParsed = GetPaymentGatewayByIdSchema.safeParse(req.params);
 
   if (!authParsed.success || !paramsParsed.success) {
@@ -144,7 +142,6 @@ export const getPaymentGatewayByUidForUser = async (
         platform: true,
         name: true,
         uid: true,
-        image: true,
         description: true,
       },
     });
@@ -157,9 +154,9 @@ export const getPaymentGatewayByUidForUser = async (
 
 export const addPaymentGateway = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
   const bodyParsed = PaymentCreateRequestSchema.safeParse(req.body);
 
   if (!authParsed.success || !bodyParsed.success) {
@@ -198,7 +195,6 @@ export const addPaymentGateway = async (
         shopScopedId: counter.paymentGatewayCounter,
         shop: { connect: { shopId } },
         description: reqData.description,
-        image: reqData.image,
         platform: reqData.platform,
         position: counter.paymentGatewayCounter,
         min: 1,
@@ -237,9 +233,9 @@ export const addPaymentGateway = async (
 
 export const updatePaymentGateway = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
   const parsed = PaymentUpdateRequestSchema.safeParse(req.body);
 
   if (!parsed.success || !authParsed.success) {
@@ -266,7 +262,6 @@ export const updatePaymentGateway = async (
     const paymentGatewayData: Prisma.PaymentGatewayUpdateInput = {
       name: reqData.name,
       description: reqData.description,
-      image: reqData.image,
       signature: crypto.randomBytes(32).toString("hex"),
     };
 
@@ -298,9 +293,9 @@ export const updatePaymentGateway = async (
 
 export const deletePaymentGateway = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
   const parsed = DeletePaymentGatewaySchema.safeParse(req.body);
 
   if (!authParsed.success || !parsed.success) {

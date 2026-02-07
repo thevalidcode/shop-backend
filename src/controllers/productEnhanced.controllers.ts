@@ -16,7 +16,7 @@ import {
  */
 export const getProductsPublic = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = GetProductsQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -29,7 +29,7 @@ export const getProductsPublic = async (
     page,
     limit,
     search,
-    category,
+    categoryUid,
     minPrice,
     maxPrice,
     sortBy,
@@ -49,7 +49,7 @@ export const getProductsPublic = async (
       ];
     }
 
-    if (category) where.categoryUid = category;
+    if (categoryUid) where.categoryUid = categoryUid;
     if (isFeatured === "true") where.isFeatured = true;
     if (brand) where.brand = brand;
 
@@ -128,7 +128,7 @@ export const getProductsPublic = async (
  */
 export const getProductBySlug = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = GetProductBySlugSchema.safeParse({
     slug: req.params.slug,
@@ -202,7 +202,7 @@ export const getProductBySlug = async (
  */
 export const createProductReview = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   if (!req.auth) {
     res.status(401).json({ error: "Authentication required" });
@@ -321,7 +321,7 @@ async function updateProductRating(productUid: string): Promise<void> {
  */
 export const getProductReviews = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = GetProductReviewsQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -379,7 +379,7 @@ export const getProductReviews = async (
  */
 export const getFeaturedProducts = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = GetFeaturedProductsQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -423,7 +423,7 @@ export const getFeaturedProducts = async (
  */
 export const getBestSellingProducts = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = GetBestSellingQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -466,7 +466,7 @@ export const getBestSellingProducts = async (
  */
 export const getProductVariants = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const productUid = req.params.productUid as string;
 
@@ -487,7 +487,7 @@ export const getProductVariants = async (
  */
 export const getRelatedProducts = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = GetRelatedProductsQuerySchema.safeParse(req.query);
   if (!parsed.success) {

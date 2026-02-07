@@ -1,19 +1,10 @@
-import { Layout, LogoVars, TemplateResult, DesignColors } from "../components/EmailLayout";
+import { Layout, TemplateResult } from "../components/EmailLayout";
 import { DEFAULT_EMAIL_COLORS } from "../constants/defaultColors";
-
-interface StoreSettings {
-  logoUrl: string;
-  shopName: string;
-  shopUrl: string;
-  designColors?: DesignColors;
-}
+import { StoreSettings } from "./interface";
 
 export interface AdminForgotPasswordVars {
   email: string;
   token: string;
-  logo: string;
-  shopName: string;
-  shopUrl: string;
 }
 
 /**
@@ -21,13 +12,13 @@ export interface AdminForgotPasswordVars {
  * Reset link points to /admin/reset-password
  */
 export const adminForgotPassword = (
-  { email, token, logo }: AdminForgotPasswordVars,
-  shopSettings: StoreSettings
+  { email, token }: AdminForgotPasswordVars,
+  shopSettings: StoreSettings,
 ): TemplateResult => {
   const resetLink = `${shopSettings.shopUrl}/admin/auth/reset-password?email=${encodeURIComponent(
-    email
+    email,
   )}&token=${encodeURIComponent(token)}`;
-  
+
   const c = shopSettings.designColors || DEFAULT_EMAIL_COLORS;
 
   const bodyContent = `
@@ -87,7 +78,7 @@ export const adminForgotPassword = (
   return Layout({
     subject: "Reset Your Admin Password - Action Required",
     children: bodyContent,
-    logoUrl: shopSettings.logoUrl || logo,
+    logoUrl: shopSettings.logoUrl,
     shopName: shopSettings.shopName,
     shopUrl: shopSettings.shopUrl,
     designColors: c,
@@ -99,11 +90,11 @@ export const adminForgotPassword = (
  * Confirmation email sent after successful password change
  */
 export const adminPasswordChanged = (
-  { logo }: LogoVars,
-  shopSettings: StoreSettings
+  _: any,
+  shopSettings: StoreSettings,
 ): TemplateResult => {
   const c = shopSettings.designColors || DEFAULT_EMAIL_COLORS;
-  
+
   const bodyContent = `
     <!-- Admin badge -->
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
@@ -139,7 +130,7 @@ export const adminPasswordChanged = (
             Admin password updated successfully
           </p>
           <p style="margin:8px 0 0; font-size:14px; line-height:20px; color:${c.mutedForeground};">
-            ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} at ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
           </p>
         </td>
       </tr>
@@ -173,11 +164,11 @@ export const adminPasswordChanged = (
             </tr>
             <tr>
               <td style="padding:4px 0;"><strong>Date:</strong></td>
-              <td style="padding:4px 0; text-align:right;">${new Date().toLocaleDateString('en-US')}</td>
+              <td style="padding:4px 0; text-align:right;">${new Date().toLocaleDateString("en-US")}</td>
             </tr>
             <tr>
               <td style="padding:4px 0;"><strong>Time:</strong></td>
-              <td style="padding:4px 0; text-align:right;">${new Date().toLocaleTimeString('en-US')}</td>
+              <td style="padding:4px 0; text-align:right;">${new Date().toLocaleTimeString("en-US")}</td>
             </tr>
           </table>
         </td>
@@ -206,7 +197,7 @@ export const adminPasswordChanged = (
   return Layout({
     subject: "Admin Password Changed - Security Notification",
     children: bodyContent,
-    logoUrl: shopSettings.logoUrl || logo,
+    logoUrl: shopSettings.logoUrl,
     shopName: shopSettings.shopName,
     shopUrl: shopSettings.shopUrl,
     designColors: c,

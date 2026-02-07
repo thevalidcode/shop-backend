@@ -4,7 +4,8 @@ import axios from "axios";
 import { decryptKey } from "../utils/encrypt";
 import { FlutterwaveWebhookData } from "../schemas/webhook.schema";
 import type { Request } from "express";
-import convertCurrency from "../utils/ConvertCurrency";
+import { placeOrderFromCartTx } from "../utils/cart";
+import { sendUserEmail } from "../emails";
 
 const verifySignature = async (req: Request, shopId: number) => {
   const gateway = await prisma.paymentGateway.findFirst({
@@ -22,7 +23,7 @@ const verifySignature = async (req: Request, shopId: number) => {
 
 export const initFlutterwavePayment = async (
   paymentData: any,
-  secretKey: { encryptedSecretKey: string; iv: string }
+  secretKey: { encryptedSecretKey: string; iv: string },
 ) => {
   const response = await axios.post(
     "https://api.flutterwave.com/v3/payments",
@@ -31,11 +32,11 @@ export const initFlutterwavePayment = async (
       headers: {
         Authorization: `Bearer ${decryptKey(
           secretKey.encryptedSecretKey,
-          secretKey.iv
+          secretKey.iv,
         )}`,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
   return { url: response.data.data.link };
 };
@@ -43,7 +44,7 @@ export const initFlutterwavePayment = async (
 const processSuccess = async (
   req: Request,
   data: FlutterwaveWebhookData,
-  customer: FlutterwaveWebhookData["data"]["customer"]
+  customer: FlutterwaveWebhookData["data"]["customer"],
 ) => {
   const payment = await prisma.payment.findFirst({
     where: { uid: data.data.tx_ref, status: "PENDING" },
@@ -54,62 +55,53 @@ const processSuccess = async (
   await verifySignature(req, payment.shopId);
 
   const user = await prisma.user.findFirst({
-    where: { email: customer.email },
+    where: { email: customer.email, shopId: payment.shopId },
+    include: { shop: true },
   });
 
   if (!user) throw new Error("User not found");
 
   await prisma.$transaction(async (tx) => {
-    const counter = await tx.shopCounter.update({
-      where: { shopId: user.shopId! },
-      data: {
-        transactionCounter: { increment: 1 },
-      },
-    });
-
     await tx.payment.update({
       where: { uid: payment.uid },
       data: {
         status: "SUCCESS",
       },
+      include: { shop: true },
     });
-    
-    const convertedUSDmount = await convertCurrency(
-      data.data.amount,
-      data.data.currency,
-      "USD"
+    await placeOrderFromCartTx(
+      data.meta_data.billingInfoUid,
+      payment.uid,
+      false,
+      data.meta_data.notes,
+      user,
+      tx,
+      data.meta_data.shippingCost ? Number(data.meta_data.shippingCost) : undefined,
+      data.meta_data.shippingCurrency as string | undefined,
+      data.meta_data.selectedShippingRate,
     );
-
-    await tx.transaction.create({
-      data: {
-        uid: payment.uid,
-        type: "ORDER_PAYMENT",
-        amount: convertedUSDmount,
-        description: `Order payment via Flutterwave`,
-        userUid: user.uid,
-        shopScopedId: counter.transactionCounter,
-        shopId: user.shopId,
-      },
-    });
-
-    // Optional: Update order status to paid if orderUid matches
-    if (data.meta_data?.orderUid) {
-      await tx.order.update({
-        where: { uid: data.meta_data.orderUid },
-        data: {
-          status: "PROCESSING",
-          paymentReference: payment.uid,
-          paymentMethod: "FLUTTERWAVE",
-        },
-      });
-    }
   });
+
+  // Send payment successful email
+  try {
+    await sendUserEmail(payment.shopId, user.email, "PAYMENT_SUCCESSFUL", {
+      userName: user.fullName || user.username,
+      transactionId: payment.uid,
+      amount: Number(payment.amount).toFixed(2),
+      currency: payment.currency,
+      paymentDate: new Date().toLocaleDateString(),
+      paymentMethod: "Flutterwave",
+      receiptUrl: `https://${user.shop.uid || ""}/client/orders`,
+    });
+  } catch (emailError) {
+    console.error("Failed to send payment success email:", emailError);
+  }
 };
 
 const processFailure = async (
   req: Request,
   data: FlutterwaveWebhookData,
-  customer: FlutterwaveWebhookData["data"]["customer"]
+  customer: FlutterwaveWebhookData["data"]["customer"],
 ) => {
   const payment = await prisma.payment.findFirst({
     where: { uid: data.data.tx_ref, status: "PENDING" },
@@ -120,7 +112,8 @@ const processFailure = async (
   await verifySignature(req, payment.shopId);
 
   const user = await prisma.user.findFirst({
-    where: { email: customer.email },
+    where: { email: customer.email, shopId: payment.shopId },
+    include: { shop: true },
   });
 
   if (!user) throw new Error("User not found");
@@ -131,6 +124,21 @@ const processFailure = async (
       status: "FAILED",
     },
   });
+
+  // Send payment failed email
+  try {
+    await sendUserEmail(payment.shopId, user.email, "PAYMENT_FAILED", {
+      userName: user.fullName || user.username,
+      transactionId: payment.uid,
+      amount: Number(payment.amount).toFixed(2),
+      currency: payment.currency,
+      failureReason:
+        "Your payment was declined. Please check your payment details and try again.",
+      retryUrl: `https://${user.shop.uid || ""}/client/checkout?step=payment`,
+    });
+  } catch (emailError) {
+    console.error("Failed to send payment failure email:", emailError);
+  }
 };
 
 export default { processSuccess, processFailure };

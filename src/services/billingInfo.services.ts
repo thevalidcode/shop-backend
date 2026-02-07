@@ -9,12 +9,16 @@ export const createBillingInfo = async (
   user: Partial<User>,
   data: CreateBillingInfoInput
 ) => {
+  if (!user.uid || !user.shopId) {
+    throw new Error("User UID and Shop ID are required");
+  }
+
   // If this is set as default, unset all other default billing info for this user
   if (data.isDefault) {
     await prisma.billingInfo.updateMany({
       where: {
-        userUid: user.uid!,
-        shopId: user.shopId!,
+        userUid: user.uid,
+        shopId: user.shopId,
         isDefault: true,
       },
       data: {
@@ -24,7 +28,7 @@ export const createBillingInfo = async (
   }
 
   const counter = await prisma.shopCounter.update({
-    where: { shopId: user.shopId! },
+    where: { shopId: user.shopId },
     data: {
       billingInfoCounter: { increment: 1 },
     },

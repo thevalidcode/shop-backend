@@ -22,7 +22,7 @@ export const ImagesLogs = {
         images: z.array(
           z.object({
             id: z.number(),
-            storeScopedId: z.number(),
+            shopScopedId: z.number(),
             filename: z.string(),
             mimetype: z.string(),
             collection: z.string(),
@@ -32,6 +32,35 @@ export const ImagesLogs = {
             uid: z.string(),
           })
         ),
+      }),
+    },
+  },
+};
+
+export const BatchUploadSuccess = {
+  description: "Batch upload completed",
+  content: {
+    "application/json": {
+      schema: z.object({
+        message: z.string(),
+        successful: z.number(),
+        total: z.number(),
+        uploads: z.array(
+          z.object({
+            filename: z.string(),
+            url: z.string().url(),
+            collection: z.string(),
+            status: z.enum(["success", "already_exists"]),
+          })
+        ),
+        errors: z
+          .array(
+            z.object({
+              filename: z.string(),
+              error: z.string(),
+            })
+          )
+          .optional(),
       }),
     },
   },

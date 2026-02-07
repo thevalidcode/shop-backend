@@ -18,14 +18,14 @@ import {
 } from "../schemas/user.schema";
 import crypto from "crypto";
 import { Prisma } from "../../prisma/generated";
-import { AdminAuthSchema } from "../schemas/admin.schema";
 import { sendUserEmail } from "../emails";
+import { AdminAuthSchema } from "../schemas/admin.schema";
 import { ShopIdSchema, UidSchema } from "../schemas/common.schema";
 import { normalizeHost } from "../config/cors.config";
 
 async function getNextStoreScopedId(
   shopId: number,
-  tx: Prisma.TransactionClient
+  tx: Prisma.TransactionClient,
 ): Promise<number> {
   const counter = await tx.shopCounter.upsert({
     where: { shopId },
@@ -57,6 +57,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
         fullName: true,
         image: true,
         refCode: true,
+        spent: true,
         ref: true,
         timestamp: true,
         updatedAt: true,
@@ -72,7 +73,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 
 export const createUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = CreateUserInputSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -88,25 +89,21 @@ export const createUser = async (
     return;
   }
 
-  const { shopId, email, username, ref, password } = parsed.data;
+  const { shopId, email, fullName, ref, password } = parsed.data;
 
   try {
     await prisma.$transaction(async (tx) => {
       const emailExists = await tx.user.findFirst({
         where: { email, shopId },
       });
-      const usernameExists = await tx.user.findFirst({
-        where: { username, shopId },
-      });
 
       if (emailExists) {
         res.status(400).send({ error: "Email already exists" });
         return;
       }
-      if (usernameExists) {
-        res.status(400).send({ error: "Username already exists" });
-        return;
-      }
+
+      const username = email.split("@")[0] + Math.floor(Math.random() * 1000);
+      const { phone } = parsed.data;
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const shopScopedId = await getNextStoreScopedId(shopId, tx);
@@ -116,6 +113,8 @@ export const createUser = async (
           shopId,
           shopScopedId,
           email,
+          fullName,
+          phone,
           username,
           password: hashedPassword,
           uid: uuidv4(),
@@ -134,7 +133,7 @@ export const createUser = async (
       const token = jwt.sign(
         { uid: newUser.uid, shopId, apiKey: newUser.apiKey },
         env.JWT_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       );
 
       const csrfToken = crypto.randomBytes(32).toString("hex");
@@ -155,11 +154,25 @@ export const createUser = async (
         ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
       });
 
+      // Send welcome email to new user
+      try {
+        const shop = await prisma.shop.findUnique({ where: { shopId } });
+        const shopUrl = shop?.uid ? `https://${shop.uid}` : "";
+        
+        await sendUserEmail(shopId, newUser.email, 'WELCOME_EMAIL', {
+          userName: newUser.fullName || newUser.username,
+          loginUrl: `${shopUrl}/auth/signin`,
+          accountEmail: newUser.email,
+        });
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+      }
+
       res.status(200).send({
         success: "Created Successfully",
         user: {
           id: newUser.id,
-          c: newUser.shopScopedId,
+          shopScopedId: newUser.shopScopedId,
           email: newUser.email,
           username: newUser.username,
         },
@@ -214,7 +227,7 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       env.JWT_SECRET,
       {
         expiresIn: "7d",
-      }
+      },
     );
     const csrfToken = crypto.randomBytes(32).toString("hex");
 
@@ -247,7 +260,7 @@ export const me = async (req: Request, res: Response): Promise<void> => {
 
 export const getUserByUid = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const paramsSchema = UidSchema.safeParse(req.params);
   const parsed = UserAuthSchema.safeParse(req.auth);
@@ -273,6 +286,7 @@ export const getUserByUid = async (
         username: true,
         status: true,
         fullName: true,
+        spent: true,
         image: true,
         refCode: true,
         ref: true,
@@ -290,7 +304,7 @@ export const getUserByUid = async (
 
 export const verifySession = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = VerifySessionCodeBodySchema.safeParse(req.body);
   if (!parsed.success) {
@@ -347,7 +361,7 @@ export const verifySession = async (
     env.JWT_SECRET,
     {
       expiresIn: "7d",
-    }
+    },
   );
   const csrfToken = crypto.randomBytes(32).toString("hex");
 
@@ -376,7 +390,7 @@ export const verifySession = async (
 
 export const deleteUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = DeleteUserSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -393,7 +407,7 @@ export const deleteUser = async (
 
 export const deleteUsers = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = DeleteUsersSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -410,7 +424,7 @@ export const deleteUsers = async (
 
 export const updateUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = UserUpdateRequestSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -434,6 +448,7 @@ export const updateUser = async (
         fullName: true,
         image: true,
         refCode: true,
+        spent: true,
         ref: true,
         timestamp: true,
         updatedAt: true,
@@ -449,7 +464,7 @@ export const updateUser = async (
 
 export const updateUserByAdmin = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = UpdateUserByAdminRequestSchema.safeParse(req.body);
   if (!parsed.success) {

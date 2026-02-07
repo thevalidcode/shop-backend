@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { Transaction, TransactionType } from "../../prisma/generated";
+import {
+  Transaction,
+  TransactionStatus,
+  TransactionType,
+} from "../../prisma/generated";
 import { Decimal } from "@prisma/client/runtime/client";
 
 extendZodWithOpenApi(z);
@@ -13,6 +17,7 @@ export const TransactionPublicSchema = z.object({
   shopId: z.number(),
   shopScopedId: z.number(),
   type: z.nativeEnum(TransactionType),
+  status: z.nativeEnum(TransactionStatus),
   timestamp: z.coerce.date(),
 });
 

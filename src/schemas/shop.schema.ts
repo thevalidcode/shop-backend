@@ -8,7 +8,7 @@ extendZodWithOpenApi(z);
 export const SubscriptionPlanFeaturesSchema = z.object({
   // Capacity limits
   stores: z.number(),
-  products: z.number().nullable(), // null = unlimited
+  products: z.number().nullable(),
   staff_accounts: z.number(),
   payment_gateways: z.number(),
   available_templates: z.number(),
@@ -35,6 +35,10 @@ export const SubscriptionPlanFeaturesSchema = z.object({
   store_email_notifications: z.boolean(),
   store_custom_emails: z.boolean(),
   store_newsletters: z.boolean(),
+
+  // Shipping features
+  automated_shipping_allowed: z.boolean(),
+  max_shipping_accounts: z.number(),
 });
 
 export type SubscriptionPlanFeatures = z.infer<
@@ -46,7 +50,7 @@ export const ShopDataSchema = z
     storeId: z.number().describe("Unique identifier for the store"),
     planId: z.number().describe("The plan id associated with the store"),
     features: SubscriptionPlanFeaturesSchema.describe(
-      "Key‑value map of store features"
+      "Key‑value map of store features",
     ),
     status: z.nativeEnum(ShopStatus).describe("The status of the store"),
     timestamp: z.string().describe("Timestamp when the store was created"),
@@ -67,11 +71,26 @@ export const ShopGeneralDataResponseSchema = z
     shopName: z.string(),
     showBanner: z.boolean(),
     onboardingCompleted: z.boolean(),
-    shopDescription: z.string(),
+    shopDescription: z.string().optional(),
     defaultClientCurrency: z.string().length(3).toUpperCase(),
+
+    // Shop Physical Address (for shipping origin)
+    shopStreet: z.string().optional(),
+    shopCity: z.string().optional(),
+    shopState: z.string().optional(),
+    shopPostalCode: z.string().optional(),
+    shopCountry: z.string().optional(),
+    shopPhone: z.string().optional(),
+
+    // Social Accounts
+    instagramUrl: z.string().optional(),
+    xUrl: z.string().optional(),
+    facebookUrl: z.string().optional(),
+    youtubeUrl: z.string().optional(),
+    tiktokUrl: z.string().optional(),
   })
   .strict()
-  .openapi("General");
+  .openapi("Setting");
 
 export const UpdateGeneralDataRequestSchema = z.object({
   logoUrl: z.string().url().optional().or(z.literal("")),
@@ -80,6 +99,21 @@ export const UpdateGeneralDataRequestSchema = z.object({
   showBanner: z.boolean().optional(),
   shopDescription: z.string().optional(),
   defaultClientCurrency: z.string().length(3).toUpperCase().optional(),
+
+  // Shop Physical Address (for shipping origin)
+  shopStreet: z.string().optional(),
+  shopCity: z.string().optional(),
+  shopState: z.string().optional(),
+  shopPostalCode: z.string().optional(),
+  shopCountry: z.string().optional(),
+  shopPhone: z.string().optional(),
+
+  // Social Accounts
+  instagramUrl: z.string().optional(),
+  xUrl: z.string().optional(),
+  facebookUrl: z.string().optional(),
+  youtubeUrl: z.string().optional(),
+  tiktokUrl: z.string().optional(),
 });
 
 export const ExchangeRatesSchema = z

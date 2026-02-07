@@ -18,5 +18,9 @@ import "./transaction.paths";
 import "./rate.paths";
 import "./support.paths";
 import "./billingInfo.paths";
+import "./statistics.paths";
+import "./page.paths";
+import "./review.paths";
+import "./shipping.paths";
 
 export { registry };

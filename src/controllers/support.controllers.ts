@@ -11,10 +11,11 @@ import {
 } from "../schemas/support.schema";
 import { v4 as uuidv4 } from "uuid";
 import { AdminAuthSchema } from "../schemas/admin.schema";
+import { sendUserEmail, sendEmailToAdmins } from "../emails";
 
 export const getAllTickets = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
 
@@ -39,7 +40,7 @@ export const getAllTickets = async (
 
 export const getAllTicketsForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
 
@@ -88,7 +89,7 @@ export const getAllTicketsForUser = async (
 
 export const createTicket = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
   const bodyParsed = CreateSupportTicketSchema.safeParse(req.body);
@@ -136,6 +137,34 @@ export const createTicket = async (
       return newTicket;
     });
 
+    // Send confirmation email to user and notification to admins
+    try {
+      const user = await prisma.user.findUnique({ where: { uid } });
+      const shop = await prisma.shop.findUnique({ where: { shopId } });
+      const shopUrl = shop?.uid ? `https://${shop.uid}` : "";
+
+      if (user?.email) {
+        await sendUserEmail(shopId, user.email, "TICKET_CREATED", {
+          userName: user.fullName || user.username,
+          ticketNumber: `#${ticket.shopScopedId}`,
+          subject: ticket.subject,
+          priority: ticket.priority,
+          ticketUrl: `${shopUrl}/support/ticket`,
+        });
+      }
+
+      await sendEmailToAdmins(shopId, "NEW_TICKET_NOTIFICATION", {
+        ticketNumber: `#${ticket.shopScopedId}`,
+        customerName: user?.fullName || user?.username || "Customer",
+        subject: ticket.subject,
+        priority: ticket.priority,
+        message: reqData.message.substring(0, 200),
+        ticketUrl: `${shopUrl}/admin/support/ticket`,
+      });
+    } catch (emailError) {
+      console.error("Failed to send ticket creation emails:", emailError);
+    }
+
     res.status(200).json({
       success: "Ticket created successfully",
       uid: ticket.uid,
@@ -147,7 +176,7 @@ export const createTicket = async (
 
 export const getTicketByUid = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
   const paramsParsed = GetSupportTicketByUidSchema.safeParse(req.params);
@@ -205,7 +234,7 @@ export const getTicketByUid = async (
 
 export const getTicketByUidForAdmin = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const paramsParsed = GetSupportTicketByUidSchema.safeParse(req.params);
@@ -238,7 +267,7 @@ export const getTicketByUidForAdmin = async (
 
 export const updateTicket = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const bodyParsed = UpdateSupportTicketSchema.safeParse(req.body);
@@ -259,13 +288,79 @@ export const updateTicket = async (
   const reqData = bodyParsed.data;
 
   try {
-    await prisma.supportTicket.update({
+    const ticketBeforeUpdate = await prisma.supportTicket.findUnique({
+      where: { uid },
+      include: {
+        user: { select: { email: true, fullName: true, username: true } },
+      },
+    });
+
+    const updatedTicket = await prisma.supportTicket.update({
       where: { uid },
       data: {
         status: reqData.status,
         priority: reqData.priority,
       },
     });
+
+    // Send email if status changed to RESOLVED
+    if (reqData.status === "RESOLVED" && ticketBeforeUpdate?.user?.email) {
+      try {
+        const shop = await prisma.shop.findUnique({
+          where: { shopId: ticketBeforeUpdate.shopId },
+        });
+        const shopUrl = shop?.uid ? `https://${shop.uid}` : "";
+
+        await sendUserEmail(
+          ticketBeforeUpdate.shopId,
+          ticketBeforeUpdate.user.email,
+          "TICKET_RESOLVED",
+          {
+            userName:
+              ticketBeforeUpdate.user.fullName ||
+              ticketBeforeUpdate.user.username,
+            ticketNumber: `#${ticketBeforeUpdate.shopScopedId}`,
+            subject: ticketBeforeUpdate.subject,
+            resolutionSummary:
+              "Your support ticket has been resolved. If you have any further questions, feel free to create a new ticket.",
+            ticketUrl: `${shopUrl}/support/tickets/${ticketBeforeUpdate.uid}`,
+          },
+        );
+      } catch (emailError) {
+        console.error("Failed to send ticket resolution email:", emailError);
+      }
+    }
+
+    // Send email if status changed (updated)
+    if (
+      reqData.status &&
+      reqData.status !== ticketBeforeUpdate?.status &&
+      ticketBeforeUpdate?.user?.email
+    ) {
+      try {
+        const shop = await prisma.shop.findUnique({
+          where: { shopId: ticketBeforeUpdate.shopId },
+        });
+        const shopUrl = shop?.uid ? `https://${shop.uid}` : "";
+
+        await sendUserEmail(
+          ticketBeforeUpdate.shopId,
+          ticketBeforeUpdate.user.email,
+          "TICKET_UPDATED",
+          {
+            userName:
+              ticketBeforeUpdate.user.fullName ||
+              ticketBeforeUpdate.user.username,
+            ticketNumber: `#${ticketBeforeUpdate.shopScopedId}`,
+            updateType: "Status Update",
+            updateDetails: `Your ticket status has been updated to: ${reqData.status}`,
+            ticketUrl: `${shopUrl}/support/tickets/${ticketBeforeUpdate.uid}`,
+          },
+        );
+      } catch (emailError) {
+        console.error("Failed to send ticket update email:", emailError);
+      }
+    }
 
     res.status(200).json({ success: "Ticket updated successfully." });
   } catch (err: any) {
@@ -275,7 +370,7 @@ export const updateTicket = async (
 
 export const deleteTicket = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const paramsParsed = DeleteSupportTicketSchema.safeParse(req.params);
@@ -305,7 +400,7 @@ export const deleteTicket = async (
 
 export const addMessage = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
   const paramsParsed = GetSupportTicketByUidSchema.safeParse(req.params);
@@ -347,7 +442,7 @@ export const addMessage = async (
 
 export const addMessageForAdmin = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const paramsParsed = GetSupportTicketByUidSchema.safeParse(req.params);
@@ -389,7 +484,7 @@ export const addMessageForAdmin = async (
 
 export const deleteMessage = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const paramsParsed = DeleteTicketMessageSchema.safeParse(req.params);
 

@@ -4,10 +4,12 @@ import {
   AddToCartSchema,
   UpdateCartItemSchema,
   CartItemIdSchema,
-  PlaceOrderFromCartSchema,
 } from "../schemas/cart.schema";
 import { UserAuthSchema } from "../schemas/user.schema";
 import { v4 as uuidv4 } from "uuid";
+import { calculateCartTotal } from "../utils/cart";
+import convertCurrency from "../utils/ConvertCurrency";
+import { Decimal } from "@prisma/client/runtime/client";
 
 /**
  * CART FLOW OVERVIEW:
@@ -31,7 +33,7 @@ import { v4 as uuidv4 } from "uuid";
 const getOrCreateCart = async (
   userUid: string,
   shopId: number,
-  tx: any = prisma
+  tx: any = prisma,
 ) => {
   let cart = await tx.cart.findUnique({
     where: { userUid_shopId: { userUid, shopId } },
@@ -55,16 +57,6 @@ const getOrCreateCart = async (
   }
 
   return cart;
-};
-
-/**
- * Helper: Calculate cart total from all items
- */
-const calculateCartTotal = (items: any[]): number => {
-  return items.reduce((total, item) => {
-    const itemTotal = Number(item.product.price) * item.quantity;
-    return total + itemTotal;
-  }, 0);
 };
 
 /**
@@ -94,6 +86,7 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
                 price: true,
                 imageUrl: true,
                 stock: true,
+                currency: true,
                 status: true,
               },
             },
@@ -107,23 +100,71 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
     if (!cart) {
       res.status(200).json({
         items: [],
+        currency: "USD",
         total: 0,
         itemCount: 0,
       });
       return;
     }
 
-    // Calculate total from all items
-    const total = calculateCartTotal(cart.items);
+    // Check if all products have the same currency
+    const currencies = new Set(
+      cart.items.map((item) => item.product?.currency || "USD"),
+    );
+    const hasDifferentCurrencies = currencies.size > 1;
+
+    let finalCurrency = "USD";
+    let finalTotal = new Decimal(0);
+    let processedItems = cart.items;
+
+    if (hasDifferentCurrencies) {
+      // Convert all items to USD
+      processedItems = await Promise.all(
+        cart.items.map(async (item) => {
+          const productCurrency = item.product?.currency || "USD";
+          const productPrice = new Decimal(item.product?.price || 0);
+
+          let convertedPrice = productPrice;
+          if (productCurrency !== "USD") {
+            const converted = await convertCurrency(
+              productPrice,
+              productCurrency,
+              "USD",
+            );
+            convertedPrice = new Decimal(converted);
+          }
+
+          const itemTotal = convertedPrice.mul(item.quantity);
+          finalTotal = finalTotal.add(itemTotal);
+
+          return {
+            ...item,
+            product: {
+              ...item.product,
+              price: convertedPrice,
+              currency: "USD",
+              originalPrice: productPrice,
+              originalCurrency: productCurrency,
+            },
+          };
+        }),
+      );
+    } else {
+      // All same currency, use as is
+      const cartTotal = await calculateCartTotal(cart);
+      finalCurrency = cartTotal.currency;
+      finalTotal = cartTotal.amount;
+    }
 
     res.status(200).json({
       uid: cart.uid,
-      items: cart.items,
-      total,
+      items: processedItems,
+      currency: finalCurrency,
+      total: finalTotal.toNumber(),
       itemCount: cart.items.length,
+      currenciesConverted: hasDifferentCurrencies,
     });
   } catch (error: any) {
-    console.error("Get cart error:", error);
     res.status(500).json({ error: "Failed to retrieve cart." });
   }
 };
@@ -137,7 +178,7 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
  */
 export const addItemToCart = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
@@ -152,14 +193,14 @@ export const addItemToCart = async (
   }
 
   const { uid: userUid, shopId } = authParsed.data;
-  const { productId, quantity } = validation.data;
+  const { productUid, quantity } = validation.data;
 
   try {
     await prisma.$transaction(async (tx) => {
       // Validate product exists and is available
       const product = await tx.product.findFirst({
         where: {
-          id: productId,
+          uid: productUid,
           shopId,
           status: "ACTIVE",
         },
@@ -192,7 +233,7 @@ export const addItemToCart = async (
         // Validate new quantity against stock
         if (product.trackInventory && product.stock < newQuantity) {
           throw new Error(
-            `Cannot add ${quantity} more. Maximum available: ${product.stock - existingItem.quantity}`
+            `Cannot add ${quantity} more. Maximum available: ${product.stock - existingItem.quantity}`,
           );
         }
 
@@ -229,8 +270,10 @@ export const addItemToCart = async (
       }
     });
   } catch (error: any) {
-    console.error("Add to cart error:", error);
-    if (error.message.includes("stock") || error.message.includes("available")) {
+    if (
+      error.message.includes("stock") ||
+      error.message.includes("available")
+    ) {
       res.status(400).json({ error: error.message });
     } else {
       res.status(500).json({ error: "Failed to add item to cart." });
@@ -246,7 +289,7 @@ export const addItemToCart = async (
  */
 export const updateCartItem = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
@@ -302,7 +345,7 @@ export const updateCartItem = async (
         cartItem.product.stock < quantity
       ) {
         throw new Error(
-          `Insufficient stock. Only ${cartItem.product.stock} available.`
+          `Insufficient stock. Only ${cartItem.product.stock} available.`,
         );
       }
 
@@ -318,7 +361,6 @@ export const updateCartItem = async (
       });
     });
   } catch (error: any) {
-    console.error("Update cart item error:", error);
     if (
       error.message.includes("not found") ||
       error.message.includes("stock")
@@ -337,7 +379,7 @@ export const updateCartItem = async (
  */
 export const removeItemFromCart = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
@@ -380,167 +422,10 @@ export const removeItemFromCart = async (
       res.status(200).json({ success: "Item removed from cart" });
     });
   } catch (error: any) {
-    console.error("Remove cart item error:", error);
     if (error.message.includes("not found")) {
       res.status(404).json({ error: error.message });
     } else {
       res.status(500).json({ error: "Failed to remove item from cart." });
-    }
-  }
-};
-
-/**
- * POST /cart/checkout
- * Place an order from cart items
- * - Validates cart has items
- * - Validates billing info belongs to user
- * - Creates order with all cart items
- * - Reduces product stock
- * - Clears cart after successful order
- */
-export const placeOrderFromCart = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const authParsed = UserAuthSchema.safeParse(req.auth);
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
-  const bodyParsed = PlaceOrderFromCartSchema.safeParse(req.body);
-  if (!bodyParsed.success) {
-    res.status(400).json({ error: bodyParsed.error.flatten() });
-    return;
-  }
-
-  const { uid: userUid, shopId } = authParsed.data;
-  const { billingInfoUid, paymentGatewayUid, notes } = bodyParsed.data;
-
-  try {
-    const order = await prisma.$transaction(async (tx) => {
-      // Get cart with items and products
-      const cart = await tx.cart.findUnique({
-        where: { userUid_shopId: { userUid, shopId } },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-        },
-      });
-
-      if (!cart || cart.items.length === 0) {
-        throw new Error("Cart is empty");
-      }
-
-      // Validate billing info belongs to user
-      const billingInfo = await tx.billingInfo.findFirst({
-        where: {
-          uid: billingInfoUid,
-          userUid,
-          shopId,
-        },
-      });
-
-      if (!billingInfo) {
-        throw new Error("Billing information not found");
-      }
-
-      // Validate stock for all items
-      for (const item of cart.items) {
-        if (
-          item.product.trackInventory &&
-          item.product.stock < item.quantity
-        ) {
-          throw new Error(
-            `Insufficient stock for ${item.product.name}. Only ${item.product.stock} available.`
-          );
-        }
-      }
-
-      // Calculate totals
-      const subtotal = calculateCartTotal(cart.items);
-      const tax = 0; // Can be calculated based on shop settings
-      const shippingCost = 0; // Can be calculated based on shipping rules
-      const totalAmount = subtotal + tax + shippingCost;
-
-      // Generate order reference
-      const orderCounter = await tx.shopCounter.update({
-        where: { shopId },
-        data: { orderCounter: { increment: 1 } },
-      });
-
-      const orderRef = `ORD-${shopId}-${orderCounter.orderCounter}`;
-
-      // Create order
-      const newOrder = await tx.order.create({
-        data: {
-          uid: uuidv4(),
-          shopScopedId: orderCounter.orderCounter,
-          orderRef,
-          userUid,
-          shopId,
-          billingInfoUid,
-          totalAmount: subtotal,
-          currency: "USD",
-          status: "PENDING",
-          notes,
-        },
-      });
-
-      // Create order items and reduce stock
-      for (const item of cart.items) {
-        await tx.orderItem.create({
-          data: {
-            uid: uuidv4(),
-            orderId: newOrder.id,
-            productUid: item.product.uid,
-            quantity: item.quantity,
-            priceAtTimeOfPurchase: item.product.price,
-          },
-        });
-
-        // Reduce product stock if tracking inventory
-        if (item.product.trackInventory) {
-          await tx.product.update({
-            where: { id: item.product.id },
-            data: {
-              stock: { decrement: item.quantity },
-              totalSales: { increment: item.quantity },
-            },
-          });
-        }
-      }
-
-      // Clear cart items
-      await tx.cartItem.deleteMany({
-        where: { cartId: cart.id },
-      });
-
-      return newOrder;
-    });
-
-    res.status(201).json({
-      success: "Order placed successfully",
-      order: {
-        uid: order.uid,
-        orderRef: order.orderRef,
-        totalAmount: Number(order.totalAmount),
-        status: order.status,
-      },
-    });
-  } catch (error: any) {
-    console.error("Place order error:", error);
-    if (
-      error.message.includes("empty") ||
-      error.message.includes("stock") ||
-      error.message.includes("not found")
-    ) {
-      res.status(400).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Failed to place order." });
     }
   }
 };

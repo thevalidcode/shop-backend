@@ -22,7 +22,7 @@ export const ImagesLogs = {
         images: z.array(
           z.object({
             id: z.number(),
-            storeScopedId: z.number(),
+            shopScopedId: z.number(),
             filename: z.string(),
             mimetype: z.string(),
             collection: z.string(),

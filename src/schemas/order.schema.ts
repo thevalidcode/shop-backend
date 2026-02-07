@@ -41,13 +41,44 @@ export const OrderUidSchema = z.object({
   orderUid: z.string().uuid("Invalid order ID"),
 });
 
+export const UpdateOrderByUserSchema = z.object({
+  notes: z.string().max(500).nullable().optional(),
+  received: z.boolean().nullable().optional(),
+});
+
+/**
+ * Schema for refund request
+ */
+export const RefundRequestSchema = z.object({
+  reason: z
+    .string()
+    .min(10, "Reason must be at least 10 characters")
+    .max(1000, "Reason must be less than 1000 characters"),
+});
+
+/**
+ * Schema for updating billing info
+ */
+export const UpdateBillingInfoSchema = z.object({
+  billingInfoUid: z.string().uuid("Invalid billing info ID"),
+});
+
+/**
+ * Schema for verifying payment (admin)
+ */
+export const VerifyPaymentSchema = z.object({
+  verified: z.boolean(),
+});
+
 /**
  * Schema for updating order (admin only)
  */
 export const UpdateOrderSchema = z.object({
   status: orderStatusEnum.optional(),
-  paymentReference: z.string().max(100).nullable().optional(),
+  trackingNumber: z.string().max(100).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
+  received: z.boolean().nullable().optional(),
+  estimatedDelivery: z.coerce.date().nullable().optional(),
 });
 
 /**
@@ -66,7 +97,7 @@ export const BulkStatusUpdateSchema = z.object({
       z.object({
         orderUid: z.string().uuid("Invalid order ID"),
         status: orderStatusEnum,
-      })
+      }),
     )
     .min(1, "At least one order must be provided")
     .max(100, "Cannot update more than 100 orders at once"),

@@ -1,15 +1,15 @@
-import { UploadImageRequest } from "../../schemas/files.schema";
+import { UploadImageRequest, UploadMultipleImagesRequest } from "../../schemas/files.schema";
 import { registry } from "../components/registry";
 import { ServerError, Forbidden } from "../responses/common.response";
-import { UploadedImageSuccess, ImagesLogs } from "../responses/files.response";
+import { UploadedImageSuccess, ImagesLogs, BatchUploadSuccess } from "../responses/files.response";
 
 // POST /files/image
 registry.registerPath({
   method: "post",
   path: "/files/image",
-  summary: "Upload an image for a store",
+  summary: "Upload an image for a shop",
   description:
-    "Allows an authenticated admin to upload an image file (e.g., logo, banner) associated with a specific store. The file must be sent using multipart/form-data.",
+    "Allows an authenticated admin to upload an image file (e.g., logo, banner) associated with a specific shop. The file must be sent using multipart/form-data.",
   tags: ["Files"],
   security: [{ CookieAuth: [] }],
   request: {
@@ -27,7 +27,7 @@ registry.registerPath({
               collection: {
                 type: "string",
                 description:
-                  "The collection or category under which the image should be stored (e.g., blogs, users)",
+                  "The collection or category under which the image should be shopd (e.g., blogs, users)",
                 example: "users",
               },
             },
@@ -39,6 +39,30 @@ registry.registerPath({
   },
   responses: {
     200: UploadedImageSuccess,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/files/images",
+  summary: "Upload multiple images for a shop",
+  description:
+    "Allows an authenticated user to upload multiple image files (up to 10) at once. Files must be sent using multipart/form-data.",
+  tags: ["Files"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "multipart/form-data": {
+          schema: UploadMultipleImagesRequest,
+        },
+      },
+    },
+  },
+  responses: {
+    200: BatchUploadSuccess,
     403: Forbidden,
     500: ServerError,
   },

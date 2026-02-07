@@ -3,14 +3,12 @@ import {
   AddToCartSchema,
   UpdateCartItemSchema,
   CartItemIdSchema,
-  PlaceOrderFromCartSchema,
 } from "../../schemas/cart.schema";
 import {
   GetCartResponseSchema,
   AddToCartResponseSchema,
   UpdateCartItemResponseSchema,
   RemoveItemResponseSchema,
-  PlaceOrderResponseSchema,
   CartErrorResponseSchema,
   CartValidationErrorResponseSchema,
 } from "../responses/cart.response";
@@ -209,56 +207,6 @@ registry.registerPath({
       content: {
         "application/json": {
           schema: CartErrorResponseSchema,
-        },
-      },
-    },
-    500: {
-      description: "Internal server error",
-      content: {
-        "application/json": {
-          schema: CartErrorResponseSchema,
-        },
-      },
-    },
-  },
-});
-
-/**
- * POST /cart/checkout
- * Place order from cart
- */
-registry.registerPath({
-  method: "post",
-  path: "/cart/checkout",
-  tags: ["Cart"],
-  summary: "Place order from cart",
-  description:
-    "Convert all items in the cart to an order. Validates cart has items, billing info exists, checks stock availability, creates order with order items, reduces product stock, and clears the cart. This is the primary checkout flow.",
-  security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: PlaceOrderFromCartSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    201: {
-      description: "Order placed successfully",
-      content: {
-        "application/json": {
-          schema: PlaceOrderResponseSchema,
-        },
-      },
-    },
-    400: {
-      description: "Validation error, empty cart, or insufficient stock",
-      content: {
-        "application/json": {
-          schema: CartValidationErrorResponseSchema,
         },
       },
     },

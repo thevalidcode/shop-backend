@@ -29,8 +29,9 @@ export const FlutterwaveWebhookSchema = z.object({
       shopId: z.coerce.number(),
       type: z.nativeEnum(TransactionType),
       userUid: z.coerce.string(),
-      orderUid: z.coerce.string(),
       txRef: z.coerce.string(),
+      notes: z.coerce.string().optional().nullable(),
+      billingInfoUid: z.coerce.string(),
     })
     .passthrough(),
 });
@@ -54,8 +55,9 @@ export const PaystackWebhookSchema = z.object({
         shopId: z.coerce.number(),
         type: z.nativeEnum(TransactionType),
         userUid: z.coerce.string(),
-        orderUid: z.coerce.string(),
         txRef: z.coerce.string(),
+        notes: z.coerce.string().optional().nullable(),
+        billingInfoUid: z.coerce.string(),
       })
       .passthrough(),
     customer: z.object({

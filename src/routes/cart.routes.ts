@@ -31,7 +31,4 @@ router.delete(
   cartController.removeItemFromCart
 );
 
-// POST /cart/checkout - Place order from cart (modify rate limit)
-router.post("/checkout", cartModifyRateLimit, cartController.placeOrderFromCart);
-
 export default router;

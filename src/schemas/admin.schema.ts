@@ -14,13 +14,15 @@ export const AdminSchema = z
     email: z.string(),
     image: z.string().nullable(),
     username: z.string(),
+    fullName: z.string(),
     apiKey: z.string(),
     role: z.nativeEnum(AdminRole),
     status: z.nativeEnum(AdminStatus),
     shopId: z.number(),
-    currency: z.string(),
-    timestamp: z.date(),
-    lastSeen: z.date(),
+    onboardingCompleted: z.boolean(),
+    timestamp: z.coerce.date(),
+    lastSeen: z.coerce.date(),
+    updatedAt: z.coerce.date(),
   })
   .openapi("Admin");
 
@@ -32,7 +34,7 @@ export const AdminAuthSchema = z.object({
 });
 
 export const AuthenticateAdminSchema = z.object({
-  shopId: z.coerce.number().describe("Associated store ID"),
+  shopId: z.coerce.number().describe("Associated shop ID"),
   email: z.string().email().describe("Admin email"),
   password: z.string().describe("Admin password"),
 });

@@ -1,11 +1,12 @@
 import { prisma } from "../config/db.config";
 import convertCurrency from "../utils/ConvertCurrency";
-import { v4 as uuidv4 } from "uuid";
+import { placeOrderFromCartTx } from "../utils/cart";
 import axios from "axios";
 import { decryptKey } from "../utils/encrypt";
 import { PaystackWebhookData } from "../schemas/webhook.schema";
 import type { Request } from "express";
 import { verifyPaystackSignature } from "../utils/webhook/verifySignatures";
+import { sendUserEmail } from "../emails";
 
 const verifySignature = async (req: Request, shopId: number) => {
   const gateway = await prisma.paymentGateway.findFirst({
@@ -28,12 +29,12 @@ const verifySignature = async (req: Request, shopId: number) => {
 
 export const initPaystackPayment = async (
   paymentData: any,
-  secretKey: { encryptedSecretKey: string; iv: string }
+  secretKey: { encryptedSecretKey: string; iv: string },
 ) => {
   const convertedNGNAmount = await convertCurrency(
     paymentData.amount,
     paymentData.currency,
-    "NGN"
+    "NGN",
   );
   const response = await axios.post(
     "https://api.paystack.co/transaction/initialize",
@@ -48,10 +49,10 @@ export const initPaystackPayment = async (
       headers: {
         Authorization: `Bearer ${decryptKey(
           secretKey.encryptedSecretKey,
-          secretKey.iv
+          secretKey.iv,
         )}`,
       },
-    }
+    },
   );
   return { url: response.data.data.authorization_url };
 };
@@ -59,7 +60,7 @@ export const initPaystackPayment = async (
 const processSuccess = async (
   req: Request,
   data: PaystackWebhookData,
-  customer: PaystackWebhookData["customer"]
+  customer: PaystackWebhookData["customer"],
 ) => {
   const payment = await prisma.payment.findFirst({
     where: { uid: data.metadata.txRef, status: "PENDING" },
@@ -70,19 +71,13 @@ const processSuccess = async (
   await verifySignature(req, payment.shopId);
 
   const user = await prisma.user.findFirst({
-    where: { email: customer.email },
+    where: { email: customer.email, shopId: payment.shopId },
+    include: { shop: true },
   });
 
   if (!user) throw new Error("User not found");
 
   await prisma.$transaction(async (tx) => {
-    const counter = await tx.shopCounter.update({
-      where: { shopId: user.shopId! },
-      data: {
-        transactionCounter: { increment: 1 },
-      },
-    });
-
     await tx.payment.update({
       where: { uid: payment.uid },
       data: {
@@ -90,42 +85,41 @@ const processSuccess = async (
       },
     });
 
-    const convertedUSDmount = await convertCurrency(
-      data.amount,
-      data.currency,
-      "USD"
+    await placeOrderFromCartTx(
+      data.metadata.billingInfoUid,
+      payment.uid,
+      false,
+      data.metadata.notes,
+      user,
+      tx,
+      data.metadata.shippingCost
+        ? Number(data.metadata.shippingCost)
+        : undefined,
+      data.metadata.shippingCurrency as string | undefined,
+      data.metadata.selectedShippingRate,
     );
-
-    await tx.transaction.create({
-      data: {
-        uid: payment.uid,
-        type: "ORDER_PAYMENT",
-        amount: convertedUSDmount,
-        description: `Order payment via Paystack`,
-        userUid: user.uid,
-        shopScopedId: counter.transactionCounter,
-        shopId: user.shopId,
-      },
-    });
-
-    // Optional: Update order status to paid if orderUid matches
-    if (data.metadata.orderUid) {
-      await tx.order.update({
-        where: { uid: data.metadata.orderUid },
-        data: {
-          status: "PROCESSING",
-          paymentReference: payment.uid,
-          paymentMethod: "PAYSTACK",
-        },
-      });
-    }
   });
+
+  // Send payment successful email
+  try {
+    await sendUserEmail(payment.shopId, user.email, "PAYMENT_SUCCESSFUL", {
+      userName: user.fullName || user.username,
+      transactionId: payment.uid,
+      amount: Number(payment.amount).toFixed(2),
+      currency: payment.currency,
+      paymentDate: new Date().toLocaleDateString(),
+      paymentMethod: "Paystack",
+      receiptUrl: `https://${user.shop.uid || ""}/client/orders`,
+    });
+  } catch (emailError) {
+    console.error("Failed to send payment success email:", emailError);
+  }
 };
 
 const processFailure = async (
   req: Request,
   data: PaystackWebhookData,
-  customer: PaystackWebhookData["customer"]
+  customer: PaystackWebhookData["customer"],
 ) => {
   const payment = await prisma.payment.findFirst({
     where: { uid: data.metadata.txRef, status: "PENDING" },
@@ -136,7 +130,8 @@ const processFailure = async (
   await verifySignature(req, payment.shopId);
 
   const user = await prisma.user.findFirst({
-    where: { email: customer.email },
+    where: { email: customer.email, shopId: payment.shopId },
+    include: { shop: true },
   });
 
   if (!user) throw new Error("User not found");
@@ -147,6 +142,21 @@ const processFailure = async (
       status: "FAILED",
     },
   });
+
+  // Send payment failed email
+  try {
+    await sendUserEmail(payment.shopId, user.email, "PAYMENT_FAILED", {
+      userName: user.fullName || user.username,
+      transactionId: payment.uid,
+      amount: Number(payment.amount).toFixed(2),
+      currency: payment.currency,
+      failureReason:
+        "Your payment was declined. Please check your payment details and try again.",
+      retryUrl: `https://${user.shop.uid || ""}/client/checkout?step=payment`,
+    });
+  } catch (emailError) {
+    console.error("Failed to send payment failure email:", emailError);
+  }
 };
 
 export default { processSuccess, processFailure };

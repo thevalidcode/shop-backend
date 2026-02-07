@@ -12,7 +12,7 @@ import { normalizeHost } from "../config/cors.config";
 
 export const getShopData = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const domain =
     normalizeHost(req.headers.origin ?? "") ||
@@ -72,7 +72,7 @@ export const getShopData = async (
       // If API call fails, return existing shop features
       console.warn(
         "Warning: Failed to fetch subscription plan, using existing shop features:",
-        apiError.message
+        apiError.message,
       );
       res.json(shop);
     }
@@ -84,7 +84,7 @@ export const getShopData = async (
 
 export const getShopGeneralData = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = ShopGeneralDataRequestSchema.safeParse(req.params);
   if (!parsed.success) {
@@ -115,7 +115,7 @@ export const getShopGeneralData = async (
 
 export const updateShopGeneralData = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const bodyParsed = UpdateGeneralDataRequestSchema.safeParse(req.body);
@@ -184,7 +184,7 @@ export const getStyles = async (req: Request, res: Response): Promise<void> => {
 
 export const updateShopStyles = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const bodyParsed = UpdateStylesRequestSchema.safeParse(req.body);
@@ -224,7 +224,7 @@ export const updateShopStyles = async (
 
 export const getSiteData = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = shopIdSchema.safeParse(req.query);
   if (!parsed.success) {
@@ -245,7 +245,7 @@ export const getSiteData = async (
 
 export const completeOnboarding = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = ShopGeneralDataRequestSchema.safeParse(req.params);
   if (!parsed.success) {
