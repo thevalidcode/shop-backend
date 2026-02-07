@@ -228,9 +228,9 @@ export const updateShop = async (
         uid,
       },
       data: {
-        name: parsed.data.shopName,
+        name: parsed.data.storeName,
         features: parsed.data.features,
-        description: parsed.data.shopDescription,
+        description: parsed.data.storeDescription,
         status: parsed.data.status,
       },
     });

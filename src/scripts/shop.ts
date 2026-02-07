@@ -5,9 +5,9 @@ if (require.main === module) {
   (async () => {
     const result = await CreateShop({
       name: "Valid Shop",
-      shopDomain: "localhost:3000",
+      storeDomain: "localhost:3000",
       adminUid: uuidv4(),
-      shopId: 1,
+      storeId: 1,
       adminId: 1,
       description: "Your trusted shop for quality products and exceptional service.",
       planId: 1,

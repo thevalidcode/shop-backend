@@ -23,9 +23,9 @@ export const PaginationQuerySchema = z.object({
 });
 
 export const createShopSchema = z.object({
-  shopId: z.number().int().positive(),
+  storeId: z.number().int().positive(),
   name: z.string().min(1, "Shop name is required"),
-  shopDomain: z.string().min(1, "Shop domain is required"),
+  storeDomain: z.string().min(1, "Shop domain is required"),
   description: z.string().optional().nullable(),
   planId: z.number().int().positive(),
   features: z.record(z.any()).optional(),
@@ -50,8 +50,8 @@ export type DeleteShopParams = z.infer<typeof UidSchema>;
 export const UpdateShopSchema = z.object({
   logoUrl: z.string().url().optional().or(z.literal("")).nullable(),
   faviconUrl: z.string().url().optional().or(z.literal("")).nullable(),
-  shopName: z.string().optional(),
-  shopDescription: z.string().optional().nullable(),
+  storeName: z.string().optional(),
+  storeDescription: z.string().optional().nullable(),
   status: z.nativeEnum(ShopStatus).optional(),
   defaultClientCurrency: z.string().optional().nullable(),
   showBanner: z.boolean().optional().nullable(),

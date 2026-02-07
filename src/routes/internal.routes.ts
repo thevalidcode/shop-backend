@@ -11,25 +11,25 @@ router.get(
   "/orders",
   openCors,
   authenticateInternalAdmin,
-  internals.getOrdersForInternalAdmins
+  internals.getOrdersForInternalAdmins,
 );
 router.post(
-  "/shops",
+  "/stores",
   openCors,
   authenticateInternalAdmin,
-  internals.createShop
+  internals.createShop,
 );
 router.delete(
-  "/shops/:uid",
+  "/stores/:uid",
   openCors,
   authenticateInternalAnyone,
-  internals.deleteShop
+  internals.deleteShop,
 );
 router.patch(
-  "/shops/:uid",
+  "/stores/:uid",
   openCors,
   authenticateInternalAnyone,
-  internals.updateShop
+  internals.updateShop,
 );
 
 export default router;

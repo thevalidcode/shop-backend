@@ -13,7 +13,7 @@ export function runShopCreateCLI(domain: string): Promise<void> {
     exec(cmd, (error, stdout, stderr) => {
       if (error) {
         return reject(
-          new ShopError("CLI_ERROR", stderr || stdout || error.message)
+          new ShopError("CLI_ERROR", stderr || stdout || error.message),
         );
       }
 
@@ -28,8 +28,8 @@ export function runShopCreateCLI(domain: string): Promise<void> {
 
 export async function CreateShop(params: CreateShopParams) {
   const {
-    shopId,
-    shopDomain,
+    storeId: shopId,
+    storeDomain: shopDomain,
     name,
     description,
     planId,
@@ -58,7 +58,7 @@ export async function CreateShop(params: CreateShopParams) {
       if (existingShop) {
         throw new ShopError(
           "DOMAIN_TAKEN",
-          "Shop domain has already been used"
+          "Shop domain has already been used",
         );
       }
 
