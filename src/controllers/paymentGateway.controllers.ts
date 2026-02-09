@@ -278,7 +278,7 @@ export const updatePaymentGateway = async (
       paymentGatewayData.iv = encrypted_key.iv;
     }
 
-    await prisma.paymentGateway.update({
+    await prisma.paymentGateway.updateMany({
       where: { uid: reqData.uid, shopId },
       data: {
         ...paymentGatewayData,

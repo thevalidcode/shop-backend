@@ -163,11 +163,21 @@ export const updateProduct = async (
       delete updateData.sku;
     }
 
-    const updatedProduct = await prisma.product.update({
+    await prisma.product.updateMany({
       where: { uid: reqData.uid, shopId },
       data: updateData,
+    });
+
+    // Fetch the updated product to continue with remaining logic
+    const updatedProduct = await prisma.product.findFirst({
+      where: { uid: reqData.uid, shopId },
       include: { category: true },
     });
+
+    if (!updatedProduct) {
+      res.status(404).json({ error: "Product not found after update." });
+      return;
+    }
 
     // Check for low stock or out of stock scenarios
     if (

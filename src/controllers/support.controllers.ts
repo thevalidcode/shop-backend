@@ -305,7 +305,7 @@ export const updateTicket = async (
       return;
     }
 
-    const updatedTicket = await prisma.supportTicket.update({
+    const updatedTicket = await prisma.supportTicket.updateMany({
       where: { uid, shopId },
       data: {
         status: reqData.status,
@@ -399,7 +399,7 @@ export const deleteTicket = async (
   const { shopId } = authParsed.data;
 
   try {
-    await prisma.supportTicket.delete({
+    await prisma.supportTicket.deleteMany({
       where: { uid, shopId },
     });
 
