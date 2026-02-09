@@ -180,7 +180,9 @@ export const updateProduct = async (
     });
 
     if (!updatedProduct) {
-      res.status(500).json({ error: "Product not found after update." });
+      // This should not happen since updateResult.count was > 0, but handle defensively
+      console.error(`Product ${reqData.uid} was updated but could not be retrieved for shop ${shopId}`);
+      res.status(500).json({ error: "Failed to retrieve updated product." });
       return;
     }
 
