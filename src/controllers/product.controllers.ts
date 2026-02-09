@@ -164,7 +164,7 @@ export const updateProduct = async (
     }
 
     const updatedProduct = await prisma.product.update({
-      where: { uid: reqData.uid },
+      where: { uid: reqData.uid, shopId },
       data: updateData,
       include: { category: true },
     });

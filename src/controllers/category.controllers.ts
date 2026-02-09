@@ -89,7 +89,7 @@ export const updateCategory = async (
     }
 
     const updatedCategory = await prisma.category.update({
-      where: { uid },
+      where: { uid, shopId },
       data: parsed.data,
     });
 
