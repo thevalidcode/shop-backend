@@ -163,10 +163,15 @@ export const updateProduct = async (
       delete updateData.sku;
     }
 
-    await prisma.product.updateMany({
+    const updateResult = await prisma.product.updateMany({
       where: { uid: reqData.uid, shopId },
       data: updateData,
     });
+
+    if (updateResult.count === 0) {
+      res.status(404).json({ error: "Product not found or does not belong to this shop." });
+      return;
+    }
 
     // Fetch the updated product to continue with remaining logic
     const updatedProduct = await prisma.product.findFirst({
@@ -175,7 +180,7 @@ export const updateProduct = async (
     });
 
     if (!updatedProduct) {
-      res.status(404).json({ error: "Product not found or does not belong to this shop." });
+      res.status(500).json({ error: "Product not found after update." });
       return;
     }
 

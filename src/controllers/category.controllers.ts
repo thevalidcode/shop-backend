@@ -88,20 +88,20 @@ export const updateCategory = async (
       return;
     }
 
-    const updatedCategory = await prisma.category.updateMany({
+    const updateResult = await prisma.category.updateMany({
       where: { uid, shopId },
       data: parsed.data,
     });
+
+    if (updateResult.count === 0) {
+      res.status(404).json({ error: "Category not found or does not belong to this shop." });
+      return;
+    }
 
     // Fetch the updated category to return
     const category = await prisma.category.findFirst({
       where: { uid, shopId },
     });
-
-    if (!category) {
-      res.status(404).json({ error: "Category not found or does not belong to this shop." });
-      return;
-    }
 
     res.status(200).json({
       success: "Category updated successfully.",
