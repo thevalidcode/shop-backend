@@ -278,12 +278,17 @@ export const updatePaymentGateway = async (
       paymentGatewayData.iv = encrypted_key.iv;
     }
 
-    await prisma.paymentGateway.updateMany({
+    const updateResult = await prisma.paymentGateway.updateMany({
       where: { uid: reqData.uid, shopId },
       data: {
         ...paymentGatewayData,
       },
     });
+
+    if (updateResult.count === 0) {
+      res.status(404).json({ error: "Payment gateway not found or does not belong to this shop." });
+      return;
+    }
 
     const payment = await prisma.paymentGateway.findFirst({
       where: { uid: reqData.uid, shopId },

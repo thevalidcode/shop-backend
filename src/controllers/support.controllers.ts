@@ -305,13 +305,18 @@ export const updateTicket = async (
       return;
     }
 
-    const updatedTicket = await prisma.supportTicket.updateMany({
+    const updateResult = await prisma.supportTicket.updateMany({
       where: { uid, shopId },
       data: {
         status: reqData.status,
         priority: reqData.priority,
       },
     });
+
+    if (updateResult.count === 0) {
+      res.status(404).json({ error: "Ticket not found or does not belong to this shop." });
+      return;
+    }
 
     // Send email if status changed to RESOLVED
     if (reqData.status === "RESOLVED" && ticketBeforeUpdate?.user?.email) {
@@ -399,9 +404,14 @@ export const deleteTicket = async (
   const { shopId } = authParsed.data;
 
   try {
-    await prisma.supportTicket.deleteMany({
+    const deleteResult = await prisma.supportTicket.deleteMany({
       where: { uid, shopId },
     });
+
+    if (deleteResult.count === 0) {
+      res.status(404).json({ error: "Ticket not found or does not belong to this shop." });
+      return;
+    }
 
     res.status(200).json({ success: "Ticket deleted successfully." });
   } catch (err: any) {

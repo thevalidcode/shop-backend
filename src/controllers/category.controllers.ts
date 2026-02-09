@@ -99,7 +99,7 @@ export const updateCategory = async (
     });
 
     if (!category) {
-      res.status(404).json({ error: "Category not found after update." });
+      res.status(404).json({ error: "Category not found or does not belong to this shop." });
       return;
     }
 

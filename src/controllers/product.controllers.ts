@@ -175,7 +175,7 @@ export const updateProduct = async (
     });
 
     if (!updatedProduct) {
-      res.status(404).json({ error: "Product not found after update." });
+      res.status(404).json({ error: "Product not found or does not belong to this shop." });
       return;
     }
 
