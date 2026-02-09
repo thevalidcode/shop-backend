@@ -524,7 +524,7 @@ export async function getShipmentByOrder(req: Request, res: Response) {
     }
 
     const shipment = await prisma.shipment.findFirst({
-      where: { orderUid: orderUidStr },
+      where: { orderUid: orderUidStr, shopId },
       select: {
         uid: true,
         shopScopedId: true,

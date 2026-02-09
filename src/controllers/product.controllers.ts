@@ -163,11 +163,28 @@ export const updateProduct = async (
       delete updateData.sku;
     }
 
-    const updatedProduct = await prisma.product.update({
-      where: { uid: reqData.uid },
+    const updateResult = await prisma.product.updateMany({
+      where: { uid: reqData.uid, shopId },
       data: updateData,
+    });
+
+    if (updateResult.count === 0) {
+      res.status(404).json({ error: "Product not found or does not belong to this shop." });
+      return;
+    }
+
+    // Fetch the updated product to continue with remaining logic
+    const updatedProduct = await prisma.product.findFirst({
+      where: { uid: reqData.uid, shopId },
       include: { category: true },
     });
+
+    if (!updatedProduct) {
+      // This should not happen since updateResult.count was > 0, but handle defensively
+      console.error(`Product ${reqData.uid} was updated but could not be retrieved for shop ${shopId}`);
+      res.status(500).json({ error: "Failed to retrieve updated product." });
+      return;
+    }
 
     // Check for low stock or out of stock scenarios
     if (
