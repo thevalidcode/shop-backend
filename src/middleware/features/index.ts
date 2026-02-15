@@ -43,9 +43,9 @@ export async function checkAutomatedShippingAllowed(
       });
     }
 
-    const { automated_shipping_allowed } = featuresParsed.data;
+    const { max_shipping_accounts } = featuresParsed.data;
 
-    if (!automated_shipping_allowed) {
+    if (!max_shipping_accounts || max_shipping_accounts === 0) {
       return res.status(403).json({
         error: "Automated shipping not allowed",
         message:

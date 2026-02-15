@@ -37,7 +37,6 @@ export const SubscriptionPlanFeaturesSchema = z.object({
   store_newsletters: z.boolean(),
 
   // Shipping features
-  automated_shipping_allowed: z.boolean(),
   max_shipping_accounts: z.number(),
 });
 

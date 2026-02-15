@@ -45,7 +45,6 @@ if (require.main === module) {
           store_newsletters: true,
 
           // Shipping features
-          automated_shipping_allowed: true,
           max_shipping_accounts: 5,
         },
       },
