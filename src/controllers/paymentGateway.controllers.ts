@@ -24,8 +24,11 @@ export const getPaymentGateways = async (
     return;
   }
 
+  const { shopId } = authParsed.data;
+
   try {
     const gateways = await prisma.paymentGateway.findMany({
+      where: { shopId },
       select: {
         createdAt: true,
         platform: true,
@@ -63,10 +66,11 @@ export const getPaymentGatewayByUid = async (
   }
 
   const { uid } = paramsParsed.data;
+  const { shopId } = authParsed.data;
 
   try {
-    const gateway = await prisma.paymentGateway.findUnique({
-      where: { uid },
+    const gateway = await prisma.paymentGateway.findFirst({
+      where: { uid, shopId },
       select: {
         createdAt: true,
         platform: true,
@@ -94,9 +98,11 @@ export const getPaymentGatewaysForUser = async (
     return;
   }
 
+  const { shopId } = authParsed.data;
+
   try {
     const gateways = await prisma.paymentGateway.findMany({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", shopId },
       select: {
         createdAt: true,
         platform: true,
@@ -133,10 +139,11 @@ export const getPaymentGatewayByUidForUser = async (
     return;
   }
   const { uid } = paramsParsed.data;
+  const { shopId } = authParsed.data;
 
   try {
-    const gateway = await prisma.paymentGateway.findUnique({
-      where: { uid, status: "ACTIVE" },
+    const gateway = await prisma.paymentGateway.findFirst({
+      where: { uid, status: "ACTIVE", shopId },
       select: {
         createdAt: true,
         platform: true,
@@ -271,12 +278,17 @@ export const updatePaymentGateway = async (
       paymentGatewayData.iv = encrypted_key.iv;
     }
 
-    await prisma.paymentGateway.update({
-      where: { uid: reqData.uid },
+    const updateResult = await prisma.paymentGateway.updateMany({
+      where: { uid: reqData.uid, shopId },
       data: {
         ...paymentGatewayData,
       },
     });
+
+    if (updateResult.count === 0) {
+      res.status(404).json({ error: "Payment gateway not found or does not belong to this shop." });
+      return;
+    }
 
     const payment = await prisma.paymentGateway.findFirst({
       where: { uid: reqData.uid, shopId },

@@ -24,8 +24,11 @@ export const getAllTickets = async (
     return;
   }
 
+  const { shopId } = authParsed.data;
+
   try {
     const tickets = await prisma.supportTicket.findMany({
+      where: { shopId },
       orderBy: { createdAt: "desc" },
       include: {
         messages: true,
@@ -252,10 +255,11 @@ export const getTicketByUidForAdmin = async (
   }
 
   const { uid } = paramsParsed.data;
+  const { shopId } = authParsed.data;
 
   try {
-    const ticket = await prisma.supportTicket.findUnique({
-      where: { uid },
+    const ticket = await prisma.supportTicket.findFirst({
+      where: { uid, shopId },
       include: { messages: true, user: true },
     });
 
@@ -286,22 +290,33 @@ export const updateTicket = async (
 
   const { uid } = paramsParsed.data;
   const reqData = bodyParsed.data;
+  const { shopId } = authParsed.data;
 
   try {
-    const ticketBeforeUpdate = await prisma.supportTicket.findUnique({
-      where: { uid },
+    const ticketBeforeUpdate = await prisma.supportTicket.findFirst({
+      where: { uid, shopId },
       include: {
         user: { select: { email: true, fullName: true, username: true } },
       },
     });
 
-    const updatedTicket = await prisma.supportTicket.update({
-      where: { uid },
+    if (!ticketBeforeUpdate) {
+      res.status(404).json({ error: "Ticket not found." });
+      return;
+    }
+
+    const updateResult = await prisma.supportTicket.updateMany({
+      where: { uid, shopId },
       data: {
         status: reqData.status,
         priority: reqData.priority,
       },
     });
+
+    if (updateResult.count === 0) {
+      res.status(404).json({ error: "Ticket not found or does not belong to this shop." });
+      return;
+    }
 
     // Send email if status changed to RESOLVED
     if (reqData.status === "RESOLVED" && ticketBeforeUpdate?.user?.email) {
@@ -386,11 +401,17 @@ export const deleteTicket = async (
   }
 
   const { uid } = paramsParsed.data;
+  const { shopId } = authParsed.data;
 
   try {
-    await prisma.supportTicket.delete({
-      where: { uid },
+    const deleteResult = await prisma.supportTicket.deleteMany({
+      where: { uid, shopId },
     });
+
+    if (deleteResult.count === 0) {
+      res.status(404).json({ error: "Ticket not found or does not belong to this shop." });
+      return;
+    }
 
     res.status(200).json({ success: "Ticket deleted successfully." });
   } catch (err: any) {
@@ -486,16 +507,34 @@ export const deleteMessage = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
   const paramsParsed = DeleteTicketMessageSchema.safeParse(req.params);
 
-  if (!paramsParsed.success) {
-    res.status(400).json({ error: paramsParsed.error.flatten() });
+  if (!authParsed.success || !paramsParsed.success) {
+    res.status(400).json({
+      error: {
+        auth: authParsed.error?.flatten(),
+        params: paramsParsed.error?.flatten(),
+      },
+    });
     return;
   }
 
   const { uid } = paramsParsed.data;
+  const { shopId } = authParsed.data;
 
   try {
+    // First verify the message belongs to a ticket in this shop
+    const message = await prisma.ticketMessage.findUnique({
+      where: { uid },
+      include: { ticket: { select: { shopId: true } } },
+    });
+
+    if (!message || message.ticket.shopId !== shopId) {
+      res.status(404).json({ error: "Message not found." });
+      return;
+    }
+
     await prisma.ticketMessage.delete({
       where: { uid },
     });
