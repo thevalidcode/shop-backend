@@ -93,7 +93,7 @@ export const verifyInternalUserAuth = (req: Request, res: Response) => {
       return null;
     }
 
-    return parsed.data;
+    return { ...parsed.data, shopId: parsed.data.storeId };
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });
     return null;
