@@ -14,39 +14,6 @@ if (require.main === module) {
       where: { shopId: 1 },
       data: {
         status: "ACTIVE",
-        features: {
-          stores: 1,
-          products: 100,
-          staff_accounts: 5,
-          payment_gateways: 4,
-          available_templates: 5,
-
-          // Core capabilities
-          analytics: true,
-          api_access: true,
-          ai_features: true,
-          priority_support: true,
-
-          // Shop customization
-          custom_branding: true,
-          custom_domain: true,
-          free_ssl: true,
-          hide_platform_banner: false,
-          custom_templates: true,
-
-          // Product & order management
-          unlimited_products: false,
-          social_store_order_sync: true,
-          social_store_service_sync: true,
-
-          // Communication features
-          store_email_notifications: true,
-          store_custom_emails: true,
-          store_newsletters: true,
-
-          // Shipping features
-          max_shipping_accounts: 5,
-        },
       },
     });
 

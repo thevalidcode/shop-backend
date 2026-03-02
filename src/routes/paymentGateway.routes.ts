@@ -6,6 +6,7 @@ import {
   paymentGatewayModifyRateLimit,
 } from "../middleware/ratelimit";
 import { checkPaymentGatewayLimit } from "../middleware/features";
+import { requireActiveSubscription } from "../middleware/subscription.middleware";
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ const router = express.Router();
 router.patch(
   "/",
   authenticateAdmin,
+  requireActiveSubscription,
   paymentGatewayModifyRateLimit,
   paymentGateways.updatePaymentGateway,
 );
@@ -25,6 +27,7 @@ router.patch(
 router.delete(
   "/",
   authenticateAdmin,
+  requireActiveSubscription,
   paymentGatewayModifyRateLimit,
   paymentGateways.deletePaymentGateway,
 );
@@ -33,6 +36,7 @@ router.post(
   "/",
   authenticateAdmin,
   checkPaymentGatewayLimit,
+  requireActiveSubscription,
   paymentGatewayModifyRateLimit,
   paymentGateways.addPaymentGateway,
 );

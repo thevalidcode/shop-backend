@@ -2,7 +2,7 @@ import { prisma } from "../config/db.config";
 
 if (require.main === module) {
   (async () => {
-    const result = await prisma.user.findMany();
+    const result = await prisma.admin.findMany();
 
     console.log(result);
 

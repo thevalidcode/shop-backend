@@ -5,12 +5,14 @@ import {
   paymentRateLimit,
   paymentProcessRateLimit,
 } from "../middleware/ratelimit";
+import { requireActiveSubscription } from "../middleware/subscription.middleware";
 
 const router = express.Router();
 
 router.post(
   "/initialize",
   authenticateUser,
+  requireActiveSubscription,
   paymentProcessRateLimit,
   payments.initializePayment,
 );

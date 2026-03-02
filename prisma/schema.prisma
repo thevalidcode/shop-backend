@@ -196,11 +196,7 @@ model Shop {
   timestamp   DateTime   @default(now())
   status      ShopStatus
   description String?
-  expiresAt   DateTime?  @map("expires_at")
-  startedAt   DateTime?  @map("started_at")
-  features    Json
   name        String
-  planId      Int        @map("plan_id")
 
   Admin            Admin[]
   AdminEmail       AdminEmail[]
@@ -452,26 +448,26 @@ model ProductReview {
 }
 
 model Order {
-  id                Int         @id @default(autoincrement())
-  shopScopedId      Int         @map("shop_scoped_id")
-  uid               String      @unique @default(uuid())
-  orderRef          String      @unique @map("order_ref")
-  userUid           String      @map("user_uid")
-  totalAmount       Decimal     @map("total_amount") @db.Decimal(10, 2)
-  currency          String      @default("USD")
-  status            OrderStatus @default(PENDING)
-  billingInfoUid    String      @map("billing_info_uid")
-  paymentUid        String      @map("payment_uid")
-  trackingNumber    String?     @map("tracking_number")
-  estimatedDelivery DateTime?   @map("estimated_delivery")
-  deliveredAt       DateTime?   @map("delivered_at")
-  notes             String?
-  shippingCost      Decimal?    @map("shipping_cost") @db.Decimal(10, 2)
-  shippingCurrency  String?     @map("shipping_currency")
-  selectedShippingRate Json?    @map("selected_shipping_rate")
-  timestamp         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt @map("updated_at")
-  shopId            Int         @map("shop_id")
+  id                   Int         @id @default(autoincrement())
+  shopScopedId         Int         @map("shop_scoped_id")
+  uid                  String      @unique @default(uuid())
+  orderRef             String      @unique @map("order_ref")
+  userUid              String      @map("user_uid")
+  totalAmount          Decimal     @map("total_amount") @db.Decimal(10, 2)
+  currency             String      @default("USD")
+  status               OrderStatus @default(PENDING)
+  billingInfoUid       String      @map("billing_info_uid")
+  paymentUid           String      @map("payment_uid")
+  trackingNumber       String?     @map("tracking_number")
+  estimatedDelivery    DateTime?   @map("estimated_delivery")
+  deliveredAt          DateTime?   @map("delivered_at")
+  notes                String?
+  shippingCost         Decimal?    @map("shipping_cost") @db.Decimal(10, 2)
+  shippingCurrency     String?     @map("shipping_currency")
+  selectedShippingRate Json?       @map("selected_shipping_rate")
+  timestamp            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+  shopId               Int         @map("shop_id")
 
   shop        Shop        @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
   user        User        @relation(fields: [userUid], references: [uid], onDelete: Cascade)

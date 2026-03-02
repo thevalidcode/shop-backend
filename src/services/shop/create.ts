@@ -32,8 +32,6 @@ export async function CreateShop(params: CreateShopParams) {
     storeDomain: shopDomain,
     name,
     description,
-    planId,
-    features = {},
     adminEmail,
     adminUsername,
     fullName,
@@ -45,6 +43,7 @@ export async function CreateShop(params: CreateShopParams) {
   } = params;
 
   try {
+    console.log("called")
     // Step 0: Validate domain rules
     if (!shopDomain.startsWith("localhost")) assertValidDomain(shopDomain);
 
@@ -69,9 +68,7 @@ export async function CreateShop(params: CreateShopParams) {
           status: "DISABLED",
           shopId,
           description: description || null,
-          features,
           name,
-          planId,
           ssl: true,
         },
       });

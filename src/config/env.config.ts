@@ -18,12 +18,14 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(1),
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
-  CORE_SERVICE_SECRET: z.string(),
+  INTERNAL_SERVICE_USER_JWT_SECRET: z.string(),
+  INTERNAL_SERVICE_ADMIN_JWT_SECRET: z.string(),
   AWS_S3_BUCKET: z.string(),
   AWS_REGION: z.string(),
   AWS_SECRET_ACCESS_KEY: z.string(),
   AWS_ACCESS_KEY_ID: z.string(),
   CORE_PLATFORM_BACKEND_URL: z.string().url(),
+  REDIS_URL: z.string().default("redis://localhost:6379"),
 });
 
 export const env = envSchema.parse(process.env);

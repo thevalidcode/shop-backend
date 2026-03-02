@@ -9,6 +9,7 @@ import {
   productBulkRateLimit,
 } from "../middleware/ratelimit";
 import { checkProductLimit } from "../middleware/features";
+import { requireActiveSubscription } from "../middleware/subscription.middleware";
 
 // Public routes - Enhanced
 router.get("/search", productRateLimit, productsEnhanced.getProductsPublic);
@@ -16,7 +17,7 @@ router.get("/featured", productRateLimit, productsEnhanced.getFeaturedProducts);
 router.get(
   "/best-selling",
   productRateLimit,
-  productsEnhanced.getBestSellingProducts
+  productsEnhanced.getBestSellingProducts,
 );
 router.get("/slug/:slug", productRateLimit, productsEnhanced.getProductBySlug);
 
@@ -28,62 +29,68 @@ router.get("/:productUid", productRateLimit, products.getProductByUID);
 router.get(
   "/:productUid/reviews",
   productRateLimit,
-  productsEnhanced.getProductReviews
+  productsEnhanced.getProductReviews,
 );
 router.post(
   "/:productUid/reviews",
   authenticateUser,
   productModifyRateLimit,
-  productsEnhanced.createProductReview
+  productsEnhanced.createProductReview,
 );
 
 // Product Variants & Related
 router.get(
   "/:productUid/variants",
   productRateLimit,
-  productsEnhanced.getProductVariants
+  productsEnhanced.getProductVariants,
 );
 router.get(
   "/:productUid/related",
   productRateLimit,
-  productsEnhanced.getRelatedProducts
+  productsEnhanced.getRelatedProducts,
 );
 
 // Admin-only routes
 router.post(
   "/",
-  authenticateAdmin,  checkProductLimit,  productModifyRateLimit,
-  products.addProduct
+  authenticateAdmin,
+  checkProductLimit,
+  requireActiveSubscription,
+  productModifyRateLimit,
+  products.addProduct,
 );
 router.get(
   "/admin/all",
   authenticateAdmin,
   productRateLimit,
-  products.getProductsForAdmins
+  products.getProductsForAdmins,
 );
 router.get(
   "/admin/:productUid",
   authenticateAdmin,
   productRateLimit,
-  products.getProductByUIDFromAdmin
+  products.getProductByUIDFromAdmin,
 );
 router.patch(
   "/",
   authenticateAdmin,
+  requireActiveSubscription,
   productModifyRateLimit,
-  products.updateProduct
+  products.updateProduct,
 );
 router.delete(
   "/",
   authenticateAdmin,
+  requireActiveSubscription,
   productModifyRateLimit,
-  products.deleteProduct
+  products.deleteProduct,
 );
 router.delete(
   "/multiple",
   authenticateAdmin,
+  requireActiveSubscription,
   productBulkRateLimit,
-  products.deleteMultipleProduct
+  products.deleteMultipleProduct,
 );
 
 export default router;

@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { prisma } from "../../config/db.config";
 import { AdminAuthSchema } from "../../schemas/admin.schema";
 import { SubscriptionPlanFeaturesSchema } from "../../schemas/shop.schema";
+import { subscriptionService } from "../../services/subscription.services";
+import { prisma } from "../../config/db.config";
 
 /**
  * Middleware to check if automated shipping is allowed for the shop
@@ -23,17 +24,14 @@ export async function checkAutomatedShippingAllowed(
   const { shopId } = authParsed.data;
 
   try {
-    const shop = await prisma.shop.findUnique({
-      where: { shopId },
-      select: { features: true },
-    });
+    const subscription = await subscriptionService.getSubscription(shopId);
 
-    if (!shop) {
-      return res.status(404).json({ error: "Shop not found" });
+    if (!subscription) {
+      return res.status(404).json({ error: "Subscription not found" });
     }
 
     const featuresParsed = SubscriptionPlanFeaturesSchema.safeParse(
-      shop.features,
+      subscription.plan.features,
     );
 
     if (!featuresParsed.success) {
@@ -83,22 +81,19 @@ export async function checkShippingAccountLimit(
   const { shopId } = authParsed.data;
 
   try {
-    const [shop, currentCount] = await Promise.all([
-      prisma.shop.findUnique({
-        where: { shopId },
-        select: { features: true },
-      }),
+    const [subscription, currentCount] = await Promise.all([
+      subscriptionService.getSubscription(shopId),
       prisma.shippingAccount.count({
         where: { shopId, isActive: true },
       }),
     ]);
 
-    if (!shop) {
-      return res.status(404).json({ error: "Shop not found" });
+    if (!subscription) {
+      return res.status(404).json({ error: "Subscription not found" });
     }
 
     const featuresParsed = SubscriptionPlanFeaturesSchema.safeParse(
-      shop.features,
+      subscription.plan.features,
     );
 
     if (!featuresParsed.success) {
@@ -149,22 +144,19 @@ export async function checkPaymentGatewayLimit(
   const { shopId } = authParsed.data;
 
   try {
-    const [shop, currentCount] = await Promise.all([
-      prisma.shop.findUnique({
-        where: { shopId },
-        select: { features: true },
-      }),
+    const [subscription, currentCount] = await Promise.all([
+      subscriptionService.getSubscription(shopId),
       prisma.paymentGateway.count({
         where: { shopId, status: "ACTIVE" },
       }),
     ]);
 
-    if (!shop) {
-      return res.status(404).json({ error: "Shop not found" });
+    if (!subscription) {
+      return res.status(404).json({ error: "Subscription not found" });
     }
 
     const featuresParsed = SubscriptionPlanFeaturesSchema.safeParse(
-      shop.features,
+      subscription.plan.features,
     );
 
     if (!featuresParsed.success) {
@@ -215,22 +207,19 @@ export async function checkProductLimit(
   const { shopId } = authParsed.data;
 
   try {
-    const [shop, currentCount] = await Promise.all([
-      prisma.shop.findUnique({
-        where: { shopId },
-        select: { features: true },
-      }),
+    const [subscription, currentCount] = await Promise.all([
+      subscriptionService.getSubscription(shopId),
       prisma.product.count({
         where: { shopId, status: "ACTIVE" },
       }),
     ]);
 
-    if (!shop) {
-      return res.status(404).json({ error: "Shop not found" });
+    if (!subscription) {
+      return res.status(404).json({ error: "Subscription not found" });
     }
 
     const featuresParsed = SubscriptionPlanFeaturesSchema.safeParse(
-      shop.features,
+      subscription.plan.features,
     );
 
     if (!featuresParsed.success) {
@@ -301,17 +290,14 @@ export async function checkHidePlatformBanner(
   }
 
   try {
-    const shop = await prisma.shop.findUnique({
-      where: { shopId },
-      select: { features: true },
-    });
+    const subscription = await subscriptionService.getSubscription(shopId);
 
-    if (!shop) {
-      return res.status(404).json({ error: "Shop not found" });
+    if (!subscription) {
+      return res.status(404).json({ error: "Subscription not found" });
     }
 
     const featuresParsed = SubscriptionPlanFeaturesSchema.safeParse(
-      shop.features,
+      subscription.plan.features,
     );
 
     if (!featuresParsed.success) {
@@ -373,17 +359,14 @@ export async function checkCustomBranding(
   }
 
   try {
-    const shop = await prisma.shop.findUnique({
-      where: { shopId },
-      select: { features: true },
-    });
+    const subscription = await subscriptionService.getSubscription(shopId);
 
-    if (!shop) {
-      return res.status(404).json({ error: "Shop not found" });
+    if (!subscription) {
+      return res.status(404).json({ error: "Subscription not found" });
     }
 
     const featuresParsed = SubscriptionPlanFeaturesSchema.safeParse(
-      shop.features,
+      subscription.plan.features,
     );
 
     if (!featuresParsed.success) {
@@ -424,17 +407,14 @@ export async function checkAnalytics(
   const { shopId } = req.auth!;
 
   try {
-    const shop = await prisma.shop.findUnique({
-      where: { shopId },
-      select: { features: true },
-    });
+    const subscription = await subscriptionService.getSubscription(shopId);
 
-    if (!shop) {
-      return res.status(404).json({ error: "Shop not found" });
+    if (!subscription) {
+      return res.status(404).json({ error: "Subscription not found" });
     }
 
     const featuresParsed = SubscriptionPlanFeaturesSchema.safeParse(
-      shop.features,
+      subscription.plan.features,
     );
 
     if (!featuresParsed.success) {

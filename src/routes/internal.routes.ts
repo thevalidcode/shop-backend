@@ -5,31 +5,14 @@ import {
   authenticateInternalAdmin,
   authenticateInternalAnyone,
 } from "../middleware/auth";
-import { openCors } from "../config/cors.config";
 
 router.get(
   "/orders",
-  openCors,
   authenticateInternalAdmin,
   internals.getOrdersForInternalAdmins,
 );
-router.post(
-  "/stores",
-  openCors,
-  authenticateInternalAdmin,
-  internals.createShop,
-);
-router.delete(
-  "/stores/:uid",
-  openCors,
-  authenticateInternalAnyone,
-  internals.deleteShop,
-);
-router.patch(
-  "/stores/:uid",
-  openCors,
-  authenticateInternalAnyone,
-  internals.updateShop,
-);
+router.post("/stores", authenticateInternalAdmin, internals.createShop);
+router.delete("/stores/:uid", authenticateInternalAnyone, internals.deleteShop);
+router.patch("/stores/:uid", authenticateInternalAnyone, internals.updateShop);
 
 export default router;

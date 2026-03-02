@@ -9,12 +9,12 @@
 - DB & Prisma: set `DATABASE_URL`; run migrations with `npm run dev:migrate` (dev) or `npm run migrate` (deploy). `npm run prisma:generate` creates the client.
 
 ## Environment & secrets 🔐
-- Env schema enforced in `src/config/env.config.ts`. Required keys include **DATABASE_URL**, **MASTER_KEY** (exactly 32 chars), **JWT_SECRET**, **SESSION_SECRET**, and **CORE_SERVICE_SECRET**.
+- Env schema enforced in `src/config/env.config.ts`. Required keys include **DATABASE_URL**, **MASTER_KEY** (exactly 32 chars), **JWT_SECRET**, **SESSION_SECRET**, and **INTERNAL_SERVICE_JWT_SECRET**.
 - NOTE: `MASTER_KEY` is validated (32 chars) and used by `src/utils/encrypt.ts` for AES encrypt/decrypt.
 
 ## Auth & Security rules 🔒
 - Browser auth expects a cookie `auth_token` + CSRF cookie `csrf_token` matched with header `x-csrf-token`. See `src/middleware/auth/auth.shared.ts` and `src/middleware/auth/index.ts`.
-- Internal service auth uses JWTs signed with service secrets (payloads require `serviceKey` and are verified against `env.CORE_SERVICE_SECRET`). Use `verifyInternalUserAuth`/`verifyInternalAdminAuth`.
+- Internal service auth uses JWTs signed with service secrets (payloads require `serviceKey` and are verified against `env.INTERNAL_SERVICE_JWT_SECRET`). Use `verifyInternalUserAuth`/`verifyInternalAdminAuth`.
 - Controllers rely on `req.auth` (typed in `auth.shared.ts`) — always validate `req.auth` with `UserAuthSchema` or `AdminAuthSchema` (common pattern).
 
 ## Coding patterns & conventions 🧭

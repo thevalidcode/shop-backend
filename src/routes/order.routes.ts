@@ -6,6 +6,7 @@ import {
   orderModifyRateLimit,
   orderBulkRateLimit,
 } from "../middleware/ratelimit/order.ratelimit";
+import { requireActiveSubscription } from "../middleware/subscription.middleware";
 
 const router = express.Router();
 
@@ -41,6 +42,7 @@ router.get(
 router.patch(
   "/admin/:orderUid",
   authenticateAdmin,
+  requireActiveSubscription,
   orderModifyRateLimit,
   orders.updateOrder,
 );
@@ -49,6 +51,7 @@ router.patch(
 router.delete(
   "/admin/:orderUid",
   authenticateAdmin,
+  requireActiveSubscription,
   orderModifyRateLimit,
   orders.deleteOrder,
 );
@@ -57,6 +60,7 @@ router.delete(
 router.post(
   "/admin/bulk-update",
   authenticateAdmin,
+  requireActiveSubscription,
   orderBulkRateLimit,
   orders.bulkUpdateOrderStatus,
 );
@@ -65,6 +69,7 @@ router.post(
 router.post(
   "/admin/:orderUid/verify-payment",
   authenticateAdmin,
+  requireActiveSubscription,
   orderModifyRateLimit,
   orders.verifyPayment,
 );

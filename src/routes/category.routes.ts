@@ -6,6 +6,7 @@ import {
   categoryRateLimit,
   categoryModifyRateLimit,
 } from "../middleware/ratelimit";
+import { requireActiveSubscription } from "../middleware/subscription.middleware";
 
 // Public routes
 router.get("/", categoryRateLimit, categories.getCategories);
@@ -15,24 +16,28 @@ router.get("/:uid", categoryRateLimit, categories.getCategoryByUID);
 router.post(
   "/",
   authenticateAdmin,
+  requireActiveSubscription,
   categoryModifyRateLimit,
   categories.addCategory,
 );
 router.patch(
   "/",
   authenticateAdmin,
+  requireActiveSubscription,
   categoryModifyRateLimit,
   categories.updateCategory,
 );
 router.delete(
   "/",
   authenticateAdmin,
+  requireActiveSubscription,
   categoryModifyRateLimit,
   categories.deleteCategory,
 );
 router.delete(
   "/multiple",
   authenticateAdmin,
+  requireActiveSubscription,
   categoryModifyRateLimit,
   categories.deleteMultipleCategory,
 );

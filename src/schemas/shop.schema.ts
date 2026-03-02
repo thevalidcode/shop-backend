@@ -47,7 +47,6 @@ export type SubscriptionPlanFeatures = z.infer<
 export const ShopDataSchema = z
   .object({
     storeId: z.number().describe("Unique identifier for the store"),
-    planId: z.number().describe("The plan id associated with the store"),
     features: SubscriptionPlanFeaturesSchema.describe(
       "Key‑value map of store features",
     ),

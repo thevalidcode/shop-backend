@@ -90,8 +90,9 @@ app.use("/v1/webhooks", openCors, webhookRoutes);
 // Shipping Webhook Routes
 app.use("/v1/webhooks/shipping", openCors, shippingWebhookRoutes);
 
-// Internal Routes
+// Internal Route for service-to-service communication (no auth, but CORS enabled for internal services)
 app.use("/internal", openCors, internalRoutes);
+
 app.use("/swagger", openCors, swaggerRouter);
 
 // Auth Routes (this is for the auth.validpanel.com domain to handle OAuth)

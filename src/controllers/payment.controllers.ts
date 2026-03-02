@@ -1,8 +1,6 @@
 import type { Request, Response } from "express";
 import {
   InitializePaymentSchema,
-  PaymentPublicSchema,
-  PaymentSchema,
 } from "../schemas/payment.schema";
 import { UserAuthSchema } from "../schemas/user.schema";
 import { prisma } from "../config/db.config";

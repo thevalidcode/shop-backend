@@ -7,13 +7,19 @@ import {
   checkHidePlatformBanner,
   checkCustomBranding,
 } from "../middleware/features";
+import { requireActiveSubscription } from "../middleware/subscription.middleware";
 
 router.get("/data", shopRateLimit, shops.getShopData);
-router.put("/:shopId/onboarding-completed", shopModifyRateLimit, shops.completeOnboarding);
+router.put(
+  "/:shopId/onboarding-completed",
+  shopModifyRateLimit,
+  shops.completeOnboarding,
+);
 router.get("/:shopId/general-data", shopRateLimit, shops.getShopGeneralData);
 router.patch(
   "/general-data",
   authenticateAdmin,
+  requireActiveSubscription,
   checkHidePlatformBanner,
   checkCustomBranding,
   shopModifyRateLimit,
@@ -23,6 +29,7 @@ router.get("/:shopId/styles", shopRateLimit, shops.getStyles);
 router.patch(
   "/styles",
   authenticateAdmin,
+  requireActiveSubscription,
   checkCustomBranding,
   shopModifyRateLimit,
   shops.updateShopStyles,

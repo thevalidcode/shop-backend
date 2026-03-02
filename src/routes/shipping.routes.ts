@@ -18,6 +18,7 @@ import {
   checkAutomatedShippingAllowed,
   checkShippingAccountLimit,
 } from "../middleware/features";
+import { requireActiveSubscription } from "../middleware/subscription.middleware";
 
 const router = Router();
 
@@ -29,6 +30,7 @@ const router = Router();
 router.post(
   "/admin/accounts",
   authenticateAdmin,
+  requireActiveSubscription,
   checkAutomatedShippingAllowed,
   checkShippingAccountLimit,
   orderModifyRateLimit,
@@ -36,18 +38,36 @@ router.post(
 );
 
 // Get all shipping accounts
-router.get("/admin/accounts", authenticateAdmin, apiLimiter, getShippingAccounts);
+router.get(
+  "/admin/accounts",
+  authenticateAdmin,
+  apiLimiter,
+  getShippingAccounts,
+);
 
 // Update shipping account
-router.patch("/admin/accounts/:accountUid", authenticateAdmin, orderModifyRateLimit, updateShippingAccount);
+router.patch(
+  "/admin/accounts/:accountUid",
+  authenticateAdmin,
+  requireActiveSubscription,
+  orderModifyRateLimit,
+  updateShippingAccount,
+);
 
 // Disconnect shipping account
-router.delete("/admin/accounts/:accountUid", authenticateAdmin, orderModifyRateLimit, disconnectShippingAccount);
+router.delete(
+  "/admin/accounts/:accountUid",
+  authenticateAdmin,
+  requireActiveSubscription,
+  orderModifyRateLimit,
+  disconnectShippingAccount,
+);
 
 // Create shipment for order
 router.post(
   "/admin/shipments",
   authenticateAdmin,
+  requireActiveSubscription,
   checkAutomatedShippingAllowed,
   orderModifyRateLimit,
   createShipment,
@@ -57,6 +77,7 @@ router.post(
 router.post(
   "/admin/shipments/bulk",
   authenticateAdmin,
+  requireActiveSubscription,
   checkAutomatedShippingAllowed,
   orderModifyRateLimit,
   bulkCreateShipments,
@@ -76,9 +97,19 @@ router.get("/rates", authenticateUser, apiLimiter, getShippingRates);
 router.get("/methods", authenticateUser, apiLimiter, getShippingMethods);
 
 // Get shipment by order
-router.get("/orders/:orderUid/shipment", authenticateUser, apiLimiter, getShipmentByOrder);
+router.get(
+  "/orders/:orderUid/shipment",
+  authenticateUser,
+  apiLimiter,
+  getShipmentByOrder,
+);
 
 // Get tracking events for shipment
-router.get("/shipments/:shipmentUid/tracking", authenticateUser, apiLimiter, getTrackingEvents);
+router.get(
+  "/shipments/:shipmentUid/tracking",
+  authenticateUser,
+  apiLimiter,
+  getTrackingEvents,
+);
 
 export default router;

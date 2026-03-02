@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import {
-  AdminRole,
-  AdminStatus,
-} from "../../prisma/generated";
+import { AdminRole, AdminStatus } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
@@ -49,15 +46,6 @@ export const AuthenticateAdminResponseSchema = z.object({
   }),
 });
 
-export const internalTokenPayloadSchema = z.object({
-  serviceKey: z.string(),
-  type: z.literal("system", {
-    errorMap: () => ({ message: "Invalid value provided" }),
-  }),
-  uid: z.string().uuid(),
-  shopId: z.number(),
-});
-
 export const AdminUpdateRequestSchema = z.object({
   username: z.string().min(3).optional(),
   status: z.nativeEnum(AdminStatus).optional(),
@@ -74,9 +62,14 @@ export const resetPasswordAdminSchema = z.object({
   password: z.string().min(8).describe("New password (min 8 characters)"),
 });
 
+export const internalTokenPayloadSchema = z.object({
+  iss: z.literal("core"), // who issued
+  aud: z.enum(["core", "social-media-store", "shop"]), // who should receive
+  uid: z.string().uuid(),
+  storeId: z.number(),
+});
+
 export const internalAdminTokenPayloadSchema = z.object({
-  serviceKey: z.string(),
-  type: z.literal("system", {
-    errorMap: () => ({ message: "Invalid value provided" }),
-  }),
+  iss: z.literal("core"), // who issued
+  aud: z.enum(["core", "social-media-store", "shop"]), // who should receive
 });

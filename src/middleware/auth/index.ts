@@ -9,7 +9,7 @@ import { prisma } from "../../config/db.config";
 export const authenticateUser = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const payload = verifyBrowserAuth(req, res);
@@ -40,7 +40,7 @@ export const authenticateUser = async (
 export const authenticateAdmin = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const hasBrowserToken = Boolean(req.cookies?.auth_token);
@@ -49,8 +49,8 @@ export const authenticateAdmin = async (
     const payload = hasBrowserToken
       ? verifyBrowserAuth(req, res)
       : hasAuthHeader
-      ? verifyInternalUserAuth(req, res)
-      : null;
+        ? verifyInternalUserAuth(req, res)
+        : null;
 
     if (!payload) {
       if (!hasBrowserToken && !hasAuthHeader) {
@@ -87,7 +87,7 @@ export const authenticateAdmin = async (
 export const authenticateInternalAdmin = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const payload = verifyInternalAdminAuth(req, res);
@@ -101,7 +101,7 @@ export const authenticateInternalAdmin = async (
 export const authenticateAnyone = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   const hasBrowserToken = Boolean(req.cookies?.auth_token);
   const hasAuthHeader = Boolean(req.headers["authorization"]);
@@ -109,8 +109,8 @@ export const authenticateAnyone = async (
   const payload = hasBrowserToken
     ? verifyBrowserAuth(req, res)
     : hasAuthHeader
-    ? verifyInternalUserAuth(req, res)
-    : null;
+      ? verifyInternalUserAuth(req, res)
+      : null;
 
   if (!payload) {
     if (!hasBrowserToken && !hasAuthHeader) {
@@ -161,7 +161,7 @@ export const authenticateAnyone = async (
 export const authenticateInternalAnyone = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     // 1. Try internal admin (service-level trust)

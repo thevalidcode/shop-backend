@@ -229,7 +229,6 @@ export const updateShop = async (
       },
       data: {
         name: parsed.data.storeName,
-        features: parsed.data.features,
         description: parsed.data.storeDescription,
         status: parsed.data.status,
       },

@@ -27,8 +27,6 @@ export const createShopSchema = z.object({
   name: z.string().min(1, "Shop name is required"),
   storeDomain: z.string().min(1, "Shop domain is required"),
   description: z.string().optional().nullable(),
-  planId: z.number().int().positive(),
-  features: z.record(z.any()).optional(),
   adminEmail: z.string().email("Invalid admin email"),
   adminUsername: z.string().optional().nullable(),
   fullName: z.string(),

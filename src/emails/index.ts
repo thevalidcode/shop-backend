@@ -6,6 +6,7 @@ import {
   DesignColors,
 } from "./components/EmailLayout";
 import { parse as parseDomain } from "tldts";
+import { subscriptionService } from "../services/subscription.services";
 
 interface DispatchEmailParams {
   from: string;
@@ -44,7 +45,7 @@ const transporter = nodemailer.createTransport({
 function interpolate(template: string, variables: Record<string, any>): string {
   return template.replace(
     /\{\{(.*?)\}\}/g,
-    (_, key) => variables[key.trim()] ?? ""
+    (_, key) => variables[key.trim()] ?? "",
   );
 }
 
@@ -52,17 +53,20 @@ function interpolate(template: string, variables: Record<string, any>): string {
 // Load Store-Specific Settings
 // ----------------------------
 async function loadStoreSettings(shopId: number): Promise<StoreSettings> {
-  const setting = await prisma.setting.findUnique({
-    where: { shopId },
-    include: { shop: true },
-  });
+  const [setting, subscription] = await Promise.all([
+    prisma.setting.findUnique({
+      where: { shopId },
+      include: { shop: true },
+    }),
+    subscriptionService.getSubscription(shopId),
+  ]);
 
   const admin = await prisma.admin.findUnique({
     where: { shopId },
   });
 
-  if (!setting || !admin) {
-    throw new Error(`Settings or admin not found for this shop`);
+  if (!setting || !admin || !subscription) {
+    throw new Error(`Settings, admin, or subscription not found for this shop`);
   }
 
   const shopUrl = setting.shop.ssl
@@ -72,8 +76,8 @@ async function loadStoreSettings(shopId: number): Promise<StoreSettings> {
   const parsed = parseDomain(setting.shop.uid);
   const domain = parsed.domain || setting.shop.uid;
 
-  // Extract features from shop
-  const features = (setting.shop.features as any) || {};
+  // Extract features from subscription plan
+  const features = subscription.plan.features || {};
   const shopEmailNotifications = features.store_email_notifications ?? false;
   const shopCustomEmails = features.store_custom_emails ?? false;
 
@@ -120,7 +124,7 @@ export async function buildEmailTemplate(
   type: keyof EmailTemplateVars,
   data: Record<string, any>,
   shopSettings: StoreSettings,
-  shopId: number
+  shopId: number,
 ): Promise<{ subject: string; html: string }> {
   const template = await prisma.emailTemplate.findFirst({
     where: { type, shopId },
@@ -149,7 +153,7 @@ export async function buildEmailTemplate(
 // ----------------------------
 // Check if we're in production before sending emails
 function shouldSendEmail(): boolean {
-  return process.env.NODE_ENV === 'production';
+  return process.env.NODE_ENV === "production";
 }
 
 async function dispatchEmail({
@@ -235,11 +239,13 @@ async function dispatchEmail({
 export async function sendEmailToAdmins(
   shopId: number,
   type: keyof EmailTemplateVars,
-  data: Record<string, any> = {}
+  data: Record<string, any> = {},
 ): Promise<void> {
   // Only send emails in production environment
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV] Would send admin email of type "${type}" to shop ${shopId}`);
+  if (process.env.NODE_ENV !== "production") {
+    console.log(
+      `[DEV] Would send admin email of type "${type}" to shop ${shopId}`,
+    );
     return;
   }
 
@@ -249,7 +255,7 @@ export async function sendEmailToAdmins(
       type,
       data,
       shopSettings,
-      shopId
+      shopId,
     );
 
     // Get admin emails for this shop
@@ -285,11 +291,13 @@ export async function sendUserEmail(
   shopId: number,
   to: string,
   type: keyof EmailTemplateVars,
-  data: Record<string, any> = {}
+  data: Record<string, any> = {},
 ): Promise<void> {
   // Only send emails in production environment
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV] Would send email of type "${type}" to ${to} for shop ${shopId}`);
+  if (process.env.NODE_ENV !== "production") {
+    console.log(
+      `[DEV] Would send email of type "${type}" to ${to} for shop ${shopId}`,
+    );
     return;
   }
 
@@ -299,7 +307,7 @@ export async function sendUserEmail(
       type,
       data,
       shopSettings,
-      shopId
+      shopId,
     );
 
     // Determine sender email based on shop_custom_emails feature
@@ -321,7 +329,7 @@ export async function sendEmail(
   to: string | undefined,
   type: string,
   data: Record<string, any>,
-  shopId: number
+  shopId: number,
 ): Promise<void> {
   // If no recipient specified, send to admins
   if (!to) {
