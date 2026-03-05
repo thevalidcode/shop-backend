@@ -43,7 +43,6 @@ export async function CreateShop(params: CreateShopParams) {
   } = params;
 
   try {
-    console.log("called")
     // Step 0: Validate domain rules
     if (!shopDomain.startsWith("localhost")) assertValidDomain(shopDomain);
 

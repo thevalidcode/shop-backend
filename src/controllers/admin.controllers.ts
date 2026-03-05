@@ -89,7 +89,6 @@ export const authenticateAdmin = async (
       admin: safeAdmin,
     });
   } catch (err: any) {
-    console.log(err);
     res.status(500).json({ error: "Login failed " + err.message });
   }
 };

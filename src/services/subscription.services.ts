@@ -129,7 +129,6 @@ class SubscriptionService {
 
       return subscription;
     } catch (error: any) {
-      console.log(error);
       return null;
     }
   }
@@ -176,7 +175,6 @@ class SubscriptionService {
 
       return shop;
     } catch (error: any) {
-      console.log(error);
       return null;
     }
   }

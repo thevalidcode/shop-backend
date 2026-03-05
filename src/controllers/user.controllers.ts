@@ -483,7 +483,6 @@ export const updateUserByAdmin = async (
     res.status(200).json({ success: "Successfully updated user" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update user" });
-    console.log(error.message);
   }
 };
 
