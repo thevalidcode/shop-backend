@@ -1,62 +1,84 @@
-# GitHub Copilot / AI Agent Instructions for shop-backend 🔧
+# Copilot Instructions - Shop Backend
 
-**Quick context:** This is a TypeScript + Express + Prisma backend that powers a multi-tenant shop platform (shops are identified by `shopId`/`uid`). It favors explicit Zod validation, Prisma for DB access, and server-side email and socket features.
+You are working in the `shop-backend` service of the ValidPanel monorepo.
+This service provides the core e-commerce API for individual shops, handling products, orders, customers, and admin management.
 
-## What to know first ✅
-- Project entry points: `src/index.ts` (server + socket setup) and `src/app.ts` (route wiring & middleware).
-- API prefix: most routes are under `/v1/*` (see `src/app.ts`). Webhooks use `/v1/webhooks`, internal APIs are mounted under `/internal`.
-- Run locally: `npm install` then `npm run dev` (nodemon uses `tsx src/index.ts`). Build: `npm run build` then `npm start`.
-- DB & Prisma: set `DATABASE_URL`; run migrations with `npm run dev:migrate` (dev) or `npm run migrate` (deploy). `npm run prisma:generate` creates the client.
+## 🛠 Tech Stack & Core Libraries
+- **Runtime**: Node.js (Latest LTS)
+- **Framework**: Express.js
+- **Database**: PostgreSQL via Prisma ORM
+- **Validation**: Zod (strict schemas required)
+- **Documentation**: Swagger/OpenAPI (via `@asteasolutions/zod-to-openapi`)
+- **Dates**: `date-fns`
+- **Logging**: Console (keep minimal in production)
 
-## Environment & secrets 🔐
-- Env schema enforced in `src/config/env.config.ts`. Required keys include **DATABASE_URL**, **MASTER_KEY** (exactly 32 chars), **JWT_SECRET**, **SESSION_SECRET**, and **INTERNAL_SERVICE_JWT_SECRET**.
-- NOTE: `MASTER_KEY` is validated (32 chars) and used by `src/utils/encrypt.ts` for AES encrypt/decrypt.
+## 🏗 Architecture & File Structure
 
-## Auth & Security rules 🔒
-- Browser auth expects a cookie `auth_token` + CSRF cookie `csrf_token` matched with header `x-csrf-token`. See `src/middleware/auth/auth.shared.ts` and `src/middleware/auth/index.ts`.
-- Internal service auth uses JWTs signed with service secrets (payloads require `serviceKey` and are verified against `env.INTERNAL_SERVICE_JWT_SECRET`). Use `verifyInternalUserAuth`/`verifyInternalAdminAuth`.
-- Controllers rely on `req.auth` (typed in `auth.shared.ts`) — always validate `req.auth` with `UserAuthSchema` or `AdminAuthSchema` (common pattern).
+### Key Directories
+- `src/controllers/`: Request handlers. Contains business logic for simple CRUD.
+- `src/services/`: Complex business logic (only extract if controller > 200 lines).
+- `src/routes/`: Route definitions and middleware application.
+- `src/schemas/`: Zod schemas for request validation + OpenAPI definitions.
+- `src/middleware/`: Auth, rate limits, feature gates.
+- `prisma/schema.prisma`: The single source of truth for data models.
 
-## Coding patterns & conventions 🧭
-- Validation: Zod everywhere in `src/schemas/*`. Controllers call `.safeParse()` and return `400` with `error.flatten()` on failure.
-  - Example: `const authParsed = UserAuthSchema.safeParse(req.auth);` in `src/controllers/order.controllers.ts`.
-- Prisma: use `prisma` from `src/config/db.config.ts` (PrismaPg adapter). Prefer `findFirst`, `update`/`updateMany` and transactions (`prisma.$transaction`) for multi-step updates.
-- Controllers: return JSON responses with clear status codes: 400 (validation), 401 (auth), 404 (not found), 500 (server). Log server errors to console with a contextual message.
-- Enums: Zod uses native Prisma enums (`z.nativeEnum(OrderStatus)`), keep schema enums in sync with `prisma/schema.prisma`.
-- Counters: many resources are shop-scoped counters (e.g., emailLogCounter, shopScopedId) — update via transactions to avoid races.
+### API Patterns
 
-## Email behavior & templates ✉️
-- Email sending is implemented in `src/emails/index.ts`. In non-production, functions log to console and do NOT send actual emails. In production it uses sendmail transport and logs to `emailLog` table.
-- Use `sendUserEmail` and `sendEmailToAdmins` helpers; templates exist in `src/emails/templates` and templates can be overridden per shop in the DB.
+1.  **Response Format**:
+    All endpoints MUST return JSON.
+    ```json
+    // Success
+    { "data": { ... } } or just { ... }
+    // Error
+    { "error": { ... } }
+    ```
 
-## CORS & host management 🌐
-- CORS origin list is dynamically updated from DB. See `src/config/cors.config.ts` and `updateAllowedHosts` (called at startup & every 5 minutes in `src/index.ts`).
-- Swagger docs are served under `/swagger/docs` and require admin session (`src/docs/swagger.ts`).
+2.  **Authentication**:
+    - `authenticateUser` -> `req.auth` contains `{ userId, shopId }`
+    - `authenticateAdmin` -> `req.auth` contains `{ adminId, shopId, role }`
+    - **CRITICAL**: Always use `req.auth.shopId` to scope database queries.
 
-## Socket.IO events ⚡
-- Socket path: `/shop/backend/socket.io` (configured in `src/index.ts`).
-- Events to know: `initConnection` (set user active), `newTicketMessage` (broadcast), `userTyping` (broadcast), and `disconnect` (sets user inactive). Implementations in `src/socket/index.ts`.
+## 🚨 Critical Engineering Rules
 
-## Important files to inspect when changing behavior 🔎
-- `src/config/env.config.ts` — env validation
-- `src/config/db.config.ts` — prisma client setup
-- `src/middleware/auth/*` — token validation & `req.auth` population
-- `src/schemas/*` — Zod schemas & OpenAPI definitions
-- `src/emails/*` — templates & send behavior
-- `src/utils/encrypt.ts` — MASTER_KEY usage
-- `src/index.ts` & `src/app.ts` — server bootstrap, CORS, routes
+### 1. Tenant Isolation (Security)
+- **NEVER** query `Product`, `Order`, `Category`, `User` tables without `where: { shopId: ... }`.
+- **Exception**: Super-admin internal tools (require explicit comment).
+- **Leakage**: Returning data from another shop is a P0 critical incident.
 
-## Developer workflows & commands 🛠️
-- Development server: `npm run dev` (nodemon + tsx) ✅
-- Typecheck only: `npm run typecheck` (strict `tsc --noEmit`) ✅
-- Migrations: `npm run dev:migrate` (runs `prisma migrate dev && prisma generate`), use `npm run migrate` for deploys.
-- Build: `npm run build` (runs `prisma:generate` then `tsc`).
+### 2. Feature Implementation Checklist
+When adding a new feature (e.g., "Bundles"):
+1.  [ ] **Model**: Add model to `prisma/schema.prisma`. Run `npm run prisma:generate`.
+2.  [ ] **Schema**: Create `src/schemas/bundles.schema.ts` with Zod.
+3.  [ ] **Controller**: Create `src/controllers/bundles.controllers.ts`.
+    - Validate input: `const { data, error } = BundleSchema.safeParse(req.body)`
+    - Handle DB: `await prisma.bundle.create(...)`
+    - Handle errors: `try/catch` with `500` response.
+4.  [ ] **Route**: Create `src/routes/bundles.routes.ts`.
+    - Apply `authenticateAdmin` or `authenticateUser`.
+    - Apply `validateResource`.
+5.  [ ] **Register**: Add route to `src/app.ts`.
 
-## Testing & caution 🚧
-- There are no unit tests in the repo (the `test` script is a placeholder). Avoid adding heavy test infra unless requested.
-- Many operations modify multiple tables and rely on shop counters — use `prisma.$transaction` to preserve consistency.
-- Email senders are environment-gated; running in dev won't send live emails.
+### 3. Code Style & Standards
+- **Imports**: modifying existing imports to add new modules is allowed.
+- **Naming**:
+    - Files: `camelCase` (e.g., `product.controllers.ts`).
+    - Controllers: `getProducts`, `createProduct`.
+    - Routes: `/v1/resources`.
+- **Async/Await**: Always use async/await. Avoid `.then()`.
+- **Type Safety**: Strictly typed `req` and `res`. No `any`.
 
----
+## 🔍 Specific Logic & Nuances
 
-If anything above is unclear or you'd like additional examples (e.g., a snippet showing how to craft an internal service JWT, or an example Zod schema editing workflow), tell me which section to expand and I will iterate. 👇
+- **Encryption**: Uses `src/utils/encrypt.ts` (AES) with `MASTER_KEY`.
+- **Sockets**: `src/socket/index.ts` handles real-time updates (tickets, chat).
+- **Email**: `src/emails/index.ts`. Mocked in dev, real in prod.
+- **Rate Limiting**: specific middleware in `src/middleware/ratelimit/`. Apply to ALL public routes.
+- **CORS**: Dynamic origin handling in `src/config/cors.config.ts`.
+
+## 🚫 Anti-Patterns
+- **Do NOT** put inline specific Zod schemas in controllers. Define them in `src/schemas`.
+- **Do NOT** use `req.body` without validation.
+- **Do NOT** hardcode HTTP status codes (use standard numbers 200, 400, 401, 403, 404, 500).
+
+## Environment Variables
+Refer to `.env.example` or `src/config/env.config.ts`. Key variables: `DATABASE_URL`, `JWT_SECRET`, `SESSION_SECRET`, `MASTER_KEY`.

@@ -193,7 +193,7 @@ export async function createShipmentForOrder(
     where: { uid: orderUid, shopId },
     include: {
       user: true,
-      billingInfo: true,
+      shippingInfo: true,
       items: {
         include: {
           product: true,
@@ -260,14 +260,14 @@ export async function createShipmentForOrder(
 
   // Prepare addresses
   const toAddress: Address = {
-    name: order.billingInfo.fullName,
-    street: order.billingInfo.address,
-    city: order.billingInfo.city,
-    state: order.billingInfo.state,
-    postalCode: order.billingInfo.postalCode,
-    country: order.billingInfo.country,
-    phone: order.billingInfo.phone,
-    email: order.billingInfo.email,
+    name: order.shippingInfo.fullName,
+    street: order.shippingInfo.address,
+    city: order.shippingInfo.city,
+    state: order.shippingInfo.state,
+    postalCode: order.shippingInfo.postalCode,
+    country: order.shippingInfo.country,
+    phone: order.shippingInfo.phone,
+    email: order.shippingInfo.email,
   };
 
   // Use shop address from settings as origin address
@@ -357,7 +357,7 @@ export async function createShipmentForOrder(
       name: item.product.name,
       quantity: item.quantity,
     })),
-    shippingAddress: `${order.billingInfo.address}\n${order.billingInfo.city}, ${order.billingInfo.state} ${order.billingInfo.postalCode}\n${order.billingInfo.country}`,
+    shippingAddress: `${order.shippingInfo.address}\n${order.shippingInfo.city}, ${order.shippingInfo.state} ${order.shippingInfo.postalCode}\n${order.shippingInfo.country}`,
     orderUrl: `/orders/${order.uid}`,
     logo: "",
     shopName: order.shop.name,
@@ -373,7 +373,7 @@ export async function createShipmentForOrder(
 export async function getShippingRatesForCart(
   shopId: number,
   cartUid: string,
-  billingInfoUid: string,
+  shippingInfoUid: string,
   platformOverride?: ShippingPlatform,
 ) {
   // Get cart with all items
@@ -397,13 +397,13 @@ export async function getShippingRatesForCart(
     throw new Error("Cart is empty");
   }
 
-  // Get billing info for delivery address
-  const billingInfo = await prisma.billingInfo.findFirst({
-    where: { uid: billingInfoUid, shopId },
+  // Get shipping information for delivery address
+  const shippingInfo = await prisma.shippingInfo.findFirst({
+    where: { uid: shippingInfoUid, shopId },
   });
 
-  if (!billingInfo) {
-    throw new Error("Billing information not found");
+  if (!shippingInfo) {
+    throw new Error("Shipping information not found");
   }
 
   // Get shop settings for origin address
@@ -452,14 +452,14 @@ export async function getShippingRatesForCart(
 
   // Prepare addresses
   const toAddress: Address = {
-    name: billingInfo.fullName,
-    street: billingInfo.address,
-    city: billingInfo.city,
-    state: billingInfo.state,
-    postalCode: billingInfo.postalCode,
-    country: billingInfo.country,
-    phone: billingInfo.phone,
-    email: billingInfo.email,
+    name: shippingInfo.fullName,
+    street: shippingInfo.address,
+    city: shippingInfo.city,
+    state: shippingInfo.state,
+    postalCode: shippingInfo.postalCode,
+    country: shippingInfo.country,
+    phone: shippingInfo.phone,
+    email: shippingInfo.email,
   };
 
   // Use shop address from settings as origin address

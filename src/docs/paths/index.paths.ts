@@ -17,10 +17,11 @@ import "./webhook.paths";
 import "./transaction.paths";
 import "./rate.paths";
 import "./support.paths";
-import "./billingInfo.paths";
+import "./shippingInfo.paths";
 import "./statistics.paths";
 import "./page.paths";
 import "./review.paths";
 import "./shipping.paths";
+import "./reseller.paths";
 
 export { registry };

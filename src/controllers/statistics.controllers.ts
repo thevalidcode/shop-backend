@@ -240,6 +240,7 @@ export const getUserDashboardData = async (
       name: p.name,
       imageUrl: p.imageUrl,
       price: p.price,
+      currency: p.currency,
       comparePrice: p.comparePrice,
       stock: p.stock,
       isFeatured: p.isFeatured,

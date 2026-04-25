@@ -1,21 +1,21 @@
 import { prisma } from "../config/db.config";
 import type {
-  CreateBillingInfoInput,
-  UpdateBillingInfoInput,
-} from "../schemas/billingInfo.schema";
+  CreateShippingInfoInput,
+  UpdateShippingInfoInput,
+} from "../schemas/shippingInfo.schema";
 import type { User } from "../../prisma/generated";
 
-export const createBillingInfo = async (
+export const createShippingInfo = async (
   user: Partial<User>,
-  data: CreateBillingInfoInput
+  data: CreateShippingInfoInput,
 ) => {
   if (!user.uid || !user.shopId) {
     throw new Error("User UID and Shop ID are required");
   }
 
-  // If this is set as default, unset all other default billing info for this user
+  // If this is set as default, unset all other default shipping information for this user
   if (data.isDefault) {
-    await prisma.billingInfo.updateMany({
+    await prisma.shippingInfo.updateMany({
       where: {
         userUid: user.uid,
         shopId: user.shopId,
@@ -30,31 +30,31 @@ export const createBillingInfo = async (
   const counter = await prisma.shopCounter.update({
     where: { shopId: user.shopId },
     data: {
-      billingInfoCounter: { increment: 1 },
+      shippingInfoCounter: { increment: 1 },
     },
   });
 
-  const billingInfo = await prisma.billingInfo.create({
+  const shippingInfo = await prisma.shippingInfo.create({
     data: {
       ...data,
       userUid: user.uid!,
       shopId: user.shopId!,
-      shopScopedId: counter.billingInfoCounter,
+      shopScopedId: counter.shippingInfoCounter,
     },
   });
 
-  return billingInfo;
+  return shippingInfo;
 };
 
-export const getUserBillingInfo = async (
+export const getUserShippingInfo = async (
   user: Partial<User>,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ) => {
   const skip = (page - 1) * limit;
 
-  const [billingInfos, total] = await Promise.all([
-    prisma.billingInfo.findMany({
+  const [shippingInfos, total] = await Promise.all([
+    prisma.shippingInfo.findMany({
       where: {
         userUid: user.uid!,
         shopId: user.shopId!,
@@ -63,7 +63,7 @@ export const getUserBillingInfo = async (
       skip,
       take: limit,
     }),
-    prisma.billingInfo.count({
+    prisma.shippingInfo.count({
       where: {
         userUid: user.uid!,
         shopId: user.shopId!,
@@ -72,7 +72,7 @@ export const getUserBillingInfo = async (
   ]);
 
   return {
-    billingInfos,
+    shippingInfos,
     total,
     page,
     limit,
@@ -80,11 +80,11 @@ export const getUserBillingInfo = async (
   };
 };
 
-export const getBillingInfoByUid = async (
+export const getShippingInfoByUid = async (
   user: Partial<User>,
-  uid: string
+  uid: string,
 ) => {
-  const billingInfo = await prisma.billingInfo.findFirst({
+  const shippingInfo = await prisma.shippingInfo.findFirst({
     where: {
       uid,
       userUid: user.uid!,
@@ -92,24 +92,24 @@ export const getBillingInfoByUid = async (
     },
   });
 
-  if (!billingInfo) {
-    throw new Error("Billing information not found");
+  if (!shippingInfo) {
+    throw new Error("Shipping information not found");
   }
 
-  return billingInfo;
+  return shippingInfo;
 };
 
-export const updateBillingInfo = async (
+export const updateShippingInfo = async (
   user: Partial<User>,
   uid: string,
-  data: UpdateBillingInfoInput
+  data: UpdateShippingInfoInput,
 ) => {
   // Verify ownership
-  const existing = await getBillingInfoByUid(user, uid);
+  const existing = await getShippingInfoByUid(user, uid);
 
-  // If this is set as default, unset all other default billing info for this user
+  // If this is set as default, unset all other default shipping information for this user
   if (data.isDefault) {
-    await prisma.billingInfo.updateMany({
+    await prisma.shippingInfo.updateMany({
       where: {
         userUid: user.uid!,
         shopId: user.shopId!,
@@ -122,31 +122,31 @@ export const updateBillingInfo = async (
     });
   }
 
-  const billingInfo = await prisma.billingInfo.update({
+  const shippingInfo = await prisma.shippingInfo.update({
     where: {
       uid: existing.uid,
     },
     data,
   });
 
-  return billingInfo;
+  return shippingInfo;
 };
 
-export const deleteBillingInfo = async (user: Partial<User>, uid: string) => {
+export const deleteShippingInfo = async (user: Partial<User>, uid: string) => {
   // Verify ownership
-  const existing = await getBillingInfoByUid(user, uid);
+  const existing = await getShippingInfoByUid(user, uid);
 
-  await prisma.billingInfo.delete({
+  await prisma.shippingInfo.delete({
     where: {
       uid: existing.uid,
     },
   });
 
-  return { message: "Billing information deleted successfully" };
+  return { message: "Shipping information deleted successfully" };
 };
 
-export const getDefaultBillingInfo = async (user: Partial<User>) => {
-  const billingInfo = await prisma.billingInfo.findFirst({
+export const getDefaultShippingInfo = async (user: Partial<User>) => {
+  const shippingInfo = await prisma.shippingInfo.findFirst({
     where: {
       userUid: user.uid!,
       shopId: user.shopId!,
@@ -154,5 +154,5 @@ export const getDefaultBillingInfo = async (user: Partial<User>) => {
     },
   });
 
-  return billingInfo;
+  return shippingInfo;
 };

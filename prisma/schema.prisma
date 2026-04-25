@@ -1,7 +1,7 @@
 generator client {
   provider      = "prisma-client-js"
   output        = "./generated"
-  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"] 
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -131,6 +131,11 @@ enum PaymentStatus {
   FAILED
 }
 
+enum PaymentPurpose {
+  ORDER
+  WALLET_TOPUP
+}
+
 enum TransactionStatus {
   PENDING
   SUCCESS
@@ -141,6 +146,14 @@ enum TransactionType {
   ORDER_PAYMENT
   REFERRAL_CREDIT
   REFUND
+  WALLET_CREDIT
+  WALLET_DEBIT
+  WALLET_REFUND
+}
+
+enum PaymentSource {
+  DIRECT
+  BALANCE
 }
 
 enum EmailStatus {
@@ -183,6 +196,11 @@ enum ShipmentStatus {
   CANCELED
 }
 
+enum SupplierSourceType {
+  EXTERNAL
+  SYSTEM_INTERNAL
+}
+
 /**
  * ============================
  * MODELS
@@ -202,7 +220,7 @@ model Shop {
   AdminEmail       AdminEmail[]
   AffiliateSetting AffiliateSetting[]
   Blog             Blog[]
-  BillingInfo      BillingInfo[]
+  ShippingInfo     ShippingInfo[]
   Cart             Cart[]
   Category         Category[]
   DesignStyle      DesignStyle[]
@@ -223,6 +241,7 @@ model Shop {
   uploadLogs       UploadLog[]
   ShippingAccount  ShippingAccount[]
   Shipment         Shipment[]
+  suppliers        Supplier[]
 
   @@map("shops")
 }
@@ -245,10 +264,11 @@ model ShopCounter {
   paymentCounter         Int @default(0) @map("payment_counter")
   transactionCounter     Int @default(0) @map("transaction_counter")
   uploadLogCounter       Int @default(0) @map("upload_log_counter")
-  billingInfoCounter     Int @default(0) @map("billing_info_counter")
+  shippingInfoCounter    Int @default(0) @map("shipping_info_counter")
   shippingAccountCounter Int @default(0) @map("shipping_account_counter")
   shipmentCounter        Int @default(0) @map("shipment_counter")
   trackingEventCounter   Int @default(0) @map("tracking_event_counter")
+  supplierCounter        Int @default(0) @map("supplier_counter")
 
   shop Shop @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
 
@@ -265,8 +285,11 @@ model User {
   phone            String?
   password         String
   username         String
-  apiKey           String     @unique @default(uuid()) @map("api_key")
+  encryptedApiKey  String?    @map("encrypted_api_key")
+  apiKeyIv         String?    @map("api_key_iv")
+  apiKeyHash       String?    @unique @map("api_key_hash")
   shopId           Int        @map("shop_id")
+  balance          Decimal    @default(0.00) @db.Decimal(10, 2)
   spent            Decimal    @default(0.00) @db.Decimal(10, 2)
   timestamp        DateTime   @default(now())
   lastSeen         DateTime   @default(now()) @map("last_seen")
@@ -279,7 +302,7 @@ model User {
   resetTokenExpiry DateTime?  @map("reset_token_expiry")
   updatedAt        DateTime   @updatedAt @map("updated_at")
 
-  BillingInfo   BillingInfo[]
+  ShippingInfo  ShippingInfo[]
   Order         Order[]
   Cart          Cart[]
   Payment       Payment[]
@@ -296,14 +319,17 @@ model User {
   @@map("users")
 }
 
+// This Admin model is the user in the core-platform, that's why most fields aren't unique.
 model Admin {
-  id                  Int         @id @default(autoincrement())
-  uid                 String      @unique
+  id                  Int
+  uid                 String
   email               String
   image               String?
   password            String
   username            String
-  apiKey              String      @map("api_key")
+  encryptedApiKey     String?     @map("encrypted_api_key")
+  apiKeyIv            String?     @map("api_key_iv")
+  apiKeyHash          String?     @unique @map("api_key_hash")
   shopId              Int         @unique @map("shop_id")
   timestamp           DateTime    @default(now())
   lastSeen            DateTime    @default(now()) @map("last_seen")
@@ -321,32 +347,41 @@ model Admin {
 }
 
 model Product {
-  id            Int           @id @default(autoincrement())
-  shopScopedId  Int           @map("shop_scoped_id")
-  uid           String        @unique @default(uuid())
-  name          String
-  description   String?
-  categoryUid   String?       @map("category_uid")
-  min           Int           @default(1)
-  max           Int           @default(100)
-  position      Int           @default(1)
-  status        ProductStatus @default(ACTIVE)
-  currency      String        @default("USD")
-  stock         Int           @default(0)
-  sku           String?
-  imageUrl      String?       @map("image_url")
-  galleryUrls   String[]      @map("gallery_urls")
-  tags          String[]
-  isFeatured    Boolean       @default(false) @map("is_featured")
-  brand         String?
-  weight        Decimal?      @db.Decimal(10, 2)
-  dimensions    String?
-  price         Decimal       @default(0.00) @db.Decimal(10, 2)
-  comparePrice  Decimal?      @map("compare_price") @db.Decimal(10, 2)
-  discountType  DiscountType? @map("discount_type")
-  discountValue Decimal?      @map("discount_value") @db.Decimal(10, 2)
-  slug          String
-  shopId        Int           @map("shop_id")
+  id                 Int           @id @default(autoincrement())
+  shopScopedId       Int           @map("shop_scoped_id")
+  uid                String        @unique @default(uuid())
+  name               String
+  description        String?
+  categoryUid        String?       @map("category_uid")
+  min                Int           @default(1)
+  max                Int           @default(100)
+  position           Int           @default(1)
+  status             ProductStatus @default(ACTIVE)
+  currency           String        @default("USD")
+  stock              Int           @default(0)
+  sku                String?
+  imageUrl           String?       @map("image_url")
+  galleryUrls        String[]      @map("gallery_urls")
+  tags               String[]
+  isFeatured         Boolean       @default(false) @map("is_featured")
+  brand              String?
+  weight             Decimal?      @db.Decimal(10, 2)
+  dimensions         String?
+  price              Decimal       @default(0.00) @db.Decimal(10, 2)
+  comparePrice       Decimal?      @map("compare_price") @db.Decimal(10, 2)
+  supplierUid        String?       @map("supplier_uid")
+  supplierPrice      Decimal?      @map("supplier_price") @db.Decimal(10, 2)
+  supplierProductUid String?       @map("supplier_product_uid")
+  supplierCurrency   String?       @map("supplier_currency")
+  syncWithSupplier   Boolean       @default(true) @map("sync_with_supplier")
+  syncQuantity       Boolean       @default(true) @map("sync_quantity")
+  syncCatAndName     Boolean       @default(true) @map("sync_cat_and_name")
+  marginType         String?       @default("percentage") @map("margin_type")
+  marginValue        Decimal?      @default(0.00) @map("margin_value") @db.Decimal(10, 2)
+  discountType       DiscountType? @map("discount_type")
+  discountValue      Decimal?      @map("discount_value") @db.Decimal(10, 2)
+  slug               String
+  shopId             Int           @map("shop_id")
 
   // SEO fields
   metaTitle       String?  @map("meta_title")
@@ -374,6 +409,7 @@ model Product {
 
   shop       Shop             @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
   category   Category?        @relation(fields: [categoryUid], references: [uid], onDelete: SetNull)
+  supplier   Supplier?        @relation(fields: [supplierUid], references: [uid], onDelete: SetNull)
   orderItems OrderItem[]
   cartItems  CartItem[]
   reviews    ProductReview[]
@@ -448,33 +484,43 @@ model ProductReview {
 }
 
 model Order {
-  id                   Int         @id @default(autoincrement())
-  shopScopedId         Int         @map("shop_scoped_id")
-  uid                  String      @unique @default(uuid())
-  orderRef             String      @unique @map("order_ref")
-  userUid              String      @map("user_uid")
-  totalAmount          Decimal     @map("total_amount") @db.Decimal(10, 2)
-  currency             String      @default("USD")
-  status               OrderStatus @default(PENDING)
-  billingInfoUid       String      @map("billing_info_uid")
-  paymentUid           String      @map("payment_uid")
-  trackingNumber       String?     @map("tracking_number")
-  estimatedDelivery    DateTime?   @map("estimated_delivery")
-  deliveredAt          DateTime?   @map("delivered_at")
+  id                   Int           @id @default(autoincrement())
+  shopScopedId         Int           @map("shop_scoped_id")
+  uid                  String        @unique @default(uuid())
+  orderRef             String        @unique @map("order_ref")
+  userUid              String        @map("user_uid")
+  totalAmount          Decimal       @map("total_amount") @db.Decimal(10, 2)
+  currency             String        @default("USD")
+  status               OrderStatus   @default(PENDING)
+  shippingInfoUid      String        @map("shipping_info_uid")
+  paymentUid           String        @map("payment_uid")
+  trackingNumber       String?       @map("tracking_number")
+  estimatedDelivery    DateTime?     @map("estimated_delivery")
+  deliveredAt          DateTime?     @map("delivered_at")
   notes                String?
-  shippingCost         Decimal?    @map("shipping_cost") @db.Decimal(10, 2)
-  shippingCurrency     String?     @map("shipping_currency")
-  selectedShippingRate Json?       @map("selected_shipping_rate")
-  timestamp            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt @map("updated_at")
-  shopId               Int         @map("shop_id")
+  supplierUid          String?       @map("supplier_uid")
+  supplierOrderUid     String?       @map("supplier_order_uid")
+  supplierPrice        Decimal?      @map("supplier_price") @db.Decimal(10, 2)
+  supplierCurrency     String?       @map("supplier_currency")
+  syncWithSupplier     Boolean       @default(true) @map("sync_with_supplier")
+  shippingCost         Decimal?      @map("shipping_cost") @db.Decimal(10, 2)
+  shippingCurrency     String?       @map("shipping_currency")
+  selectedShippingRate Json?         @map("selected_shipping_rate")
+  userInitialBalance   Decimal       @default(0.00) @map("user_initial_balance") @db.Decimal(10, 2)
+  userFinalBalance     Decimal       @default(0.00) @map("user_final_balance") @db.Decimal(10, 2)
+  paidWithBalance      Boolean       @default(false) @map("paid_with_balance")
+  paymentSource        PaymentSource @default(DIRECT) @map("payment_source")
+  timestamp            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+  shopId               Int           @map("shop_id")
 
-  shop        Shop        @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
-  user        User        @relation(fields: [userUid], references: [uid], onDelete: Cascade)
-  billingInfo BillingInfo @relation(fields: [billingInfoUid], references: [uid], onDelete: Restrict)
-  payment     Payment     @relation(fields: [paymentUid], references: [uid], onDelete: Cascade)
-  items       OrderItem[]
-  shipment    Shipment?
+  shop         Shop         @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  user         User         @relation(fields: [userUid], references: [uid], onDelete: Cascade)
+  supplier     Supplier?    @relation(fields: [supplierUid], references: [uid], onDelete: SetNull)
+  shippingInfo ShippingInfo @relation(fields: [shippingInfoUid], references: [uid], onDelete: Restrict)
+  payment      Payment      @relation(fields: [paymentUid], references: [uid], onDelete: Cascade)
+  items        OrderItem[]
+  shipment     Shipment?
 
   @@unique([shopId, shopScopedId])
   @@map("orders")
@@ -524,7 +570,7 @@ model CartItem {
   @@map("cart_items")
 }
 
-model BillingInfo {
+model ShippingInfo {
   id           Int      @id @default(autoincrement())
   shopScopedId Int      @map("shop_scoped_id")
   uid          String   @unique @default(uuid())
@@ -547,7 +593,7 @@ model BillingInfo {
   orders Order[]
 
   @@unique([shopId, shopScopedId])
-  @@map("billing_info")
+  @@map("shipping_info")
 }
 
 model Blog {
@@ -680,12 +726,14 @@ model PaymentGateway {
   uid                String                 @unique @default(uuid())
   name               String
   description        String?
+  content            String?
   encryptedSecretKey String?                @map("encrypted_secret_key")
   iv                 String?
   createdAt          DateTime               @default(now()) @map("created_at")
   shopId             Int                    @map("shop_id")
   min                Decimal                @db.Decimal(10, 2)
   max                Decimal                @db.Decimal(10, 2)
+  currency           String                 @default("USD")
   position           Int
   status             PaymentGatewayStatus   @default(ACTIVE)
   platform           PaymentGatewayPlatform @default(MANUAL)
@@ -697,6 +745,29 @@ model PaymentGateway {
 
   @@unique([shopId, shopScopedId])
   @@map("payment_gateways")
+}
+
+model Supplier {
+  id           Int       @id @default(autoincrement())
+  shopScopedId Int       @map("shop_scoped_id")
+  uid          String    @unique @default(uuid())
+  name         String
+  image        String?
+  apiUrl       String    @map("api_url")
+  apiKey       Json?     @map("api_key")
+  percentage   Float     @default(0)
+  sync         Boolean   @default(false)
+  isInternal   Boolean   @default(false) @map("is_internal")
+  shopId       Int       @map("shop_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  shop         Shop      @relation(fields: [shopId], references: [shopId], onDelete: Cascade)
+  products     Product[]
+  orders       Order[]
+
+  @@unique([shopId, shopScopedId])
+  @@unique([shopId, apiUrl])
+  @@map("suppliers")
 }
 
 model SupportTicket {
@@ -763,6 +834,7 @@ model Payment {
   amount            Decimal                @db.Decimal(10, 2)
   chargedAmount     Decimal                @map("charged_amount") @db.Decimal(10, 2)
   status            PaymentStatus          @default(PENDING)
+  purpose           PaymentPurpose         @default(ORDER)
   method            PaymentGatewayPlatform
   paymentGatewayUid String                 @map("payment_gateway_uid")
   createdAt         DateTime               @default(now()) @map("created_at")

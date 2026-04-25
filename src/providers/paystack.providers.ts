@@ -6,7 +6,10 @@ import { decryptKey } from "../utils/encrypt";
 import { PaystackWebhookData } from "../schemas/webhook.schema";
 import type { Request } from "express";
 import { verifyPaystackSignature } from "../utils/webhook/verifySignatures";
-import { sendUserEmail } from "../emails";
+import {
+  handleShopPaymentFailure,
+  handleShopPaymentSuccess,
+} from "../services/payments/provider-webhook-handler";
 
 const verifySignature = async (req: Request, shopId: number) => {
   const gateway = await prisma.paymentGateway.findFirst({
@@ -64,56 +67,26 @@ const processSuccess = async (
 ) => {
   const payment = await prisma.payment.findFirst({
     where: { uid: data.metadata.txRef, status: "PENDING" },
+    select: { shopId: true },
   });
 
   if (!payment) throw new Error("Payment not found");
 
   await verifySignature(req, payment.shopId);
 
-  const user = await prisma.user.findFirst({
-    where: { email: customer.email, shopId: payment.shopId },
-    include: { shop: true },
+  await handleShopPaymentSuccess({
+    paymentUid: data.metadata.txRef,
+    shopId: payment.shopId,
+    customerEmail: customer.email,
+    shippingInfoUid: data.metadata.shippingInfoUid,
+    notes: data.metadata.notes ?? undefined,
+    shippingCost: data.metadata.shippingCost
+      ? Number(data.metadata.shippingCost)
+      : undefined,
+    shippingCurrency: data.metadata.shippingCurrency as string | undefined,
+    selectedShippingRate: data.metadata.selectedShippingRate,
+    paymentMethod: "PAYSTACK",
   });
-
-  if (!user) throw new Error("User not found");
-
-  await prisma.$transaction(async (tx) => {
-    await tx.payment.update({
-      where: { uid: payment.uid },
-      data: {
-        status: "SUCCESS",
-      },
-    });
-
-    await placeOrderFromCartTx(
-      data.metadata.billingInfoUid,
-      payment.uid,
-      false,
-      data.metadata.notes,
-      user,
-      tx,
-      data.metadata.shippingCost
-        ? Number(data.metadata.shippingCost)
-        : undefined,
-      data.metadata.shippingCurrency as string | undefined,
-      data.metadata.selectedShippingRate,
-    );
-  });
-
-  // Send payment successful email
-  try {
-    await sendUserEmail(payment.shopId, user.email, "PAYMENT_SUCCESSFUL", {
-      userName: user.fullName || user.username,
-      transactionId: payment.uid,
-      amount: Number(payment.amount).toFixed(2),
-      currency: payment.currency,
-      paymentDate: new Date().toLocaleDateString(),
-      paymentMethod: "Paystack",
-      receiptUrl: `https://${user.shop.uid || ""}/client/orders`,
-    });
-  } catch (emailError) {
-    console.error("Failed to send payment success email:", emailError);
-  }
 };
 
 const processFailure = async (
@@ -123,40 +96,18 @@ const processFailure = async (
 ) => {
   const payment = await prisma.payment.findFirst({
     where: { uid: data.metadata.txRef, status: "PENDING" },
+    select: { shopId: true },
   });
 
   if (!payment) throw new Error("Payment not found");
 
   await verifySignature(req, payment.shopId);
 
-  const user = await prisma.user.findFirst({
-    where: { email: customer.email, shopId: payment.shopId },
-    include: { shop: true },
+  await handleShopPaymentFailure({
+    paymentUid: data.metadata.txRef,
+    shopId: payment.shopId,
+    customerEmail: customer.email,
   });
-
-  if (!user) throw new Error("User not found");
-
-  await prisma.payment.update({
-    where: { uid: payment.uid },
-    data: {
-      status: "FAILED",
-    },
-  });
-
-  // Send payment failed email
-  try {
-    await sendUserEmail(payment.shopId, user.email, "PAYMENT_FAILED", {
-      userName: user.fullName || user.username,
-      transactionId: payment.uid,
-      amount: Number(payment.amount).toFixed(2),
-      currency: payment.currency,
-      failureReason:
-        "Your payment was declined. Please check your payment details and try again.",
-      retryUrl: `https://${user.shop.uid || ""}/client/checkout?step=payment`,
-    });
-  } catch (emailError) {
-    console.error("Failed to send payment failure email:", emailError);
-  }
 };
 
 export default { processSuccess, processFailure };

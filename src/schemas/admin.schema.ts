@@ -12,7 +12,6 @@ export const AdminSchema = z
     image: z.string().nullable(),
     username: z.string(),
     fullName: z.string(),
-    apiKey: z.string(),
     role: z.nativeEnum(AdminRole),
     status: z.nativeEnum(AdminStatus),
     shopId: z.number(),

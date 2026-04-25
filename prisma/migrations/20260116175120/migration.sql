@@ -74,7 +74,7 @@
   - Added the required column `updated_at` to the `email_templates` table without a default value. This is not possible if the table is not empty.
   - Added the required column `product_uid` to the `order_items` table without a default value. This is not possible if the table is not empty.
   - The required column `uid` was added to the `order_items` table with a prisma-level default value. This is not possible if the table is not empty. Please add this column as optional, then populate it before making it required.
-  - Added the required column `billing_info_uid` to the `orders` table without a default value. This is not possible if the table is not empty.
+  - Added the required column `shipping_info_uid` to the `orders` table without a default value. This is not possible if the table is not empty.
   - Added the required column `updated_at` to the `orders` table without a default value. This is not possible if the table is not empty.
   - Added the required column `max` to the `payment_gateways` table without a default value. This is not possible if the table is not empty.
   - Added the required column `min` to the `payment_gateways` table without a default value. This is not possible if the table is not empty.
@@ -376,7 +376,7 @@ ADD COLUMN     "uid" TEXT NOT NULL;
 -- AlterTable
 ALTER TABLE "orders" DROP COLUMN "billing_address",
 DROP COLUMN "shipping_address",
-ADD COLUMN     "billing_info_uid" TEXT NOT NULL,
+ADD COLUMN     "shipping_info_uid" TEXT NOT NULL,
 ADD COLUMN     "notes" TEXT,
 ADD COLUMN     "updated_at" TIMESTAMP(3) NOT NULL,
 ALTER COLUMN "status" SET DEFAULT 'PENDING',
@@ -448,7 +448,7 @@ DROP COLUMN "cart_item_counter",
 DROP COLUMN "contact_message_counter",
 DROP COLUMN "session_code_counter",
 DROP COLUMN "wallet_transaction_counter",
-ADD COLUMN     "billing_info_counter" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "shipping_info_counter" INTEGER NOT NULL DEFAULT 0,
 ADD COLUMN     "email_template_counter" INTEGER NOT NULL DEFAULT 0,
 ADD COLUMN     "page_counter" INTEGER NOT NULL DEFAULT 0,
 ADD COLUMN     "support_ticket_counter" INTEGER NOT NULL DEFAULT 0,
@@ -546,7 +546,7 @@ CREATE TABLE "product_reviews" (
 );
 
 -- CreateTable
-CREATE TABLE "billing_info" (
+CREATE TABLE "shipping_info" (
     "id" SERIAL NOT NULL,
     "shop_scoped_id" INTEGER NOT NULL,
     "uid" TEXT NOT NULL,
@@ -564,7 +564,7 @@ CREATE TABLE "billing_info" (
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "billing_info_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "shipping_info_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -637,10 +637,10 @@ CREATE UNIQUE INDEX "product_variants_sku_key" ON "product_variants"("sku");
 CREATE UNIQUE INDEX "product_reviews_uid_key" ON "product_reviews"("uid");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "billing_info_uid_key" ON "billing_info"("uid");
+CREATE UNIQUE INDEX "shipping_info_uid_key" ON "shipping_info"("uid");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "billing_info_shop_id_shop_scoped_id_key" ON "billing_info"("shop_id", "shop_scoped_id");
+CREATE UNIQUE INDEX "shipping_info_shop_id_shop_scoped_id_key" ON "shipping_info"("shop_id", "shop_scoped_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "pages_uid_key" ON "pages"("uid");
@@ -718,16 +718,16 @@ ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_product_uid_fkey" 
 ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_user_uid_fkey" FOREIGN KEY ("user_uid") REFERENCES "users"("uid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orders" ADD CONSTRAINT "orders_billing_info_uid_fkey" FOREIGN KEY ("billing_info_uid") REFERENCES "billing_info"("uid") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "orders" ADD CONSTRAINT "orders_shipping_info_uid_fkey" FOREIGN KEY ("shipping_info_uid") REFERENCES "shipping_info"("uid") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_product_uid_fkey" FOREIGN KEY ("product_uid") REFERENCES "products"("uid") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "billing_info" ADD CONSTRAINT "billing_info_user_uid_fkey" FOREIGN KEY ("user_uid") REFERENCES "users"("uid") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "shipping_info" ADD CONSTRAINT "shipping_info_user_uid_fkey" FOREIGN KEY ("user_uid") REFERENCES "users"("uid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "billing_info" ADD CONSTRAINT "billing_info_shop_id_fkey" FOREIGN KEY ("shop_id") REFERENCES "shops"("shop_id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "shipping_info" ADD CONSTRAINT "shipping_info_shop_id_fkey" FOREIGN KEY ("shop_id") REFERENCES "shops"("shop_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "pages" ADD CONSTRAINT "pages_shop_id_fkey" FOREIGN KEY ("shop_id") REFERENCES "shops"("shop_id") ON DELETE CASCADE ON UPDATE CASCADE;

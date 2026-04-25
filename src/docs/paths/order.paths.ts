@@ -3,7 +3,7 @@ import {
   UpdateOrderSchema,
   UpdateOrderByUserSchema,
   RefundRequestSchema,
-  UpdateBillingInfoSchema,
+  UpdateShippingInfoSchema,
   VerifyPaymentSchema,
   BulkStatusUpdateSchema,
   GetOrdersByStatusSchema,
@@ -32,7 +32,7 @@ registry.registerPath({
   tags: ["Orders"],
   summary: "Get user's orders",
   description:
-    "Retrieve all orders for the authenticated user with items and billing info",
+    "Retrieve all orders for the authenticated user with items and shipping information",
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   responses: {
     200: {
@@ -69,7 +69,7 @@ registry.registerPath({
   tags: ["Orders"],
   summary: "Get single order",
   description:
-    "Retrieve detailed information about a specific order including items and billing info",
+    "Retrieve detailed information about a specific order including items and shipping information",
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     params: OrderUidSchema,
@@ -310,14 +310,14 @@ registry.registerPath({
   },
 });
 
-// PATCH /orders/:orderUid/billing (User)
+// PATCH /orders/:orderUid/shipping (User)
 registry.registerPath({
   method: "patch",
-  path: "/orders/{orderUid}/billing",
+  path: "/orders/{orderUid}/shipping",
   tags: ["Orders"],
-  summary: "Update billing information",
+  summary: "Update shipping information",
   description:
-    "Update billing information for an order. Only allowed for PENDING orders.",
+    "Update shipping information for an order. Only allowed for PENDING orders.",
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     params: OrderUidSchema,
@@ -325,14 +325,14 @@ registry.registerPath({
       required: true,
       content: {
         "application/json": {
-          schema: UpdateBillingInfoSchema,
+          schema: UpdateShippingInfoSchema,
         },
       },
     },
   },
   responses: {
     200: {
-      description: "Billing information updated successfully",
+      description: "Shipping information updated successfully",
       content: {
         "application/json": {
           schema: UpdateOrderResponseSchema,
@@ -348,7 +348,7 @@ registry.registerPath({
       },
     },
     404: {
-      description: "Order or billing information not found",
+      description: "Order or shipping information not found",
       content: {
         "application/json": {
           schema: OrderErrorResponseSchema,
@@ -454,7 +454,7 @@ registry.registerPath({
   tags: ["Admin - Orders"],
   summary: "Get single order (Admin)",
   description:
-    "Retrieve detailed order information with full user data, items, and billing info",
+    "Retrieve detailed order information with full user data, items, and shipping information",
   security: [{ CookieAuth: [], CsrfHeader: [], CsrfCookie: [] }],
   request: {
     params: OrderUidSchema,

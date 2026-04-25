@@ -11,6 +11,55 @@ import { v4 as uuidv4 } from "uuid";
 import { ShopIdSchema } from "../schemas/common.schema";
 import { sendEmailToAdmins } from "../emails";
 
+const productDetailsInclude = {
+  category: true,
+  variants: {
+    orderBy: { position: "asc" },
+    take: 5,
+    select: {
+      uid: true,
+      name: true,
+      price: true,
+      comparePrice: true,
+      stock: true,
+      sku: true,
+      imageUrl: true,
+      isDefault: true,
+    },
+  },
+  images: {
+    orderBy: { position: "asc" },
+    take: 8,
+    select: {
+      uid: true,
+      imageUrl: true,
+      altText: true,
+      position: true,
+      isPrimary: true,
+    },
+  },
+  reviews: {
+    where: { status: "APPROVED" },
+    orderBy: { timestamp: "desc" },
+    take: 3,
+    select: {
+      uid: true,
+      rating: true,
+      title: true,
+      comment: true,
+      isVerified: true,
+      timestamp: true,
+      user: {
+        select: {
+          uid: true,
+          username: true,
+          fullName: true,
+        },
+      },
+    },
+  },
+} as const;
+
 export const getProducts = async (
   req: Request,
   res: Response,
@@ -26,7 +75,7 @@ export const getProducts = async (
     const products = await prisma.product.findMany({
       where: { shopId, OR: [{ status: "ACTIVE" }, { status: "OUT_OF_STOCK" }] },
       orderBy: { position: "asc" },
-      include: { category: true },
+      include: productDetailsInclude,
     });
 
     res.status(200).json(products);
@@ -45,7 +94,7 @@ export const getProductsForAdmins = async (
     const products = await prisma.product.findMany({
       where: { shopId },
       orderBy: { position: "asc" },
-      include: { category: true },
+      include: productDetailsInclude,
     });
     res.status(200).json(products);
   } catch (error: any) {
@@ -75,7 +124,7 @@ export const getProductByUID = async (
   try {
     const product = await prisma.product.findFirst({
       where: { uid: productUid, shopId, status: "ACTIVE" },
-      include: { category: true },
+      include: productDetailsInclude,
     });
     if (!product) {
       res.status(404).json({ error: "Product not found" });
@@ -102,7 +151,7 @@ export const getProductByUIDFromAdmin = async (
   try {
     const product = await prisma.product.findFirst({
       where: { uid: productUid, shopId },
-      include: { category: true },
+      include: productDetailsInclude,
     });
     if (!product) {
       res.status(404).json({ error: "Product not found" });
@@ -134,6 +183,54 @@ export const updateProduct = async (
     if (!productToUpdate) {
       res.status(404).json({ error: "Product not found in this shop." });
       return;
+    }
+
+    if (
+      productToUpdate.supplierProductUid &&
+      productToUpdate.syncWithSupplier
+    ) {
+      const supplierLockedFields = [
+        "name",
+        "slug",
+        "description",
+        "categoryUid",
+        "min",
+        "max",
+        "price",
+        "stock",
+        "sku",
+        "imageUrl",
+        "galleryUrls",
+        "tags",
+        "brand",
+        "weight",
+        "dimensions",
+        "status",
+        "supplierUid",
+        "supplierProductUid",
+        "supplierPrice",
+        "supplierCurrency",
+        "syncWithSupplier",
+        "syncQuantity",
+        "syncCatAndName",
+        "marginType",
+        "marginValue",
+      ] as const;
+
+      const attemptedLockedChange = supplierLockedFields.some((field) => {
+        return (
+          field in reqData &&
+          reqData[field as keyof typeof reqData] !== undefined
+        );
+      });
+
+      if (attemptedLockedChange) {
+        res.status(400).json({
+          error:
+            "This product is linked to a supplier and supplier sync is enabled, so manual edits are disabled.",
+        });
+        return;
+      }
     }
 
     // Prepare update data, excluding unchanged slug and sku to avoid unique constraint errors
@@ -169,7 +266,9 @@ export const updateProduct = async (
     });
 
     if (updateResult.count === 0) {
-      res.status(404).json({ error: "Product not found or does not belong to this shop." });
+      res
+        .status(404)
+        .json({ error: "Product not found or does not belong to this shop." });
       return;
     }
 
@@ -181,7 +280,9 @@ export const updateProduct = async (
 
     if (!updatedProduct) {
       // This should not happen since updateResult.count was > 0, but handle defensively
-      console.error(`Product ${reqData.uid} was updated but could not be retrieved for shop ${shopId}`);
+      console.error(
+        `Product ${reqData.uid} was updated but could not be retrieved for shop ${shopId}`,
+      );
       res.status(500).json({ error: "Failed to retrieve updated product." });
       return;
     }
@@ -198,9 +299,7 @@ export const updateProduct = async (
           include: { shop: true },
         });
 
-        const shopUrl = setting?.shop?.uid
-          ? `https://${setting.shop.uid}`
-          : "";
+        const shopUrl = setting?.shop?.uid ? `https://${setting.shop.uid}` : "";
 
         if (updatedProduct.stock === 0) {
           // Send out of stock alert

@@ -234,6 +234,6 @@ export const ShippingAccountPublicSchema = z
 
  export const querySchema = z.object({
     cartUid: z.string().uuid(),
-    billingInfoUid: z.string().uuid(),
+    shippingInfoUid: z.string().uuid(),
     platform: z.nativeEnum(ShippingPlatform).optional(),
   });

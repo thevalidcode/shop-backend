@@ -22,8 +22,12 @@ import { sendUserEmail } from "../emails";
 import { AdminAuthSchema } from "../schemas/admin.schema";
 import { ShopIdSchema, UidSchema } from "../schemas/common.schema";
 import { normalizeHost } from "../config/cors.config";
+import { encryptKey } from "../utils/encrypt";
 
-async function getNextStoreScopedId(
+const hashApiKey = (key: string) =>
+  crypto.createHash("sha256").update(key).digest("hex");
+
+async function getNextShopScopedId(
   shopId: number,
   tx: Prisma.TransactionClient,
 ): Promise<number> {
@@ -54,6 +58,9 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
         email: true,
         username: true,
         status: true,
+        role: true,
+        phone: true,
+        balance: true,
         fullName: true,
         image: true,
         refCode: true,
@@ -106,7 +113,10 @@ export const createUser = async (
       const { phone } = parsed.data;
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const shopScopedId = await getNextStoreScopedId(shopId, tx);
+      const shopScopedId = await getNextShopScopedId(shopId, tx);
+
+      const rawApiKey = uuidv4();
+      const { encryptedKey, iv } = encryptKey(rawApiKey);
 
       const newUser = await tx.user.create({
         data: {
@@ -118,7 +128,9 @@ export const createUser = async (
           username,
           password: hashedPassword,
           uid: uuidv4(),
-          apiKey: uuidv4(),
+          encryptedApiKey: encryptedKey,
+          apiKeyIv: iv,
+          apiKeyHash: hashApiKey(rawApiKey),
           ref,
         },
       });
@@ -130,11 +142,9 @@ export const createUser = async (
         });
       }
 
-      const token = jwt.sign(
-        { uid: newUser.uid, shopId, apiKey: newUser.apiKey },
-        env.JWT_SECRET,
-        { expiresIn: "7d" },
-      );
+      const token = jwt.sign({ uid: newUser.uid, shopId }, env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
 
       const csrfToken = crypto.randomBytes(32).toString("hex");
 
@@ -158,14 +168,14 @@ export const createUser = async (
       try {
         const shop = await prisma.shop.findUnique({ where: { shopId } });
         const shopUrl = shop?.uid ? `https://${shop.uid}` : "";
-        
-        await sendUserEmail(shopId, newUser.email, 'WELCOME_EMAIL', {
+
+        await sendUserEmail(shopId, newUser.email, "WELCOME_EMAIL", {
           userName: newUser.fullName || newUser.username,
           loginUrl: `${shopUrl}/auth/signin`,
           accountEmail: newUser.email,
         });
       } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError);
+        console.error("Failed to send welcome email:", emailError);
       }
 
       res.status(200).send({
@@ -219,16 +229,11 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const apiKey = account.apiKey || uuidv4();
     const role = account.role;
 
-    const token = jwt.sign(
-      { uid: account.uid, shopId, apiKey },
-      env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      },
-    );
+    const token = jwt.sign({ uid: account.uid, shopId }, env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
     const csrfToken = crypto.randomBytes(32).toString("hex");
 
     res.cookie("csrf_token", csrfToken, {
@@ -247,7 +252,15 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
     });
 
-    const { password: _, resetToken, resetTokenExpiry, ...safeUser } = account;
+    const {
+      password: _,
+      resetToken,
+      resetTokenExpiry,
+      encryptedApiKey: __encryptedApiKey,
+      apiKeyIv: __apiKeyIv,
+      apiKeyHash: __apiKeyHash,
+      ...safeUser
+    } = account;
     res.status(200).json({
       success: "Logged in successfully",
       role,
@@ -285,6 +298,9 @@ export const getUserByUid = async (
         email: true,
         username: true,
         status: true,
+        role: true,
+        phone: true,
+        balance: true,
         fullName: true,
         spent: true,
         image: true,
@@ -356,13 +372,9 @@ export const verifySession = async (
     data: { used: true },
   });
 
-  const token = jwt.sign(
-    { uid: user.uid, shopId, apiKey: user.apiKey },
-    env.JWT_SECRET,
-    {
-      expiresIn: "7d",
-    },
-  );
+  const token = jwt.sign({ uid: user.uid, shopId }, env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
   const csrfToken = crypto.randomBytes(32).toString("hex");
 
   res.cookie("csrf_token", csrfToken, {
@@ -381,7 +393,15 @@ export const verifySession = async (
     ...(env.NODE_ENV === "production" && { domain: `.${domain}` }),
   });
 
-  const { password: _, resetToken, resetTokenExpiry, ...safeUser } = user;
+  const {
+    password: _,
+    resetToken,
+    resetTokenExpiry,
+    encryptedApiKey: __encryptedApiKey,
+    apiKeyIv: __apiKeyIv,
+    apiKeyHash: __apiKeyHash,
+    ...safeUser
+  } = user;
 
   res
     .status(200)
@@ -466,23 +486,130 @@ export const updateUserByAdmin = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const adminParsed = AdminAuthSchema.safeParse(req.auth);
+  if (!adminParsed.success) {
+    res.status(400).json({ error: adminParsed.error.flatten() });
+    return;
+  }
+
   const parsed = UpdateUserByAdminRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
 
-  const { uid } = parsed.data;
+  const { shopId } = adminParsed.data;
+  const { uid, balanceAction, balanceAdjustment, ...safeUpdate } = parsed.data;
 
   try {
-    await prisma.user.update({
-      where: { uid: uid },
-      data: { ...parsed.data },
+    await prisma.$transaction(async (tx) => {
+      const existingUser = await tx.user.findFirst({
+        where: { uid, shopId },
+        select: {
+          uid: true,
+          balance: true,
+          currency: true,
+        },
+      });
+
+      if (!existingUser) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
+      const updateData: any = { ...safeUpdate };
+
+      if (balanceAction && balanceAdjustment) {
+        const currentBalance = new Prisma.Decimal(existingUser.balance);
+        const adjustment = new Prisma.Decimal(balanceAdjustment);
+
+        const nextBalance =
+          balanceAction === "ADD"
+            ? currentBalance.plus(adjustment)
+            : currentBalance.minus(adjustment);
+
+        if (nextBalance.lt(0)) {
+          throw new Error("INSUFFICIENT_WALLET_BALANCE");
+        }
+
+        updateData.balance = nextBalance;
+      }
+
+      await tx.user.update({
+        where: { uid },
+        data: updateData,
+      });
+
+      if (balanceAction && balanceAdjustment) {
+        const counter = await tx.shopCounter.update({
+          where: { shopId },
+          data: { transactionCounter: { increment: 1 } },
+          select: { transactionCounter: true },
+        });
+
+        await tx.transaction.create({
+          data: {
+            amount: new Prisma.Decimal(balanceAdjustment),
+            currency: existingUser.currency,
+            userUid: uid,
+            shopId,
+            status: "SUCCESS",
+            type: balanceAction === "ADD" ? "WALLET_CREDIT" : "WALLET_DEBIT",
+            description:
+              balanceAction === "ADD"
+                ? "Admin wallet credit adjustment"
+                : "Admin wallet debit adjustment",
+            shopScopedId: counter.transactionCounter,
+          },
+        });
+      }
     });
 
     res.status(200).json({ success: "Successfully updated user" });
   } catch (error: any) {
+    if (error.message === "USER_NOT_FOUND") {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (error.message === "INSUFFICIENT_WALLET_BALANCE") {
+      res.status(400).json({ error: "Insufficient wallet balance" });
+      return;
+    }
     res.status(500).json({ error: "Failed to update user" });
+  }
+};
+
+export const regenerateApiKey = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const authParsed = UserAuthSchema.safeParse(req.auth);
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+
+  const { uid, shopId } = authParsed.data;
+
+  try {
+    const newApiKey = uuidv4();
+    const { encryptedKey, iv } = encryptKey(newApiKey);
+    await prisma.user.update({
+      where: { uid, shopId },
+      data: {
+        encryptedApiKey: encryptedKey,
+        apiKeyIv: iv,
+        apiKeyHash: hashApiKey(newApiKey),
+      },
+    });
+
+    res.status(200).json({
+      success: "API key regenerated successfully",
+      apiKey: newApiKey,
+    });
+  } catch (error: any) {
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to regenerate API key" });
   }
 };
 

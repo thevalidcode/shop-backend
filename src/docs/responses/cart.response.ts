@@ -17,7 +17,10 @@ const CartItemResponseSchema = z.object({
 export const GetCartResponseSchema = z.object({
   uid: z.string().uuid().optional().openapi({ example: "550e8400-e29b-41d4-a716-446655440002" }),
   items: z.array(CartItemResponseSchema),
-  total: z.number().openapi({ example: 199.98 }),
+  subtotal: z.string().openapi({ example: "199.98" }),
+  tax: z.string().openapi({ example: "0.00" }),
+  total: z.string().openapi({ example: "199.98" }),
+  currency: z.string().openapi({ example: "USD" }),
   itemCount: z.number().openapi({ example: 1 }),
 });
 

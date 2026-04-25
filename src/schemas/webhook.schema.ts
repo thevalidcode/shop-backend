@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { TransactionType } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
+
+const paymentPurposeSchema = z.enum(["ORDER", "WALLET_TOPUP"]);
 
 export const FlutterwaveWebhookSchema = z.object({
   "event.type": z.string(),
@@ -27,11 +28,13 @@ export const FlutterwaveWebhookSchema = z.object({
   meta_data: z
     .object({
       shopId: z.coerce.number(),
-      type: z.nativeEnum(TransactionType),
+      purpose: paymentPurposeSchema,
       userUid: z.coerce.string(),
       txRef: z.coerce.string(),
       notes: z.coerce.string().optional().nullable(),
-      billingInfoUid: z.coerce.string(),
+      shippingInfoUid: z.coerce.string().optional(),
+      amount: z.coerce.number().optional(),
+      currency: z.coerce.string().optional(),
     })
     .passthrough(),
 });
@@ -53,11 +56,13 @@ export const PaystackWebhookSchema = z.object({
     metadata: z
       .object({
         shopId: z.coerce.number(),
-        type: z.nativeEnum(TransactionType),
+        purpose: paymentPurposeSchema,
         userUid: z.coerce.string(),
         txRef: z.coerce.string(),
         notes: z.coerce.string().optional().nullable(),
-        billingInfoUid: z.coerce.string(),
+        shippingInfoUid: z.coerce.string().optional(),
+        amount: z.coerce.number().optional(),
+        currency: z.coerce.string().optional(),
       })
       .passthrough(),
     customer: z.object({

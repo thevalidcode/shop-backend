@@ -16,6 +16,13 @@ router.post(
   paymentProcessRateLimit,
   payments.initializePayment,
 );
+router.post(
+  "/create",
+  authenticateUser,
+  requireActiveSubscription,
+  paymentProcessRateLimit,
+  payments.createWalletTopupPayment,
+);
 router.get(
   "/",
   authenticateUser,
@@ -27,6 +34,13 @@ router.get(
   authenticateAdmin,
   paymentRateLimit,
   payments.getPaymentsForAdmins,
+);
+router.patch(
+  "/admin/:paymentUid/status",
+  authenticateAdmin,
+  requireActiveSubscription,
+  paymentProcessRateLimit,
+  payments.updatePaymentStatusForAdmin,
 );
 
 export default router;

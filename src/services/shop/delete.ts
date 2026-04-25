@@ -32,13 +32,12 @@ export async function DeleteShop(params: DeleteShopParams) {
     if (!existingShop) {
       throw new ShopError(
         "STORE_NOT_FOUND",
-        "A shop with the given domain wasn't found"
+        "A shop with the given domain wasn't found",
       );
     }
 
     if (!shopDomain.startsWith("localhost") && env.NODE_ENV === "production")
       await runShopDeleteCLI(shopDomain);
-
     await prisma.shop.delete({ where: { uid: shopDomain } });
 
     return;

@@ -10,66 +10,71 @@ export type PrismaTransactionalClient = Prisma.TransactionClient;
 
 /**
  * Calculates the total price for a cart using Decimal for accuracy.
- * Handles multi-currency by converting all to USD if products have different currencies.
+ * Handles multi-currency by selecting a single cart currency and converting all lines into it.
  * @param cart - The cart object with items and each item including product and quantity
  * @returns Object with amount (Decimal) and currency (string)
  */
 export async function calculateCartTotal(cart: {
-  items: Array<{ quantity: number; product?: { price?: any; currency?: string } }>;
+  items: Array<{
+    quantity: number;
+    product?: { price?: any; currency?: string };
+  }>;
 }): Promise<{ amount: Decimal; currency: string }> {
   if (!cart.items || cart.items.length === 0) {
     return { amount: new Decimal(0), currency: "USD" };
   }
 
-  // Check if all products have the same currency
-  const currencies = new Set(
-    cart.items.map((item) => item.product?.currency || "USD")
+  const normalizedCurrencies = cart.items.map((item) =>
+    (item.product?.currency || "USD").substring(0, 3).toUpperCase(),
   );
+  const currencies = new Set(normalizedCurrencies);
+  const selectedCurrency = normalizedCurrencies[0] || "USD";
 
   // If all same currency, calculate total in that currency
   if (currencies.size === 1) {
-    const currency = cart.items[0]?.product?.currency || "USD";
     let totalAmount = new Decimal(0);
-    
+
     for (const item of cart.items) {
       const price = item.product?.price
         ? new Decimal(item.product.price)
         : new Decimal(0);
       totalAmount = totalAmount.plus(price.times(item.quantity));
     }
-    
-    return { amount: totalAmount, currency };
+
+    return { amount: totalAmount, currency: selectedCurrency };
   }
 
-  // Multiple currencies - convert all to USD
+  // Multiple currencies - convert all to one selected cart currency.
   let totalAmount = new Decimal(0);
-  
+
   for (const item of cart.items) {
-    const productCurrency = item.product?.currency || "USD";
+    const productCurrency = (item.product?.currency || "USD")
+      .substring(0, 3)
+      .toUpperCase();
     const productPrice = item.product?.price
       ? new Decimal(item.product.price)
       : new Decimal(0);
-    
-    let priceInUSD = productPrice;
-    if (productCurrency !== "USD") {
+
+    let convertedPrice = productPrice;
+    if (productCurrency !== selectedCurrency) {
       const converted = await convertCurrency(
         productPrice.toNumber(),
         productCurrency,
-        "USD"
+        selectedCurrency,
       );
-      priceInUSD = new Decimal(converted);
+      convertedPrice = new Decimal(converted);
     }
-    
-    totalAmount = totalAmount.plus(priceInUSD.times(item.quantity));
+
+    totalAmount = totalAmount.plus(convertedPrice.times(item.quantity));
   }
-  
-  return { amount: totalAmount, currency: "USD" };
+
+  return { amount: totalAmount, currency: selectedCurrency };
 }
 
 // Internal helper for order placement, accepts tx
 async function _placeOrderFromCartTx(
   tx: PrismaTransactionalClient,
-  billingInfoUid: string,
+  shippingInfoUid: string,
   paymentUid: string,
   verifyingPayment: boolean,
   notes?: string | null,
@@ -105,17 +110,17 @@ async function _placeOrderFromCartTx(
     throw new Error("No pending payment found to create this order.");
   }
 
-  // Validate billing info belongs to user
-  const billingInfo = await tx.billingInfo.findFirst({
+  // Validate shipping info belongs to user
+  const shippingInfo = await tx.shippingInfo.findFirst({
     where: {
-      uid: billingInfoUid,
+      uid: shippingInfoUid,
       userUid: user.uid,
       shopId: user.shopId,
     },
   });
 
-  if (!billingInfo) {
-    throw new Error("Billing information not found");
+  if (!shippingInfo) {
+    throw new Error("Shipping information not found");
   }
 
   // Validate stock for all items
@@ -131,9 +136,9 @@ async function _placeOrderFromCartTx(
   const cartTotal = await calculateCartTotal(cart);
   const subtotal = cartTotal.amount;
   const cartCurrency = cartTotal.currency;
-  
+
   const tax = 0; // Can be calculated based on shop settings
-  
+
   // Convert shipping cost to cart currency if needed
   let shippingInCartCurrency = new Decimal(0);
   if (shippingCost && shippingCurrency) {
@@ -141,7 +146,7 @@ async function _placeOrderFromCartTx(
       const converted = await convertCurrency(
         shippingCost,
         shippingCurrency,
-        cartCurrency
+        cartCurrency,
       );
       shippingInCartCurrency = new Decimal(converted);
     } else {
@@ -151,7 +156,7 @@ async function _placeOrderFromCartTx(
     // If no shipping currency provided, assume it matches cart currency
     shippingInCartCurrency = new Decimal(shippingCost);
   }
-  
+
   const totalAmount = subtotal.plus(tax).plus(shippingInCartCurrency);
 
   // Generate order reference
@@ -165,6 +170,30 @@ async function _placeOrderFromCartTx(
 
   const orderRef = `ORD-${user.shopId}-${counter.orderCounter}`;
 
+  const supplierLinkedItems = cart.items.filter(
+    (item) => item.product.supplierUid && item.product.syncWithSupplier,
+  );
+  const hasSingleSupplierOrder =
+    supplierLinkedItems.length > 0 &&
+    new Set(supplierLinkedItems.map((item) => item.product.supplierUid))
+      .size === 1;
+
+  const supplierUid = hasSingleSupplierOrder
+    ? (supplierLinkedItems[0]?.product.supplierUid ?? null)
+    : null;
+  const supplierCurrency = hasSingleSupplierOrder
+    ? (supplierLinkedItems[0]?.product.supplierCurrency ?? null)
+    : null;
+
+  const supplierSubtotal = hasSingleSupplierOrder
+    ? supplierLinkedItems.reduce((sum, item) => {
+        const supplierPrice = item.product.supplierPrice
+          ? new Decimal(item.product.supplierPrice)
+          : new Decimal(0);
+        return sum.plus(supplierPrice.times(item.quantity));
+      }, new Decimal(0))
+    : null;
+
   // Create order
   const newOrder = await tx.order.create({
     data: {
@@ -174,12 +203,18 @@ async function _placeOrderFromCartTx(
       userUid: user.uid!,
       shopId: user.shopId!,
       paymentUid: payment.uid,
-      billingInfoUid,
+      shippingInfoUid,
       totalAmount: totalAmount,
       status: verifyingPayment ? "VERIFYING_PAYMENT" : "PENDING",
       notes,
-      shippingCost: shippingInCartCurrency.toNumber() > 0 ? shippingInCartCurrency : null,
-      shippingCurrency: shippingInCartCurrency.toNumber() > 0 ? cartCurrency : null,
+      supplierUid,
+      supplierPrice: supplierSubtotal,
+      supplierCurrency,
+      syncWithSupplier: Boolean(hasSingleSupplierOrder),
+      shippingCost:
+        shippingInCartCurrency.toNumber() > 0 ? shippingInCartCurrency : null,
+      shippingCurrency:
+        shippingInCartCurrency.toNumber() > 0 ? cartCurrency : null,
       selectedShippingRate: selectedShippingRate || null,
     },
     include: { shop: true },
@@ -235,17 +270,17 @@ async function _placeOrderFromCartTx(
     where: { cartId: cart.id },
   });
 
-  return { 
-    order: newOrder, 
+  return {
+    order: newOrder,
     lowStockProducts,
     subtotal,
     cartCurrency,
-    shippingInCartCurrency
+    shippingInCartCurrency,
   };
 }
 
 export const placeOrderFromCartTx = async (
-  billingInfoUid: string,
+  shippingInfoUid: string,
   paymentUid: string,
   verifyingPayment: boolean,
   notes?: string | null,
@@ -263,7 +298,7 @@ export const placeOrderFromCartTx = async (
     if (tx) {
       result = await _placeOrderFromCartTx(
         tx,
-        billingInfoUid,
+        shippingInfoUid,
         paymentUid,
         verifyingPayment,
         notes,
@@ -276,7 +311,7 @@ export const placeOrderFromCartTx = async (
       result = await prisma.$transaction(async (trx) => {
         return await _placeOrderFromCartTx(
           trx,
-          billingInfoUid,
+          shippingInfoUid,
           paymentUid,
           verifyingPayment,
           notes,
@@ -288,7 +323,13 @@ export const placeOrderFromCartTx = async (
       });
     }
 
-    const { order, lowStockProducts, subtotal, cartCurrency, shippingInCartCurrency } = result;
+    const {
+      order,
+      lowStockProducts,
+      subtotal,
+      cartCurrency,
+      shippingInCartCurrency,
+    } = result;
 
     // Send order confirmation email to user
     if (user.email && user.shopId) {
@@ -301,7 +342,7 @@ export const placeOrderFromCartTx = async (
                 product: { select: { name: true, price: true } },
               },
             },
-            billingInfo: true,
+            shippingInfo: true,
             shop: true,
           },
         });
@@ -324,8 +365,8 @@ export const placeOrderFromCartTx = async (
             shipping: Number(shippingInCartCurrency).toFixed(2),
             totalAmount: Number(order.totalAmount).toFixed(2),
             currency: cartCurrency,
-            shippingAddress: orderWithDetails.billingInfo
-              ? `${orderWithDetails.billingInfo.address}, ${orderWithDetails.billingInfo.city}, ${orderWithDetails.billingInfo.state} ${orderWithDetails.billingInfo.postalCode}`
+            shippingAddress: orderWithDetails.shippingInfo
+              ? `${orderWithDetails.shippingInfo.address}, ${orderWithDetails.shippingInfo.city}, ${orderWithDetails.shippingInfo.state} ${orderWithDetails.shippingInfo.postalCode}`
               : "N/A",
             trackingUrl: `${shopUrl}/orders/${order.uid}`,
           });
@@ -348,7 +389,7 @@ export const placeOrderFromCartTx = async (
       if (lowStockProducts?.length > 0) {
         try {
           const shopUrl = `https://${order.shop.uid}`;
-          for (const product of (order as any).lowStockProducts) {
+          for (const product of lowStockProducts) {
             if (product.stock === 0) {
               await sendEmailToAdmins(user.shopId, "OUT_OF_STOCK_ALERT", {
                 productName: product.name,
@@ -375,6 +416,7 @@ export const placeOrderFromCartTx = async (
     return {
       success: "Order placed successfully",
       order: {
+        id: order.id,
         uid: order.uid,
         orderRef: order.orderRef,
         totalAmount: Number(order.totalAmount),
@@ -396,7 +438,7 @@ export const placeOrderFromCartTx = async (
 };
 
 export const placeOrderFromCart = async (
-  billingInfoUid: string,
+  shippingInfoUid: string,
   paymentUid: string,
   verifyingPayment: boolean,
   notes?: string | null,
@@ -406,7 +448,7 @@ export const placeOrderFromCart = async (
   selectedShippingRate?: any,
 ): Promise<{ success?: string; order?: any; error?: string }> => {
   return placeOrderFromCartTx(
-    billingInfoUid,
+    shippingInfoUid,
     paymentUid,
     verifyingPayment,
     notes,

@@ -28,16 +28,19 @@ export const SubscriptionPlanFeaturesSchema = z.object({
 
   // Product & order management
   unlimited_products: z.boolean(),
-  social_store_order_sync: z.boolean(),
-  social_store_service_sync: z.boolean(),
+  social_store_order_sync: z.boolean().default(false),
+  social_store_service_sync: z.boolean().default(false),
 
   // Communication features (store-level)
-  store_email_notifications: z.boolean(),
-  store_custom_emails: z.boolean(),
-  store_newsletters: z.boolean(),
+  store_email_notifications: z.boolean().default(false),
+  store_custom_emails: z.boolean().default(false),
+  store_newsletters: z.boolean().default(false),
 
   // Shipping features
-  max_shipping_accounts: z.number(),
+  max_shipping_accounts: z.number().default(0),
+
+  // Commerce network features
+  reselling: z.boolean().default(false),
 });
 
 export type SubscriptionPlanFeatures = z.infer<

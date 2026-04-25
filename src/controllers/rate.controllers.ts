@@ -5,9 +5,8 @@ import { prisma } from "../config/db.config";
 export const syncExchangeRates = async () => {
   try {
     const response = await coreApiRequest({
-      endpoint: "/rates",
+      endpoint: "/v1/rates",
     });
-
     const rates = response.rates;
 
     // Update or create the exchange rates record

@@ -16,8 +16,6 @@ import {
   getShippingProvider,
   getShippingRatesForCart,
 } from "../services/shipping.services";
-import { z } from "zod";
-import { ShippingPlatform } from "../../prisma/generated";
 
 /**
  * Admin: Connect shipping account
@@ -623,13 +621,13 @@ export async function getShippingRates(req: Request, res: Response) {
   }
 
   const { shopId } = authParsed.data;
-  const { cartUid, billingInfoUid, platform } = queryParsed.data;
+  const { cartUid, shippingInfoUid, platform } = queryParsed.data;
 
   try {
     const rates = await getShippingRatesForCart(
       shopId,
       cartUid,
-      billingInfoUid,
+      shippingInfoUid,
       platform,
     );
 

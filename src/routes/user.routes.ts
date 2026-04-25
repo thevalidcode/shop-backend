@@ -13,6 +13,12 @@ router.post("/", userModifyRateLimit, users.createUser);
 router.get("/:uid", authenticateUser, userRateLimit, users.getUserByUid);
 
 router.patch("/", authenticateUser, userModifyRateLimit, users.updateUser);
+router.post(
+	"/api-key/regenerate",
+	authenticateUser,
+	userModifyRateLimit,
+	users.regenerateApiKey,
+);
 router.patch("/admin", authenticateAdmin, userModifyRateLimit, users.updateUserByAdmin);
 router.delete("/", authenticateAdmin, userModifyRateLimit, users.deleteUser);
 router.delete("/multiple", authenticateAdmin, userModifyRateLimit, users.deleteUsers);

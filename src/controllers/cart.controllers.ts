@@ -99,9 +99,12 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
     // Return empty cart if none exists
     if (!cart) {
       res.status(200).json({
+        uid: "",
         items: [],
+        subtotal: "0.00",
+        tax: "0.00",
+        total: "0.00",
         currency: "USD",
-        total: 0,
         itemCount: 0,
       });
       return;
@@ -156,13 +159,21 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
       finalTotal = cartTotal.amount;
     }
 
+    // Tax calculation: For now, assuming 0% tax
+    // In production, fetch tax rate from shop settings if needed
+    const taxRate = new Decimal(0); // 0% tax
+    const subtotal = finalTotal;
+    const tax = subtotal.mul(taxRate);
+    const total = subtotal.add(tax);
+
     res.status(200).json({
       uid: cart.uid,
       items: processedItems,
+      subtotal: subtotal.toFixed(2),
+      tax: tax.toFixed(2),
+      total: total.toFixed(2),
       currency: finalCurrency,
-      total: finalTotal.toNumber(),
       itemCount: cart.items.length,
-      currenciesConverted: hasDifferentCurrencies,
     });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to retrieve cart." });
@@ -181,6 +192,7 @@ export const addItemToCart = async (
   res: Response,
 ): Promise<void> => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
+  console.log(req.auth)
   if (!authParsed.success) {
     res.status(400).json({ error: authParsed.error.flatten() });
     return;

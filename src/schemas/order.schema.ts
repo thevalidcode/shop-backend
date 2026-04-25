@@ -20,7 +20,12 @@ export const OrderPublicSchema = z
     totalAmount: z.coerce.number(),
     currency: z.string(),
     status: orderStatusEnum,
-    billingInfoUid: z.string().nullable(),
+    supplierUid: z.string().nullable().optional(),
+    supplierOrderUid: z.string().nullable().optional(),
+    supplierPrice: z.coerce.number().nullable().optional(),
+    supplierCurrency: z.string().nullable().optional(),
+    syncWithSupplier: z.boolean().optional(),
+    shippingInfoUid: z.string().nullable(),
     paymentReference: z.string().nullable(),
     notes: z.string().nullable(),
     createdAt: z.string().datetime(),
@@ -57,10 +62,10 @@ export const RefundRequestSchema = z.object({
 });
 
 /**
- * Schema for updating billing info
+ * Schema for updating shipping information
  */
-export const UpdateBillingInfoSchema = z.object({
-  billingInfoUid: z.string().uuid("Invalid billing info ID"),
+export const UpdateShippingInfoSchema = z.object({
+  shippingInfoUid: z.string().uuid("Invalid shipping information ID"),
 });
 
 /**

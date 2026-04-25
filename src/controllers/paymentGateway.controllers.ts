@@ -30,12 +30,21 @@ export const getPaymentGateways = async (
     const gateways = await prisma.paymentGateway.findMany({
       where: { shopId },
       select: {
+        id: true,
+        shopScopedId: true,
+        shopId: true,
         createdAt: true,
         platform: true,
         name: true,
         uid: true,
         description: true,
+        content: true,
         status: true,
+        min: true,
+        max: true,
+        currency: true,
+        feePercent: true,
+        webhookUrl: true,
       },
       orderBy: { position: "asc" },
     });
@@ -72,12 +81,21 @@ export const getPaymentGatewayByUid = async (
     const gateway = await prisma.paymentGateway.findFirst({
       where: { uid, shopId },
       select: {
+        id: true,
+        shopScopedId: true,
+        shopId: true,
         createdAt: true,
         platform: true,
         name: true,
         uid: true,
         description: true,
+        content: true,
         status: true,
+        min: true,
+        max: true,
+        currency: true,
+        feePercent: true,
+        webhookUrl: true,
       },
     });
 
@@ -104,12 +122,20 @@ export const getPaymentGatewaysForUser = async (
     const gateways = await prisma.paymentGateway.findMany({
       where: { status: "ACTIVE", shopId },
       select: {
+        id: true,
+        shopScopedId: true,
+        shopId: true,
         createdAt: true,
         platform: true,
         name: true,
         uid: true,
         description: true,
+        content: true,
         position: true,
+        min: true,
+        max: true,
+        currency: true,
+        feePercent: true,
       },
       orderBy: { position: "asc" },
     });
@@ -145,11 +171,20 @@ export const getPaymentGatewayByUidForUser = async (
     const gateway = await prisma.paymentGateway.findFirst({
       where: { uid, status: "ACTIVE", shopId },
       select: {
+        id: true,
+        shopScopedId: true,
+        shopId: true,
         createdAt: true,
         platform: true,
         name: true,
         uid: true,
         description: true,
+        content: true,
+        position: true,
+        min: true,
+        max: true,
+        currency: true,
+        feePercent: true,
       },
     });
 
@@ -177,6 +212,11 @@ export const addPaymentGateway = async (
   }
   const { shopId } = authParsed.data;
   const reqData = bodyParsed.data;
+  if (reqData.max < reqData.min) {
+    res.status(400).json({ error: "Max amount must be greater than or equal to min amount." });
+    return;
+  }
+
   if (reqData.platform !== "MANUAL") {
     if (!reqData.secretKey) {
       res.status(400).json({
@@ -194,6 +234,7 @@ export const addPaymentGateway = async (
 
       const shop = await tx.shop.findFirst({
         where: { shopId },
+        select: { uid: true },
       });
 
       const paymentData: Prisma.PaymentGatewayCreateInput = {
@@ -202,10 +243,13 @@ export const addPaymentGateway = async (
         shopScopedId: counter.paymentGatewayCounter,
         shop: { connect: { shopId } },
         description: reqData.description,
+        content: reqData.content,
         platform: reqData.platform,
         position: counter.paymentGatewayCounter,
-        min: 1,
-        max: 1,
+        min: reqData.min,
+        max: reqData.max,
+        currency: reqData.currency,
+        feePercent: reqData.feePercent ?? 0,
         status: "ACTIVE",
         signature: crypto.randomBytes(32).toString("hex"),
         encryptedSecretKey: undefined,
@@ -258,17 +302,39 @@ export const updatePaymentGateway = async (
   const reqData = parsed.data;
   const { shopId } = authParsed.data;
   try {
-    if (reqData.platform !== "MANUAL") {
-      if (!reqData.secretKey) {
-        res.status(400).json({
-          error: "Secret key is required for this payment gateway.",
-        });
-        return;
-      }
+    const existing = await prisma.paymentGateway.findFirst({
+      where: { uid: reqData.uid, shopId },
+      select: { platform: true },
+    });
+
+    if (!existing) {
+      res.status(404).json({ error: "Payment gateway not found or does not belong to this shop." });
+      return;
     }
+
+    if (
+      typeof reqData.min === "number" &&
+      typeof reqData.max === "number" &&
+      reqData.max < reqData.min
+    ) {
+      res.status(400).json({ error: "Max amount must be greater than or equal to min amount." });
+      return;
+    }
+
     const paymentGatewayData: Prisma.PaymentGatewayUpdateInput = {
-      name: reqData.name,
-      description: reqData.description,
+      ...(reqData.name !== undefined ? { name: reqData.name } : {}),
+      ...(reqData.description !== undefined
+        ? { description: reqData.description }
+        : {}),
+      ...(reqData.content !== undefined ? { content: reqData.content } : {}),
+      ...(reqData.platform !== undefined ? { platform: reqData.platform } : {}),
+      ...(reqData.status !== undefined ? { status: reqData.status } : {}),
+      ...(reqData.feePercent !== undefined
+        ? { feePercent: reqData.feePercent }
+        : {}),
+      ...(reqData.min !== undefined ? { min: reqData.min } : {}),
+      ...(reqData.max !== undefined ? { max: reqData.max } : {}),
+      ...(reqData.currency !== undefined ? { currency: reqData.currency } : {}),
       signature: crypto.randomBytes(32).toString("hex"),
     };
 

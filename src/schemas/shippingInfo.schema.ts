@@ -3,7 +3,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
 
-export const BillingInfoSchema = z.object({
+export const ShippingInfoSchema = z.object({
   id: z.number(),
   uid: z.string(),
   userId: z.number(),
@@ -21,8 +21,8 @@ export const BillingInfoSchema = z.object({
   updatedAt: z.string(),
 });
 
-// Schema for creating billing information
-export const CreateBillingInfoSchema = z.object({
+// Schema for creating shipping information
+export const CreateShippingInfoSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(1, "Phone number is required"),
@@ -34,10 +34,10 @@ export const CreateBillingInfoSchema = z.object({
   isDefault: z.boolean().optional().default(false),
 });
 
-export type CreateBillingInfoInput = z.infer<typeof CreateBillingInfoSchema>;
+export type CreateShippingInfoInput = z.infer<typeof CreateShippingInfoSchema>;
 
-// Schema for updating billing information
-export const UpdateBillingInfoSchema = z.object({
+// Schema for updating shipping information
+export const UpdateShippingInfoSchema = z.object({
   fullName: z.string().min(1).optional(),
   email: z.string().email().optional(),
   phone: z.string().min(1).optional(),
@@ -49,19 +49,19 @@ export const UpdateBillingInfoSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-export type UpdateBillingInfoInput = z.infer<typeof UpdateBillingInfoSchema>;
+export type UpdateShippingInfoInput = z.infer<typeof UpdateShippingInfoSchema>;
 
-// Schema for getting billing info
-export const GetBillingInfoQuerySchema = z.object({
+// Schema for getting shipping information
+export const GetShippingInfoQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
 });
 
-export type GetBillingInfoQuery = z.infer<typeof GetBillingInfoQuerySchema>;
+export type GetShippingInfoQuery = z.infer<typeof GetShippingInfoQuerySchema>;
 
-// Schema for billing info params
-export const BillingInfoParamsSchema = z.object({
-  uid: z.string().uuid("Invalid billing info ID"),
+// Schema for shipping information params
+export const ShippingInfoParamsSchema = z.object({
+  uid: z.string().uuid("Invalid shipping information ID"),
 });
 
-export type BillingInfoParams = z.infer<typeof BillingInfoParamsSchema>;
+export type ShippingInfoParams = z.infer<typeof ShippingInfoParamsSchema>;

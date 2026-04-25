@@ -22,7 +22,15 @@ export const authenticateUser = async (
       return;
     }
 
-    const { password, resetToken, resetTokenExpiry, ...safeUser } = user;
+    const {
+      password,
+      resetToken,
+      resetTokenExpiry,
+      encryptedApiKey: _encryptedApiKey,
+      apiKeyIv: _apiKeyIv,
+      apiKeyHash: _apiKeyHash,
+      ...safeUser
+    } = user;
     req.auth = {
       shopId,
       uid,
@@ -69,7 +77,15 @@ export const authenticateAdmin = async (
     admin.timestamp = new Date(admin.timestamp);
     admin.lastSeen = new Date(admin.lastSeen);
 
-    const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
+    const {
+      password,
+      resetToken,
+      resetTokenExpiry,
+      encryptedApiKey: _encryptedApiKey,
+      apiKeyIv: _apiKeyIv,
+      apiKeyHash: _apiKeyHash,
+      ...safeAdmin
+    } = admin;
     req.auth = {
       shopId,
       uid,
@@ -134,7 +150,15 @@ export const authenticateAnyone = async (
     }
 
     if (user) {
-      const { password, resetToken, resetTokenExpiry, ...safeUser } = user;
+      const {
+        password,
+        resetToken,
+        resetTokenExpiry,
+        encryptedApiKey: _encryptedApiKey,
+        apiKeyIv: _apiKeyIv,
+        apiKeyHash: _apiKeyHash,
+        ...safeUser
+      } = user;
       req.auth = {
         type: "user",
         shopId,
@@ -143,7 +167,15 @@ export const authenticateAnyone = async (
       };
     }
     if (admin) {
-      const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
+      const {
+        password,
+        resetToken,
+        resetTokenExpiry,
+        encryptedApiKey: _encryptedApiKey,
+        apiKeyIv: _apiKeyIv,
+        apiKeyHash: _apiKeyHash,
+        ...safeAdmin
+      } = admin;
       req.auth = {
         type: "admin",
         shopId,
@@ -182,7 +214,15 @@ export const authenticateInternalAnyone = async (
       res.status(401).json({ error: "No admin or user found" });
       return;
     }
-    const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
+    const {
+      password,
+      resetToken,
+      resetTokenExpiry,
+      encryptedApiKey: _encryptedApiKey,
+      apiKeyIv: _apiKeyIv,
+      apiKeyHash: _apiKeyHash,
+      ...safeAdmin
+    } = admin;
 
     req.auth = {
       type: "admin",

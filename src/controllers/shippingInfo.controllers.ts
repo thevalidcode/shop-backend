@@ -1,15 +1,15 @@
 import type { Request, Response } from "express";
 import {
-  CreateBillingInfoSchema,
-  UpdateBillingInfoSchema,
-  GetBillingInfoQuerySchema,
-  BillingInfoParamsSchema,
-} from "../schemas/billingInfo.schema";
-import * as billingInfoService from "../services/billingInfo.services";
+  CreateShippingInfoSchema,
+  UpdateShippingInfoSchema,
+  GetShippingInfoQuerySchema,
+  ShippingInfoParamsSchema,
+} from "../schemas/shippingInfo.schema";
+import * as shippingInfoService from "../services/shippingInfo.services";
 import { UserAuthSchema } from "../schemas/user.schema";
 
-export const createBillingInfo = async (req: Request, res: Response) => {
-  const parsed = CreateBillingInfoSchema.safeParse(req.body);
+export const createShippingInfo = async (req: Request, res: Response) => {
+  const parsed = CreateShippingInfoSchema.safeParse(req.body);
   const authParsed = UserAuthSchema.safeParse(req.auth);
 
   if (!authParsed.success) {
@@ -26,19 +26,19 @@ export const createBillingInfo = async (req: Request, res: Response) => {
   }
 
   try {
-    const billingInfo = await billingInfoService.createBillingInfo(
+    const shippingInfo = await shippingInfoService.createShippingInfo(
       user,
       parsed.data
     );
-    res.status(201).json({ status: "success", data: billingInfo });
+    res.status(201).json({ status: "success", data: shippingInfo });
   } catch (err: any) {
     res.status(500).json({ status: "error", error: err.message });
   }
 };
 
-export const getUserBillingInfo = async (req: Request, res: Response) => {
+export const getUserShippingInfo = async (req: Request, res: Response) => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
-  const queryParsed = GetBillingInfoQuerySchema.safeParse(req.query);
+  const queryParsed = GetShippingInfoQuerySchema.safeParse(req.query);
 
   if (!authParsed.success || !queryParsed.success) {
     res.status(400).json({
@@ -54,7 +54,7 @@ export const getUserBillingInfo = async (req: Request, res: Response) => {
   const { page, limit } = queryParsed.data;
 
   try {
-    const result = await billingInfoService.getUserBillingInfo(
+    const result = await shippingInfoService.getUserShippingInfo(
       user,
       page,
       limit
@@ -65,9 +65,9 @@ export const getUserBillingInfo = async (req: Request, res: Response) => {
   }
 };
 
-export const getBillingInfoByUid = async (req: Request, res: Response) => {
+export const getShippingInfoByUid = async (req: Request, res: Response) => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
-  const paramsParsed = BillingInfoParamsSchema.safeParse(req.params);
+  const paramsParsed = ShippingInfoParamsSchema.safeParse(req.params);
 
   if (!authParsed.success || !paramsParsed.success) {
     res.status(400).json({
@@ -85,17 +85,17 @@ export const getBillingInfoByUid = async (req: Request, res: Response) => {
   const { uid } = paramsParsed.data;
 
   try {
-    const billingInfo = await billingInfoService.getBillingInfoByUid(user, uid);
-    res.status(200).json({ data: billingInfo });
+    const shippingInfo = await shippingInfoService.getShippingInfoByUid(user, uid);
+    res.status(200).json({ data: shippingInfo });
   } catch (err: any) {
     res.status(404).json({ error: err.message });
   }
 };
 
-export const updateBillingInfo = async (req: Request, res: Response) => {
+export const updateShippingInfo = async (req: Request, res: Response) => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
-  const paramsParsed = BillingInfoParamsSchema.safeParse(req.params);
-  const bodyParsed = UpdateBillingInfoSchema.safeParse(req.body);
+  const paramsParsed = ShippingInfoParamsSchema.safeParse(req.params);
+  const bodyParsed = UpdateShippingInfoSchema.safeParse(req.body);
 
   if (!authParsed.success || !paramsParsed.success || !bodyParsed.success) {
     res.status(400).json({
@@ -114,20 +114,20 @@ export const updateBillingInfo = async (req: Request, res: Response) => {
   const { uid } = paramsParsed.data;
 
   try {
-    const billingInfo = await billingInfoService.updateBillingInfo(
+    const shippingInfo = await shippingInfoService.updateShippingInfo(
       user,
       uid,
       bodyParsed.data
     );
-    res.status(200).json({ status: "success", data: billingInfo });
+    res.status(200).json({ status: "success", data: shippingInfo });
   } catch (err: any) {
     res.status(500).json({ status: "error", error: err.message });
   }
 };
 
-export const deleteBillingInfo = async (req: Request, res: Response) => {
+export const deleteShippingInfo = async (req: Request, res: Response) => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
-  const paramsParsed = BillingInfoParamsSchema.safeParse(req.params);
+  const paramsParsed = ShippingInfoParamsSchema.safeParse(req.params);
 
   if (!authParsed.success || !paramsParsed.success) {
     res.status(400).json({
@@ -145,14 +145,14 @@ export const deleteBillingInfo = async (req: Request, res: Response) => {
   const { uid } = paramsParsed.data;
 
   try {
-    const result = await billingInfoService.deleteBillingInfo(user, uid);
+    const result = await shippingInfoService.deleteShippingInfo(user, uid);
     res.status(200).json(result);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 };
 
-export const getDefaultBillingInfo = async (req: Request, res: Response) => {
+export const getDefaultShippingInfo = async (req: Request, res: Response) => {
   const authParsed = UserAuthSchema.safeParse(req.auth);
 
   if (!authParsed.success) {
@@ -163,12 +163,12 @@ export const getDefaultBillingInfo = async (req: Request, res: Response) => {
   const { user } = authParsed.data;
 
   try {
-    const billingInfo = await billingInfoService.getDefaultBillingInfo(user);
-    if (!billingInfo) {
-      res.status(404).json({ error: "No default billing information found" });
+    const shippingInfo = await shippingInfoService.getDefaultShippingInfo(user);
+    if (!shippingInfo) {
+      res.status(404).json({ error: "No default shipping information found" });
       return;
     }
-    res.status(200).json({ data: billingInfo });
+    res.status(200).json({ data: shippingInfo });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

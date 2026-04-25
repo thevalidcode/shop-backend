@@ -11,11 +11,11 @@ export const UserSchema = z
     uid: z.string(),
     email: z.string().email(),
     fullName: z.string(),
+    image: z.string().nullable(),
     username: z.string(),
-    phone: z.string(),
+    phone: z.string().nullable(),
     shopId: z.coerce.number(),
     status: z.nativeEnum(UserStatus),
-    apiKey: z.string(),
     role: z.nativeEnum(UserRole),
   })
   .openapi("User");
@@ -24,8 +24,9 @@ export const UserPublicSchema = z
   .object({
     id: z.string(),
     shopScopedId: z.number(),
+    image: z.string().nullable(),
     email: z.string().email(),
-    phone: z.string(),
+    phone: z.string().nullable(),
     username: z.string(),
     fullName: z.string(),
   })
@@ -36,6 +37,7 @@ export const UserUpdateRequestSchema = z.object({
   phone: z.string().optional().nullable().describe("User phone number"),
   username: z.string().describe("Username").optional(),
   fullName: z.string().describe("Full name").optional(),
+  currency: z.string().length(3).optional(),
 });
 
 export const AuthenticateUserSchema = z.object({
@@ -115,4 +117,6 @@ export const UpdateUserByAdminRequestSchema = UserUpdateRequestSchema.extend({
   uid: z.string(),
   email: z.string().email().optional(),
   status: z.nativeEnum(UserStatus).optional(),
+  balanceAction: z.enum(["ADD", "REMOVE"]).optional(),
+  balanceAdjustment: z.coerce.number().positive().optional(),
 }).strict();

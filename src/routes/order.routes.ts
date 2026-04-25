@@ -116,12 +116,12 @@ router.post(
   orders.requestRefund,
 );
 
-// PATCH /orders/:orderUid/billing - Update billing info (modify rate limit)
+// PATCH /orders/:orderUid/shipping - Update shipping information (modify rate limit)
 router.patch(
-  "/:orderUid/billing",
+  "/:orderUid/shipping",
   authenticateUser,
   orderModifyRateLimit,
-  orders.updateOrderBilling,
+  orders.updateOrderShipping,
 );
 
 export default router;

@@ -18,8 +18,8 @@ export interface OrderConfirmedVars {
   shipping: number;
   total: number;
   currency: string;
-  billingName: string;
-  billingAddress: string;
+  shippingName: string;
+  shippingAddress: string;
   orderUrl: string;
 }
 
@@ -141,7 +141,7 @@ export const orderConfirmed = (
     </h1>
     
     <p style="margin:0 0 8px; font-size:16px; line-height:24px; color:${c.foreground};">
-      Hi ${vars.billingName},
+      Hi ${vars.shippingName},
     </p>
     
     <p style="margin:0 0 24px; font-size:16px; line-height:24px; color:${c.foreground};">
@@ -212,12 +212,12 @@ export const orderConfirmed = (
       </tr>
     </table>
     
-    <!-- Billing Address -->
+    <!-- Shipping Address -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px; border-radius:6px; background-color:${c.muted}; border:1px solid ${c.border};">
       <tr>
         <td style="padding:16px 20px;">
-          <p style="margin:0 0 8px; font-size:12px; font-weight:600; color:${c.mutedForeground}; text-transform:uppercase; letter-spacing:0.5px;">Billing Address</p>
-          <p style="margin:0; font-size:14px; line-height:20px; color:${c.foreground}; white-space:pre-line;">${vars.billingAddress}</p>
+          <p style="margin:0 0 8px; font-size:12px; font-weight:600; color:${c.mutedForeground}; text-transform:uppercase; letter-spacing:0.5px;">Shipping Address</p>
+          <p style="margin:0; font-size:14px; line-height:20px; color:${c.foreground}; white-space:pre-line;">${vars.shippingAddress}</p>
         </td>
       </tr>
     </table>

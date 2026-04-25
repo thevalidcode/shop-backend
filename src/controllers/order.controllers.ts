@@ -8,7 +8,7 @@ import {
   OrderUidSchema,
   UpdateOrderByUserSchema,
   RefundRequestSchema,
-  UpdateBillingInfoSchema,
+  UpdateShippingInfoSchema,
   VerifyPaymentSchema,
 } from "../schemas/order.schema";
 import { UserAuthSchema } from "../schemas/user.schema";
@@ -31,7 +31,7 @@ import { AdminAuthSchema } from "../schemas/admin.schema";
  *
  * ORDER STRUCTURE:
  * - Each Order belongs to a User and Shop
- * - Order has BillingInfo reference
+ * - Order has ShippingInfo reference
  * - Order contains multiple OrderItems
  * - OrderItems shop price at time of purchase (for history)
  * - Order totalAmount is sum of all OrderItems
@@ -71,7 +71,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
             },
           },
         },
-        billingInfo: true,
+        shippingInfo: true,
         payment: {
           include: {
             paymentGateway: {
@@ -142,7 +142,7 @@ export const getOrderByID = async (
             },
           },
         },
-        billingInfo: true,
+        shippingInfo: true,
         payment: {
           include: {
             paymentGateway: {
@@ -215,7 +215,7 @@ export const getUserOrdersByStatus = async (
             },
           },
         },
-        billingInfo: true,
+        shippingInfo: true,
         payment: {
           include: {
             paymentGateway: {
@@ -285,7 +285,7 @@ export const getOrdersForAdmins = async (
             phone: true,
           },
         },
-        billingInfo: true,
+        shippingInfo: true,
         payment: {
           include: {
             paymentGateway: {
@@ -355,7 +355,7 @@ export const getOrderByIDForAdmins = async (
             phone: true,
           },
         },
-        billingInfo: true,
+        shippingInfo: true,
         payment: {
           include: {
             paymentGateway: {
@@ -431,7 +431,7 @@ export const getOrdersByStatus = async (
             phone: true,
           },
         },
-        billingInfo: true,
+        shippingInfo: true,
         payment: {
           include: {
             paymentGateway: {
@@ -498,7 +498,7 @@ export const updateOrderByUser = async (
             username: true,
           },
         },
-        billingInfo: true,
+        shippingInfo: true,
         shop: true,
       },
     });
@@ -610,7 +610,7 @@ export const updateOrder = async (
             username: true,
           },
         },
-        billingInfo: true,
+        shippingInfo: true,
         shop: true,
       },
     });
@@ -618,6 +618,27 @@ export const updateOrder = async (
     if (!order) {
       res.status(404).json({ error: "Order not found" });
       return;
+    }
+
+    if (order.supplierOrderUid && order.syncWithSupplier) {
+      const supplierLockedFields = [
+        "status",
+        "trackingNumber",
+        "notes",
+        "estimatedDelivery",
+        "received",
+      ] as const;
+      const attemptedLockedChange = supplierLockedFields.some(
+        (field) => bodyParsed.data[field] !== undefined,
+      );
+
+      if (attemptedLockedChange) {
+        res.status(400).json({
+          error:
+            "This order is linked to a supplier and supplier sync is enabled, so manual edits are disabled.",
+        });
+        return;
+      }
     }
 
     // Validate received flag - only allow if order is SHIPPED or DELIVERED
@@ -1011,11 +1032,11 @@ export const requestRefund = async (
 };
 
 /**
- * PATCH /orders/:orderUid/billing (User)
- * Update billing information for an order
+ * PATCH /orders/:orderUid/shipping (User)
+ * Update shipping information for an order
  * Only allowed for PENDING orders
  */
-export const updateOrderBilling = async (
+export const updateOrderShipping = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
@@ -1031,7 +1052,7 @@ export const updateOrderBilling = async (
     return;
   }
 
-  const bodyParsed = UpdateBillingInfoSchema.safeParse(req.body);
+  const bodyParsed = UpdateShippingInfoSchema.safeParse(req.body);
   if (!bodyParsed.success) {
     res.status(400).json({ error: bodyParsed.error.flatten() });
     return;
@@ -1039,7 +1060,7 @@ export const updateOrderBilling = async (
 
   const { shopId, uid } = authParsed.data;
   const { orderUid } = paramsParsed.data;
-  const { billingInfoUid } = bodyParsed.data;
+  const { shippingInfoUid } = bodyParsed.data;
 
   try {
     // Find order and verify ownership
@@ -1052,40 +1073,40 @@ export const updateOrderBilling = async (
       return;
     }
 
-    // Only allow billing updates for PENDING orders
+    // Only allow shipping updates for PENDING orders
     if (order.status !== "PENDING") {
       res.status(400).json({
-        error: `Cannot update billing info for order with status: ${order.status}. Only PENDING orders can be updated.`,
+        error: `Cannot update shipping information for order with status: ${order.status}. Only PENDING orders can be updated.`,
       });
       return;
     }
 
-    // Verify billing info exists and belongs to user
-    const billingInfo = await prisma.billingInfo.findFirst({
-      where: { uid: billingInfoUid, shopId, userUid: uid },
+    // Verify shipping information exists and belongs to user
+    const shippingInfo = await prisma.shippingInfo.findFirst({
+      where: { uid: shippingInfoUid, shopId, userUid: uid },
     });
 
-    if (!billingInfo) {
-      res.status(404).json({ error: "Billing information not found" });
+    if (!shippingInfo) {
+      res.status(404).json({ error: "Shipping information not found" });
       return;
     }
 
-    // Update order with new billing info
+    // Update order with new shipping information
     const updatedOrder = await prisma.order.update({
       where: { id: order.id },
-      data: { billingInfoUid },
+      data: { shippingInfoUid },
     });
 
     res.status(200).json({
-      success: "Billing information updated successfully",
+      success: "Shipping information updated successfully",
       order: {
         uid: updatedOrder.uid,
-        billingInfoUid: updatedOrder.billingInfoUid,
+        shippingInfoUid: updatedOrder.shippingInfoUid,
       },
     });
   } catch (error: any) {
-    console.error("Update billing error:", error);
-    res.status(500).json({ error: "Failed to update billing information." });
+    console.error("Update shipping information error:", error);
+    res.status(500).json({ error: "Failed to update shipping information." });
   }
 };
 
@@ -1163,7 +1184,6 @@ export const verifyPayment = async (
           data: { status: "SUCCESS" },
         });
       }
-
     } else {
       // Payment rejected - move to CANCELED
       updatedOrder = await prisma.order.update({
@@ -1180,7 +1200,6 @@ export const verifyPayment = async (
           data: { status: "FAILED" },
         });
       }
-
     }
 
     res.status(200).json({

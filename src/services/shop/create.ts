@@ -5,6 +5,11 @@ import { assertValidDomain } from "../../utils/domain.guard";
 import { exec } from "child_process";
 import { ShopError } from "../../errors/shop.error";
 import { env } from "../../config/env.config";
+import crypto from "crypto";
+import { encryptKey } from "../../utils/encrypt";
+
+const hashApiKey = (key: string) =>
+  crypto.createHash("sha256").update(key).digest("hex");
 
 export function runShopCreateCLI(domain: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -91,10 +96,14 @@ export async function CreateShop(params: CreateShopParams) {
       });
 
       // Step 6: Create admin account
+      const rawApiKey = crypto.randomUUID();
+      const encryptedApiKey = encryptKey(rawApiKey);
       const admin = await tx.admin.create({
         data: {
           uid: adminUid,
-          apiKey: crypto.randomUUID(),
+          encryptedApiKey: encryptedApiKey.encryptedKey,
+          apiKeyIv: encryptedApiKey.iv,
+          apiKeyHash: hashApiKey(rawApiKey),
           id: adminId,
           email: adminEmail,
           image: adminImage || null,

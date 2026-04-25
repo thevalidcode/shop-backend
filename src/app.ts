@@ -27,7 +27,7 @@ import webhookRoutes from "./routes/webhook.routes";
 import transactionRoutes from "./routes/transaction.routes";
 import paymentGatewayRoutes from "./routes/paymentGateway.routes";
 import ratesRoutes from "./routes/rate.routes";
-import billingInfoRoutes from "./routes/billingInfo.routes";
+import shippingInfoRoutes from "./routes/shippingInfo.routes";
 import supportRoutes from "./routes/support.routes";
 import cartRoutes from "./routes/cart.routes";
 import pageRoutes from "./routes/page.routes";
@@ -35,6 +35,10 @@ import statisticsRoutes from "./routes/statistics.routes";
 import reviewRoutes from "./routes/review.routes";
 import shippingRoutes from "./routes/shipping.routes";
 import shippingWebhookRoutes from "./routes/shipping.webhook.routes";
+import supplierRoutes from "./routes/supplier.routes";
+import resellerRoutes from "./routes/reseller.routes";
+import walletRoutes from "./routes/wallet.routes";
+import apiRoutes from "./routes/api.routes";
 
 const app = express();
 
@@ -77,18 +81,26 @@ app.use("/v1/admins", cors(dynamicOrigin), adminRoutes);
 app.use("/v1/transactions", cors(dynamicOrigin), transactionRoutes);
 app.use("/v1/payment-gateways", cors(dynamicOrigin), paymentGatewayRoutes);
 app.use("/v1/rates", cors(dynamicOrigin), ratesRoutes);
-app.use("/v1/billing-info", cors(dynamicOrigin), billingInfoRoutes);
+app.use("/v1/shipping-info", cors(dynamicOrigin), shippingInfoRoutes);
 app.use("/v1/supports", cors(dynamicOrigin), supportRoutes);
 app.use("/v1/pages", cors(dynamicOrigin), pageRoutes);
 app.use("/v1/statistics", cors(dynamicOrigin), statisticsRoutes);
 app.use("/v1/reviews", cors(dynamicOrigin), reviewRoutes);
 app.use("/v1/shipping", cors(dynamicOrigin), shippingRoutes);
+app.use("/v1/product-suppliers", cors(dynamicOrigin), supplierRoutes);
+app.use("/v1/wallet", cors(dynamicOrigin), walletRoutes);
 
 // Webhook Routes for payment gateways
 app.use("/v1/webhooks", openCors, webhookRoutes);
 
+// Reseller Routes
+app.use("/v1/reseller", openCors, resellerRoutes);
+
 // Shipping Webhook Routes
 app.use("/v1/webhooks/shipping", openCors, shippingWebhookRoutes);
+
+// Public API v2
+app.use("/v2", openCors, apiRoutes);
 
 // Internal Route for service-to-service communication (no auth, but CORS enabled for internal services)
 app.use("/internal", openCors, internalRoutes);
