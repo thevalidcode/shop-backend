@@ -352,6 +352,7 @@ model Product {
   uid                String        @unique @default(uuid())
   name               String
   description        String?
+  shortDescription   String?       @map("short_description")
   categoryUid        String?       @map("category_uid")
   min                Int           @default(1)
   max                Int           @default(100)

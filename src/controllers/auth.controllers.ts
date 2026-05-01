@@ -27,9 +27,37 @@ const isValidShopDomain = async (url: string): Promise<boolean> => {
   }
 };
 
+const getCookieDomain = (req: Request): string | undefined => {
+  if (env.NODE_ENV !== "production") return undefined;
+
+  const host = (req.headers.origin ?? req.headers.host ?? "")
+    .toString()
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]
+    .split(":")[0];
+
+  if (!host) return undefined;
+  return host.startsWith("api.") ? `.${host.slice(4)}` : `.${host}`;
+};
+
+export const logout = (req: Request, res: Response): void => {
+  const domain = getCookieDomain(req);
+  const cookieOptions = {
+    secure: env.NODE_ENV === "production",
+    sameSite:
+      env.NODE_ENV === "production" ? ("none" as const) : ("lax" as const),
+    path: "/",
+    ...(domain ? { domain } : {}),
+  };
+
+  res.clearCookie("auth_token", cookieOptions);
+  res.clearCookie("csrf_token", cookieOptions);
+  res.status(200).json({ success: "Logged out successfully" });
+};
+
 export const redirectToGoogle = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = RedirectToGoogleQuerySchema.safeParse(req.query as any);
   if (!parsed.success) {
@@ -44,7 +72,7 @@ export const redirectToGoogle = async (
       redirect,
       shopId: Number(shopId),
       role: role,
-    })
+    }),
   );
 
   const authUrl =
@@ -53,7 +81,7 @@ export const redirectToGoogle = async (
     `&response_type=code` +
     `&scope=openid%20email%20profile` +
     `&redirect_uri=${encodeURIComponent(
-      "https://auth.validpanel.com/api/auth/shop/callback/google"
+      "https://auth.validpanel.com/api/auth/shop/callback/google",
     )}` +
     `&state=${state}`;
 
@@ -62,7 +90,7 @@ export const redirectToGoogle = async (
 
 export const googleCallback = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsedQuery = GoogleCallbackQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) {
@@ -96,14 +124,14 @@ export const googleCallback = async (
     params.append("client_secret", env.GOOGLE_CLIENT_SECRET);
     params.append(
       "redirect_uri",
-      "https://auth.validpanel.com/api/auth/shop/callback/google"
+      "https://auth.validpanel.com/api/auth/shop/callback/google",
     );
     params.append("grant_type", "authorization_code");
 
     const tokenRes = await axios.post(
       "https://oauth2.googleapis.com/token",
       params.toString(),
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
     );
 
     const { id_token } = tokenRes.data;

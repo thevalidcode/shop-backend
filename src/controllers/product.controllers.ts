@@ -472,6 +472,7 @@ export const addProduct = async (
       .status(201)
       .json({ success: "Product added successfully.", product: newProduct });
   } catch (error: any) {
+    console.error("Failed to add product:", error);
     // Check for unique constraint violation on the slug or sku
     if (error.code === "P2002") {
       res
@@ -479,6 +480,6 @@ export const addProduct = async (
         .json({ error: "A product with this slug or sku already exists." });
       return;
     }
-    res.status(500).json({ error: "Failed to add product." });
+    res.status(500).json({ error: "Failed to add product." + error.message });
   }
 };

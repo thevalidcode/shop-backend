@@ -109,5 +109,6 @@ app.use("/swagger", openCors, swaggerRouter);
 
 // Auth Routes (this is for the auth.validpanel.com domain to handle OAuth)
 app.use("/api/auth/shop", openCors, oauthRoutes);
+app.use("/v1/auth", cors(dynamicOrigin), oauthRoutes);
 
 export default app;
