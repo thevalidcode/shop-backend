@@ -266,7 +266,7 @@ export async function sendEmailToAdmins(
     // Determine sender email based on shop_custom_emails feature
     const from = shopSettings.features.store_custom_emails
       ? `"${shopSettings.shopName}" <noreply@${shopSettings.domain}>`
-      : `"${shopSettings.shopName}" <social-media-shop@validpanel.com>`;
+      : `"${shopSettings.shopName}" <shop@validpanel.com>`;
 
     const recipients = adminEmails?.emails || [];
 
@@ -313,7 +313,7 @@ export async function sendUserEmail(
     // Determine sender email based on shop_custom_emails feature
     const from = shopSettings.features.store_custom_emails
       ? `"${shopSettings.shopName}" <noreply@${shopSettings.domain}>`
-      : `"${shopSettings.shopName}" <social-media-shop@validpanel.com>`;
+      : `"${shopSettings.shopName}" <shop@validpanel.com>`;
 
     await dispatchEmail({ from, to, subject, html, shopId });
   } catch (err: any) {

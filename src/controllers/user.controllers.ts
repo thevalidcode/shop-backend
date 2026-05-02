@@ -171,8 +171,8 @@ export const createUser = async (
 
         await sendUserEmail(shopId, newUser.email, "WELCOME_EMAIL", {
           userName: newUser.fullName || newUser.username,
-          loginUrl: `${shopUrl}/auth/signin`,
-          accountEmail: newUser.email,
+          dashboardUrl: `${shopUrl}/client/dashboard`,
+          userEmail: newUser.email,
         });
       } catch (emailError) {
         console.error("Failed to send welcome email:", emailError);
